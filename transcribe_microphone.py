@@ -8,6 +8,7 @@ from pynput import keyboard
 import logging
 import wave
 import pulsectl
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class AudioTranscriber:
         self.sample_rate = 16000
         self.device_name = device_name
         self.audio_data = []  # List to store audio data for debugging
+        self.segment_number = 0  # Initialize segment number
 
     def set_default_audio_source(self):
         with pulsectl.Pulse('set-default-source') as pulse:
@@ -59,11 +61,24 @@ class AudioTranscriber:
             for segment in segments:
                 if segment.text.strip():  # Only process non-empty segments
                     self.text_queue.put(segment.text)
+                    self.save_segment_audio(audio_data, segment)
 
         except Exception as e:
             logger.error(f"Transcription error: {e}")
         # Store audio data for debugging
         self.audio_data.extend(audio_data)
+
+    def save_segment_audio(self, audio_data, segment):
+        """Save each segment's audio to a separate file."""
+        audio_array = np.array(audio_data, dtype=np.float32)
+        filename = f"segment_{self.segment_number}.wav"
+        with wave.open(filename, 'wb') as wav_file:
+            wav_file.setnchannels(1)  # Mono
+            wav_file.setsampwidth(4)  # 32-bit float
+            wav_file.setframerate(self.sample_rate)
+            wav_file.writeframes(audio_array.tobytes())
+        logger.info(f"Segment {self.segment_number} saved to {filename}")
+        self.segment_number += 1
 
     def transcribe_and_send(self):
         while not self.stop_event.is_set():
