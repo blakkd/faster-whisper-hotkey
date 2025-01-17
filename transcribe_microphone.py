@@ -126,7 +126,7 @@ class MicrophoneTranscriber:
     def run(self):
         self.set_default_audio_source()
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
-            logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
+            logger.info("Press PAUSE to start/stop recording. Press Ctrl+C to exit.")
             try:
                 listener.join()
             except KeyboardInterrupt:
