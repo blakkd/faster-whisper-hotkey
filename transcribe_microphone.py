@@ -112,16 +112,19 @@ class MicrophoneTranscriber:
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key.pause:
-                if self.is_recording:
-                    self.stop_recording_and_transcribe()
-                else:
+            if key == keyboard.Key.ctrl_l:  # Left Ctrl key for push-to-talk
+                if not self.is_recording:
                     self.start_recording()
         except AttributeError:
             pass
 
     def on_release(self, key):
-        pass
+        try:
+            if key == keyboard.Key.ctrl_l:  # Left Ctrl key for push-to-talk
+                if self.is_recording:
+                    self.stop_recording_and_transcribe()
+        except AttributeError:
+            pass
 
     def run(self):
         self.set_default_audio_source()
