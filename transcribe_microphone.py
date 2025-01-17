@@ -51,7 +51,8 @@ def audio_callback(indata, frames, time, status):
     audio_data = indata.copy()
     logging.debug(f"Audio data shape: {audio_data.shape}")
     # Process audio data in smaller chunks
-    chunk_length = 30  # Adjust chunk length as needed
+    blocksize = 1024  # Ensure chunk_length is a multiple of blocksize
+    chunk_length = blocksize * 3  # Adjust chunk length as needed, e.g., 3 blocks
     for i in range(0, len(audio_data), chunk_length):
         chunk = audio_data[i:i + chunk_length]
         segments, _ = model.transcribe(chunk, beam_size=5, language="en", condition_on_previous_text=False)
