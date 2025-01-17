@@ -7,13 +7,13 @@ import queue
 from pynput import keyboard
 import logging
 import wave
-
+import pulsectl
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
-    def __init__(self, device_index):
+    def __init__(self, device_name):
         self.model_size = "medium"
         self.model = WhisperModel(
             self.model_size,
@@ -24,21 +24,30 @@ class AudioTranscriber:
         self.stop_event = threading.Event()
         self.is_transcribing = False
         self.sample_rate = 16000
-        self.device_index = device_index
+        self.device_name = device_name
         self.audio_data = []  # List to store audio data for debugging
+
+    def set_default_audio_source(self):
+        with pulsectl.Pulse('set-default-source') as pulse:
+            for source in pulse.source_list():
+                if source.name == self.device_name:
+                    pulse.source_default_set(source)
+                    logger.info(f"Set default source to: {source.name}")
+                    return
+            logger.warning(f"Source '{self.device_name}' not found")
 
     def audio_callback(self, indata, frames, time, status):
         if status:
             logger.warning(f"Status: {status}")
-            
+
         # Convert to mono if necessary and ensure correct shape
         audio_data = indata.flatten() if indata.ndim > 1 else indata
         audio_data = audio_data.astype(np.float32)
-        
+
         # Normalize audio
         if np.abs(audio_data).max() > 0:
             audio_data = audio_data / np.abs(audio_data).max()
-            
+
         try:
             segments, _ = self.model.transcribe(
                 audio_data,
@@ -46,14 +55,13 @@ class AudioTranscriber:
                 language="en",
                 condition_on_previous_text=False
             )
-            
+
             for segment in segments:
                 if segment.text.strip():  # Only process non-empty segments
                     self.text_queue.put(segment.text)
-                    
+
         except Exception as e:
             logger.error(f"Transcription error: {e}")
-
         # Store audio data for debugging
         self.audio_data.extend(audio_data)
 
@@ -76,21 +84,21 @@ class AudioTranscriber:
             logger.info("Starting transcription...")
             self.stop_event.clear()
             self.is_transcribing = True
-            
+
             # Start the transcription thread
             self.transcription_thread = threading.Thread(
                 target=self.transcribe_and_send
             )
             self.transcription_thread.daemon = True
             self.transcription_thread.start()
-            
+
             # Start audio stream
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
                 samplerate=self.sample_rate,
                 blocksize=4000,  # Smaller blocksize for more frequent processing
-                device=self.device_index
+                device='default'  # Use default input device
             )
             self.stream.start()
 
@@ -102,7 +110,7 @@ class AudioTranscriber:
             self.stream.stop()
             self.stream.close()
             self.transcription_thread.join(timeout=1.0)
-            
+
             # Save audio data to a WAV file for debugging
             self.save_audio_data()
 
@@ -128,6 +136,7 @@ class AudioTranscriber:
             pass
 
     def run(self):
+        self.set_default_audio_source()  # Set the default audio source before starting
         with keyboard.Listener(on_press=self.on_press) as listener:
             logger.info("Press left CTRL to start/stop transcription. Press Ctrl+C to exit.")
             try:
@@ -137,29 +146,10 @@ class AudioTranscriber:
                     self.stop_transcription()
                 logger.info("Program terminated by user")
 
-def list_audio_devices():
-    devices = sd.query_devices()
-    for i, device in enumerate(devices):
-        print(f"Device {i}: {device['name']} ({device['hostapi']})")
-    return int(input("Enter the number of the audio device you want to use: "))
-
-def get_device_index_by_name(device_name):
-    devices = sd.query_devices()
-    for i, device in enumerate(devices):
-        if device['name'] == device_name:
-            return i
-    raise ValueError(f"Device '{device_name}' not found")
-
 if __name__ == "__main__":
     try:
-        # List all available devices to verify the correct name
-        device_index = list_audio_devices()
-        
-        # Verify the device index is valid
-        if device_index < 0 or device_index >= len(sd.query_devices()):
-            raise ValueError(f"Invalid device index: {device_index}")
-        
-        transcriber = AudioTranscriber(device_index)
+        device_name = "Broo"  # Specify the name of your microphone here
+        transcriber = AudioTranscriber(device_name)
         transcriber.run()
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
