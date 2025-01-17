@@ -4,6 +4,7 @@ from faster_whisper import WhisperModel
 import pyperclip
 import threading
 import queue
+from pynput import keyboard
 
 # Initialize the WhisperModel with the correct model size and settings
 model_size = "distil-small.en"
@@ -16,8 +17,8 @@ def record_audio(callback):
         sd.sleep(duration * 1000)
 
 # Define a function to transcribe the captured audio and send it to the cursor position
-def transcribe_and_send(text_queue):
-    while True:
+def transcribe_and_send(text_queue, stop_event):
+    while not stop_event.is_set():
         if not text_queue.empty():
             text = text_queue.get()
             pyperclip.copy(text)  # Send text to clipboard, which can be pasted at cursor position
@@ -31,14 +32,42 @@ def audio_callback(indata, frames, time, status):
     for segment in segments:
         text_queue.put(segment.text)
 
-# Main function to capture and transcribe
+# Function to start transcription
+def start_transcription(text_queue, stop_event):
+    if not stop_event.is_set():
+        print("Starting transcription...")
+        transcription_thread = threading.Thread(target=transcribe_and_send, args=(text_queue, stop_event))
+        transcription_thread.daemon = True
+        transcription_thread.start()
+        record_audio(audio_callback)
+
+# Function to stop transcription
+def stop_transcription(stop_event):
+    if not stop_event.is_set():
+        print("Stopping transcription...")
+        stop_event.set()
+
+# Hotkey listener function
+def on_press(key):
+    try:
+        if key.char == 't':  # Change 't' to any other key you prefer
+            global is_transcribing
+            if is_transcribing:
+                stop_transcription(stop_event)
+                is_transcribing = False
+            else:
+                start_transcription(text_queue, stop_event)
+                is_transcribing = True
+    except AttributeError:
+        pass
+
 if __name__ == "__main__":
     text_queue = queue.Queue()
+    stop_event = threading.Event()
+    is_transcribing = False
 
-    # Start transcription thread
-    transcription_thread = threading.Thread(target=transcribe_and_send, args=(text_queue,))
-    transcription_thread.daemon = True
-    transcription_thread.start()
+    # Start the hotkey listener in a separate thread
+    keyboard_listener = keyboard.Listener(on_press=on_press)
+    keyboard_listener.start()
 
-    # Start audio recording
-    record_audio(audio_callback)
+    print("Press 't' to start/stop transcription. Press Ctrl+C to exit.")
