@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 class MicrophoneTranscriber:
     def __init__(self, device_name):
-        self.model_size = "distil-small.en"
+        self.model_size = "large-v2"
         self.model = WhisperModel(
             self.model_size,
-            device="cpu",
+            device="cuda",
             compute_type="int8"
         )
         self.text_queue = queue.Queue()
@@ -126,6 +126,7 @@ class MicrophoneTranscriber:
                     self.start_recording()
         except AttributeError:
             pass
+
     def on_release(self, key):
         try:
             if key == keyboard.Key.ctrl_l:
@@ -140,17 +141,6 @@ class MicrophoneTranscriber:
         self.ctrl_pressed = False
         self.shift_pressed = False
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
-            logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
-            try:
-                listener.join()
-            except KeyboardInterrupt:
-                if self.is_recording:
-                    self.stop_recording_and_transcribe()
-                logger.info("Program terminated by user")
-
-    def run(self):
-        self.set_default_audio_source()
-        with keyboard.Listener(on_press=self.on_press) as listener:
             logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
             try:
                 listener.join()
