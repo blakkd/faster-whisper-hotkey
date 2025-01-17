@@ -8,7 +8,6 @@ from pynput import keyboard
 import logging
 import pulsectl
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -26,9 +25,9 @@ class AudioTranscriber:
         self.sample_rate = 16000
         self.device_name = device_name
         self.audio_buffer = []
-        self.buffer_time = 30  # Buffer size in seconds
+        self.buffer_time = 30
         self.max_buffer_samples = self.sample_rate * self.buffer_time
-        self.segment_number = 0  # Initialize segment number
+        self.segment_number = 0
 
     def set_default_audio_source(self):
         with pulsectl.Pulse('set-default-source') as pulse:
@@ -42,15 +41,11 @@ class AudioTranscriber:
     def audio_callback(self, indata, frames, time, status):
         if status:
             logger.warning(f"Status: {status}")
-        # Convert to mono if necessary and ensure correct shape
         audio_data = indata.flatten() if indata.ndim > 1 else indata
         audio_data = audio_data.astype(np.float32)
-        # Normalize audio
         if np.abs(audio_data).max() > 0:
             audio_data = audio_data / np.abs(audio_data).max()
-        # Add new audio data to the buffer
         self.audio_buffer.extend(audio_data)
-        # Maintain the buffer size
         if len(self.audio_buffer) > self.max_buffer_samples:
             excess_samples = len(self.audio_buffer) - self.max_buffer_samples
             self.audio_buffer = self.audio_buffer[excess_samples:]
@@ -78,13 +73,12 @@ class AudioTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
-            # Start audio stream
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
                 samplerate=self.sample_rate,
-                blocksize=4000,  # Smaller blocksize for more frequent processing
-                device='default'  # Use default input device
+                blocksize=4000,
+                device='default'
             )
             self.stream.start()
 
@@ -95,7 +89,6 @@ class AudioTranscriber:
             self.is_recording = False
             self.stream.stop()
             self.stream.close()
-            # Transcribe the entire buffer
             audio_data = np.array(self.audio_buffer, dtype=np.float32)
             if len(audio_data) > 0:
                 self.transcription_thread = threading.Thread(
@@ -104,12 +97,11 @@ class AudioTranscriber:
                 )
                 self.transcription_thread.daemon = True
                 self.transcription_thread.start()
-            # Clear the buffer after transcription
             self.audio_buffer = []
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key.ctrl_l:  # Left Control key
+            if key == keyboard.Key.ctrl_l:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 else:
@@ -118,7 +110,7 @@ class AudioTranscriber:
             pass
 
     def run(self):
-        self.set_default_audio_source()  # Set the default audio source before starting
+        self.set_default_audio_source()
         with keyboard.Listener(on_press=self.on_press) as listener:
             logger.info("Press left CTRL to start/stop recording. Press Ctrl+C to exit.")
             try:
@@ -130,7 +122,7 @@ class AudioTranscriber:
 
 if __name__ == "__main__":
     try:
-        device_name = "Broo"  # Specify the name of your microphone here
+        device_name = "Broo"
         transcriber = AudioTranscriber(device_name)
         transcriber.run()
     except KeyboardInterrupt:
