@@ -5,97 +5,116 @@ import pyperclip
 import threading
 import queue
 from pynput import keyboard
-
-# Initialize the WhisperModel with the correct model size and settings
-model_size = "distil-small.en"
-model = WhisperModel(model_size, device="cpu", compute_type="int8")  # Adjust device and compute type as needed
-
-# Define a function to capture audio in real-time
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-import sounddevice as sd
-import numpy as np
-from faster_whisper import WhisperModel
-import pyperclip
-import threading
-import queue
-from pynput import keyboard
+class AudioTranscriber:
+    def __init__(self):
+        self.model_size = "tiny.en"  # Using tiny model to reduce memory usage
+        self.model = WhisperModel(
+            self.model_size,
+            device="cpu",
+            compute_type="int8"
+        )
+        self.text_queue = queue.Queue()
+        self.stop_event = threading.Event()
+        self.is_transcribing = False
+        self.sample_rate = 16000
+        
+    def audio_callback(self, indata, frames, time, status):
+        if status:
+            logger.warning(f"Status: {status}")
+            
+        # Convert to mono if necessary and ensure correct shape
+        audio_data = indata.flatten() if indata.ndim > 1 else indata
+        audio_data = audio_data.astype(np.float32)
+        
+        # Normalize audio
+        if np.abs(audio_data).max() > 0:
+            audio_data = audio_data / np.abs(audio_data).max()
+            
+        try:
+            segments, _ = self.model.transcribe(
+                audio_data,
+                beam_size=1,  # Reduced beam size for faster processing
+                language="en",
+                condition_on_previous_text=False
+            )
+            
+            for segment in segments:
+                if segment.text.strip():  # Only process non-empty segments
+                    self.text_queue.put(segment.text)
+                    
+        except Exception as e:
+            logger.error(f"Transcription error: {e}")
 
-# Initialize the WhisperModel with the correct model size and settings
-model_size = "distil-small.en"
-model = WhisperModel(model_size, device="cpu", compute_type="int8")  # Adjust device and compute type as needed
+    def transcribe_and_send(self):
+        while not self.stop_event.is_set():
+            try:
+                # Get text with a timeout to prevent blocking forever
+                text = self.text_queue.get(timeout=0.1)
+                if text.strip():
+                    pyperclip.copy(text)
+                    logger.info(f"Transcribed: {text}")
+            except queue.Empty:
+                continue
+            except Exception as e:
+                logger.error(f"Error processing transcription: {e}")
 
-# Define a function to capture audio in real-time
-import logging
+    def start_transcription(self):
+        if not self.is_transcribing:
+            logger.info("Starting transcription...")
+            self.stop_event.clear()
+            self.is_transcribing = True
+            
+            # Start the transcription thread
+            self.transcription_thread = threading.Thread(
+                target=self.transcribe_and_send
+            )
+            self.transcription_thread.daemon = True
+            self.transcription_thread.start()
+            
+            # Start audio stream
+            self.stream = sd.InputStream(
+                callback=self.audio_callback,
+                channels=1,
+                samplerate=self.sample_rate,
+                blocksize=4000  # Smaller blocksize for more frequent processing
+            )
+            self.stream.start()
 
-logging.basicConfig(level=logging.DEBUG)
+    def stop_transcription(self):
+        if self.is_transcribing:
+            logger.info("Stopping transcription...")
+            self.stop_event.set()
+            self.is_transcribing = False
+            self.stream.stop()
+            self.stream.close()
+            self.transcription_thread.join(timeout=1.0)
 
-def record_audio(callback):
-    duration = 5  # Reduced duration to 5 seconds
-    with sd.InputStream(callback=callback, blocksize=1024):  # Set blocksize to 1024 for smaller chunks
-        sd.sleep(duration * 1000)
+    def on_press(self, key):
+        try:
+            if key == keyboard.Key.ctrl_l:  # Left Control key
+                if self.is_transcribing:
+                    self.stop_transcription()
+                else:
+                    self.start_transcription()
+        except AttributeError:
+            pass
 
-# Define a function to transcribe the captured audio and send it to the cursor position
-def transcribe_and_send(text_queue, stop_event):
-    while not stop_event.is_set():
-        if not text_queue.empty():
-            text = text_queue.get()
-            pyperclip.copy(text)  # Send text to clipboard, which can be pasted at cursor position
-
-# Define the callback function for audio input
-def audio_callback(indata, frames, time, status):
-    if status:
-        print(status)
-    audio_data = indata.copy()
-    logging.debug(f"Audio data shape: {audio_data.shape}")
-    # Process audio data in smaller chunks
-    blocksize = 1024  # Ensure chunk_length is a multiple of blocksize
-    chunk_length = blocksize * 3  # Adjust chunk length as needed, e.g., 3 blocks
-    for i in range(0, len(audio_data), chunk_length):
-        chunk = audio_data[i:i + chunk_length]
-        segments, _ = model.transcribe(chunk, beam_size=5, language="en", condition_on_previous_text=False)
-        for segment in segments:
-            text_queue.put(segment.text)
-
-# Function to start transcription
-def start_transcription(text_queue, stop_event):
-    if not stop_event.is_set():
-        print("Starting transcription...")
-        transcription_thread = threading.Thread(target=transcribe_and_send, args=(text_queue, stop_event))
-        transcription_thread.daemon = True
-        transcription_thread.start()
-        record_audio(audio_callback)
-
-# Function to stop transcription
-def stop_transcription(stop_event):
-    if not stop_event.is_set():
-        print("Stopping transcription...")
-        stop_event.set()
-
-# Hotkey listener function
-def on_press(key):
-    try:
-        if key == keyboard.Key.ctrl_l:  # Use left control key
-            global is_transcribing
-            if is_transcribing:
-                stop_transcription(stop_event)
-                is_transcribing = False
-            else:
-                start_transcription(text_queue, stop_event)
-                is_transcribing = True
-    except AttributeError:
-        pass
+    def run(self):
+        with keyboard.Listener(on_press=self.on_press) as listener:
+            logger.info("Press left CTRL to start/stop transcription. Press Ctrl+C to exit.")
+            listener.join()
 
 if __name__ == "__main__":
-    text_queue = queue.Queue()
-    stop_event = threading.Event()
-    is_transcribing = False
-
-    # Start the hotkey listener in a separate thread
-    keyboard_listener = keyboard.Listener(on_press=on_press)
-    keyboard_listener.start()
-
-    print("Press 't' to start/stop transcription. Press Ctrl+C to exit.")
-    keyboard_listener.join()  # Keep the script running until interrupted
+    transcriber = AudioTranscriber()
+    try:
+        transcriber.run()
+    except KeyboardInterrupt:
+        if transcriber.is_transcribing:
+            transcriber.stop_transcription()
+        logger.info("Program terminated by user")
