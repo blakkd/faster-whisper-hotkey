@@ -114,13 +114,39 @@ class MicrophoneTranscriber:
     def on_press(self, key):
         # logger.info(f"Key pressed: {key}")  # Uncomment for debugging key presses
         try:
-            if key == keyboard.Key.ctrl_l and key == keyboard.Key.shift_r:
+            if key == keyboard.Key.ctrl_l:
+                self.ctrl_pressed = True
+            elif key == keyboard.Key.shift_r:
+                self.shift_pressed = True
+
+            if self.ctrl_pressed and self.shift_pressed:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 else:
                     self.start_recording()
         except AttributeError:
             pass
+    def on_release(self, key):
+        try:
+            if key == keyboard.Key.ctrl_l:
+                self.ctrl_pressed = False
+            elif key == keyboard.Key.shift_r:
+                self.shift_pressed = False
+        except AttributeError:
+            pass
+
+    def run(self):
+        self.set_default_audio_source()
+        self.ctrl_pressed = False
+        self.shift_pressed = False
+        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
+            logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
+            try:
+                listener.join()
+            except KeyboardInterrupt:
+                if self.is_recording:
+                    self.stop_recording_and_transcribe()
+                logger.info("Program terminated by user")
 
     def run(self):
         self.set_default_audio_source()
