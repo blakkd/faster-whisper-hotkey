@@ -72,7 +72,7 @@ class MicrophoneTranscriber:
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
                     self.keyboard_controller.release(char)
-                    time.sleep(0.01)
+                    time.sleep(0.001)
                 logger.info(f"Transcribed text: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
