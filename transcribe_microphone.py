@@ -28,7 +28,7 @@ class AudioTranscriber:
         self.sample_rate = 16000
         self.device_name = device_name
         self.audio_buffer = []
-        self.buffer_time = 30
+        self.buffer_time = 40
         self.max_buffer_samples = self.sample_rate * self.buffer_time
         self.segment_number = 0
 
@@ -70,7 +70,7 @@ class AudioTranscriber:
                 for char in transcribed_text:
                     keyboard_controller.press(char)
                     keyboard_controller.release(char)
-                    time.sleep(0.01)  # Small delay between characters
+                    #time.sleep(0.01)  # Small delay between characters
                 logger.info(f"Transcribed and typed: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
