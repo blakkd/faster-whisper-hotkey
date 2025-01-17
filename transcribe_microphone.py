@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
     def __init__(self):
-        self.model_size = "tiny.en"  # Using tiny model to reduce memory usage
+        self.model_size = "medium"  # Using tiny model to reduce memory usage
         self.model = WhisperModel(
             self.model_size,
             device="cpu",
