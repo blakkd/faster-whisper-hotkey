@@ -71,3 +71,4 @@ if __name__ == "__main__":
     keyboard_listener.start()
 
     print("Press 't' to start/stop transcription. Press Ctrl+C to exit.")
+    keyboard_listener.join()  # Keep the script running until interrupted
