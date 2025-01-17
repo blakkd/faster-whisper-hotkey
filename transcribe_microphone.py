@@ -112,6 +112,7 @@ class MicrophoneTranscriber:
             self.audio_buffer = []
 
     def on_press(self, key):
+        logger.info(f"Key pressed: {key}")
         try:
             if key == keyboard.Key.ctrl_l and keyboard.is_pressed(keyboard.Key.shift_r):
                 if self.is_recording:
