@@ -113,7 +113,7 @@ class MicrophoneTranscriber:
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key.ctrl_l and keyboard.is_pressed('6'):
+            if key == keyboard.Key.ctrl_l and keyboard.is_pressed(keyboard.Key.shift_r):
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 else:
