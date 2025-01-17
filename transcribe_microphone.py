@@ -143,6 +143,8 @@ def get_language_choice():
         "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz",
         "vi", "yi", "yo", "zh", "yue"
     ]
+    print("Available language codes:")
+    print(", ".join(accepted_languages))
     while True:
         language = input("Enter the language code (e.g., en for English): ").strip().lower()
         if language in accepted_languages:
