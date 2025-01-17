@@ -43,7 +43,6 @@ class MicrophoneTranscriber:
         if status:
             logger.warning(f"Status: {status}")
 
-        # Convert stereo to mono by averaging the two channels
         if indata.ndim > 1 and indata.shape[1] == 2:
             audio_data = np.mean(indata, axis=1)
         else:
@@ -63,7 +62,6 @@ class MicrophoneTranscriber:
             segments, _ = self.model.transcribe(
                 audio_data,
                 beam_size=5,
-                #language="en",
                 condition_on_previous_text=False
             )
             transcribed_text = ""
@@ -71,11 +69,10 @@ class MicrophoneTranscriber:
                 if segment.text.strip():
                     transcribed_text += segment.text + " "
             if transcribed_text.strip():
-                # Directly type the text at the current cursor position with a small delay
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
                     self.keyboard_controller.release(char)
-                    time.sleep(0.01)  # Small delay between characters
+                    time.sleep(0.01)
                 logger.info(f"Transcribed text: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
@@ -112,7 +109,6 @@ class MicrophoneTranscriber:
             self.audio_buffer = []
 
     def on_press(self, key):
-        # logger.info(f"Key pressed: {key}")  # Uncomment for debugging key presses
         try:
             if key == keyboard.Key.pause:
                 if self.is_recording:
@@ -123,13 +119,10 @@ class MicrophoneTranscriber:
             pass
 
     def on_release(self, key):
-        # No need to handle release for the Pause key
         pass
 
     def run(self):
         self.set_default_audio_source()
-        self.ctrl_pressed = False
-        self.shift_pressed = False
         with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
             logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
             try:
