@@ -44,10 +44,17 @@ class AudioTranscriber:
     def audio_callback(self, indata, frames, time, status):
         if status:
             logger.warning(f"Status: {status}")
-        audio_data = indata.flatten() if indata.ndim > 1 else indata
+        
+        # Convert stereo to mono by averaging the two channels
+        if indata.ndim > 1 and indata.shape[1] == 2:
+            audio_data = np.mean(indata, axis=1)
+        else:
+            audio_data = indata.flatten()
+        
         audio_data = audio_data.astype(np.float32)
         if np.abs(audio_data).max() > 0:
             audio_data = audio_data / np.abs(audio_data).max()
+        
         self.audio_buffer.extend(audio_data)
         if len(self.audio_buffer) > self.max_buffer_samples:
             excess_samples = len(self.audio_buffer) - self.max_buffer_samples
