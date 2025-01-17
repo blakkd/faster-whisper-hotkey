@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MicrophoneTranscriber:
-    def __init__(self, device_name):
+    def __init__(self, device_name, language):
         self.model_size = "large-v2"
         self.model = WhisperModel(
             self.model_size,
@@ -29,6 +29,7 @@ class MicrophoneTranscriber:
         self.max_buffer_samples = self.sample_rate * self.buffer_time
         self.segment_number = 0
         self.keyboard_controller = keyboard.Controller()
+        self.language = language
 
     def set_default_audio_source(self):
         with pulsectl.Pulse('set-default-source') as pulse:
@@ -62,7 +63,8 @@ class MicrophoneTranscriber:
             segments, _ = self.model.transcribe(
                 audio_data,
                 beam_size=5,
-                condition_on_previous_text=False
+                condition_on_previous_text=False,
+                language=self.language
             )
             transcribed_text = ""
             for segment in segments:
@@ -132,10 +134,27 @@ class MicrophoneTranscriber:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
 
+def get_language_choice():
+    accepted_languages = [
+        "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en",
+        "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is",
+        "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn",
+        "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk",
+        "sl", "sn", "so", "sq", "sr", "su", "sv", "sw", "ta", "te", "tg", "th", "tk", "tl", "tr", "tt", "uk", "ur", "uz",
+        "vi", "yi", "yo", "zh", "yue"
+    ]
+    while True:
+        language = input("Enter the language code (e.g., en for English): ").strip().lower()
+        if language in accepted_languages:
+            return language
+        else:
+            print(f"Invalid language code. Please choose from: {', '.join(accepted_languages)}")
+
 if __name__ == "__main__":
     try:
         device_name = "Broo"
-        transcriber = MicrophoneTranscriber(device_name)
+        language = get_language_choice()
+        transcriber = MicrophoneTranscriber(device_name, language)
         transcriber.run()
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
