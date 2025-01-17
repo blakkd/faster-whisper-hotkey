@@ -76,7 +76,7 @@ class MicrophoneTranscriber:
                     self.keyboard_controller.press(char)
                     self.keyboard_controller.release(char)
                     time.sleep(0.01)  # Small delay between characters
-                logger.info(f"Transcribed and typed: {transcribed_text}")
+                logger.info(f"Transcribed text: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
 
@@ -112,9 +112,9 @@ class MicrophoneTranscriber:
             self.audio_buffer = []
 
     def on_press(self, key):
-        logger.info(f"Key pressed: {key}")
+        # logger.info(f"Key pressed: {key}")  # Uncomment for debugging key presses
         try:
-            if key == keyboard.Key.ctrl_l and keyboard.is_pressed(keyboard.Key.shift_r):
+            if key == keyboard.Key.ctrl_l and key == keyboard.Key.shift_r:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 else:
@@ -125,7 +125,7 @@ class MicrophoneTranscriber:
     def run(self):
         self.set_default_audio_source()
         with keyboard.Listener(on_press=self.on_press) as listener:
-            logger.info("Press left CTRL + 6 to start/stop recording. Press Ctrl+C to exit.")
+            logger.info("Press left CTRL + right SHIFT to start/stop recording. Press Ctrl+C to exit.")
             try:
                 listener.join()
             except KeyboardInterrupt:
