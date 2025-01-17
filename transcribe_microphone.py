@@ -3,18 +3,18 @@ import numpy as np
 from faster_whisper import WhisperModel
 import threading
 import queue
-from pynput import keyboard
+import keyboard
 import logging
 import pulsectl
+from pynput.keyboard import Controller
 import time
-from pynput.keyboard import Controller, Key
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 keyboard_controller = Controller()
 
-class AudioTranscriber:
+class MicrophoneTranscriber:
     def __init__(self, device_name):
         self.model_size = "distil-small.en"
         self.model = WhisperModel(
@@ -44,17 +44,17 @@ class AudioTranscriber:
     def audio_callback(self, indata, frames, time, status):
         if status:
             logger.warning(f"Status: {status}")
-        
+
         # Convert stereo to mono by averaging the two channels
         if indata.ndim > 1 and indata.shape[1] == 2:
             audio_data = np.mean(indata, axis=1)
         else:
             audio_data = indata.flatten()
-        
+
         audio_data = audio_data.astype(np.float32)
         if np.abs(audio_data).max() > 0:
             audio_data = audio_data / np.abs(audio_data).max()
-        
+
         self.audio_buffer.extend(audio_data)
         if len(self.audio_buffer) > self.max_buffer_samples:
             excess_samples = len(self.audio_buffer) - self.max_buffer_samples
@@ -77,7 +77,7 @@ class AudioTranscriber:
                 for char in transcribed_text:
                     keyboard_controller.press(char)
                     keyboard_controller.release(char)
-                    #time.sleep(0.01)  # Small delay between characters
+                    time.sleep(0.01)  # Small delay between characters
                 logger.info(f"Transcribed and typed: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
@@ -115,7 +115,7 @@ class AudioTranscriber:
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key.ctrl_l:
+            if key == keyboard.Key.ctrl_l and keyboard.is_pressed('6'):
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 else:
@@ -126,7 +126,7 @@ class AudioTranscriber:
     def run(self):
         self.set_default_audio_source()
         with keyboard.Listener(on_press=self.on_press) as listener:
-            logger.info("Press left CTRL to start/stop recording. Press Ctrl+C to exit.")
+            logger.info("Press left CTRL + 6 to start/stop recording. Press Ctrl+C to exit.")
             try:
                 listener.join()
             except KeyboardInterrupt:
@@ -137,7 +137,7 @@ class AudioTranscriber:
 if __name__ == "__main__":
     try:
         device_name = "Broo"
-        transcriber = AudioTranscriber(device_name)
+        transcriber = MicrophoneTranscriber(device_name)
         transcriber.run()
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
