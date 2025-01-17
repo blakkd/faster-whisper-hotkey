@@ -111,7 +111,12 @@ class AudioTranscriber:
     def run(self):
         with keyboard.Listener(on_press=self.on_press) as listener:
             logger.info("Press left CTRL to start/stop transcription. Press Ctrl+C to exit.")
-            listener.join()
+            try:
+                listener.join()
+            except KeyboardInterrupt:
+                if self.is_transcribing:
+                    self.stop_transcription()
+                logger.info("Program terminated by user")
 
 def list_audio_devices():
     devices = sd.query_devices()
@@ -120,9 +125,9 @@ def list_audio_devices():
     return int(input("Enter the number of the audio device you want to use: "))
 
 if __name__ == "__main__":
-    device_index = list_audio_devices()
-    transcriber = AudioTranscriber(device_index)
     try:
+        device_index = list_audio_devices()
+        transcriber = AudioTranscriber(device_index)
         transcriber.run()
     except KeyboardInterrupt:
         if transcriber.is_transcribing:
