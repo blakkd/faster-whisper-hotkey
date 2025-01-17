@@ -3,7 +3,7 @@ import numpy as np
 from faster_whisper import WhisperModel
 import threading
 import queue
-import keyboard
+from pynput import keyboard
 import logging
 import pulsectl
 from pynput.keyboard import Controller
