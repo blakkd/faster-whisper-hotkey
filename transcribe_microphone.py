@@ -166,5 +166,5 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"An error occurred: {e}")
     finally:
-        if hasattr(transcriber, 'keyboard_controller'):
+        if 'transcriber' in locals() and hasattr(transcriber, 'keyboard_controller'):
             del transcriber.keyboard_controller
