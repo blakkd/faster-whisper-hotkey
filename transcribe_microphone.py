@@ -140,12 +140,20 @@ class AudioTranscriber:
 def list_audio_devices():
     devices = sd.query_devices()
     for i, device in enumerate(devices):
-        print(f"Device {i}: {device['name']}")
+        print(f"Device {i}: {device['name']} ({device['hostapi']})")
     return int(input("Enter the number of the audio device you want to use: "))
+
+def get_device_index_by_name(device_name):
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        if device['name'] == device_name:
+            return i
+    raise ValueError(f"Device '{device_name}' not found")
 
 if __name__ == "__main__":
     try:
-        device_index = list_audio_devices()
+        # Dynamically get the device index for "Broo"
+        device_index = get_device_index_by_name("Broo")
         transcriber = AudioTranscriber(device_index)
         transcriber.run()
     except KeyboardInterrupt:
