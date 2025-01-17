@@ -152,8 +152,12 @@ def get_device_index_by_name(device_name):
 
 if __name__ == "__main__":
     try:
-        # Dynamically get the device index for "Broo"
-        device_index = get_device_index_by_name("Broo")
+        # List all available devices to verify the correct name
+        list_audio_devices()
+        
+        # Manually set the device index for "Broo"
+        device_index = get_device_index_by_name("Broo")  # Ensure this matches exactly
+        
         transcriber = AudioTranscriber(device_index)
         transcriber.run()
     except KeyboardInterrupt:
