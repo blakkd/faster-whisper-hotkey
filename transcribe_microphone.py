@@ -6,6 +6,7 @@ import threading
 import queue
 from pynput import keyboard
 import logging
+import wave
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +25,8 @@ class AudioTranscriber:
         self.is_transcribing = False
         self.sample_rate = 16000
         self.device_index = device_index
-        
+        self.audio_data = []  # List to store audio data for debugging
+
     def audio_callback(self, indata, frames, time, status):
         if status:
             logger.warning(f"Status: {status}")
@@ -51,6 +53,9 @@ class AudioTranscriber:
                     
         except Exception as e:
             logger.error(f"Transcription error: {e}")
+
+        # Store audio data for debugging
+        self.audio_data.extend(audio_data)
 
     def transcribe_and_send(self):
         while not self.stop_event.is_set():
@@ -97,6 +102,20 @@ class AudioTranscriber:
             self.stream.stop()
             self.stream.close()
             self.transcription_thread.join(timeout=1.0)
+            
+            # Save audio data to a WAV file for debugging
+            self.save_audio_data()
+
+    def save_audio_data(self):
+        if self.audio_data:
+            audio_array = np.array(self.audio_data, dtype=np.float32)
+            with wave.open("debug_recording.wav", 'wb') as wav_file:
+                wav_file.setnchannels(1)  # Mono
+                wav_file.setsampwidth(4)  # 32-bit float
+                wav_file.setframerate(self.sample_rate)
+                wav_file.writeframes(audio_array.tobytes())
+            logger.info("Audio data saved to debug_recording.wav")
+            self.audio_data = []  # Clear the audio data list
 
     def on_press(self, key):
         try:
