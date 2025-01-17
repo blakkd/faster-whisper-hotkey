@@ -6,13 +6,10 @@ import queue
 from pynput import keyboard
 import logging
 import pulsectl
-from pynput.keyboard import Controller
 import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-keyboard_controller = Controller()
 
 class MicrophoneTranscriber:
     def __init__(self, device_name):
@@ -31,6 +28,7 @@ class MicrophoneTranscriber:
         self.buffer_time = 40
         self.max_buffer_samples = self.sample_rate * self.buffer_time
         self.segment_number = 0
+        self.keyboard_controller = keyboard.Controller()
 
     def set_default_audio_source(self):
         with pulsectl.Pulse('set-default-source') as pulse:
@@ -75,8 +73,8 @@ class MicrophoneTranscriber:
             if transcribed_text.strip():
                 # Directly type the text at the current cursor position with a small delay
                 for char in transcribed_text:
-                    keyboard_controller.press(char)
-                    keyboard_controller.release(char)
+                    self.keyboard_controller.press(char)
+                    self.keyboard_controller.release(char)
                     time.sleep(0.01)  # Small delay between characters
                 logger.info(f"Transcribed and typed: {transcribed_text}")
         except Exception as e:
@@ -143,3 +141,6 @@ if __name__ == "__main__":
         logger.info("Program terminated by user")
     except Exception as e:
         logger.error(f"An error occurred: {e}")
+    finally:
+        if hasattr(transcriber, 'keyboard_controller'):
+            del transcriber.keyboard_controller
