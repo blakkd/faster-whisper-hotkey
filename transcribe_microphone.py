@@ -15,9 +15,26 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+import sounddevice as sd
+import numpy as np
+from faster_whisper import WhisperModel
+import pyperclip
+import threading
+import queue
+from pynput import keyboard
+
+# Initialize the WhisperModel with the correct model size and settings
+model_size = "distil-small.en"
+model = WhisperModel(model_size, device="cpu", compute_type="int8")  # Adjust device and compute type as needed
+
+# Define a function to capture audio in real-time
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 def record_audio(callback):
     duration = 5  # Reduced duration to 5 seconds
-    with sd.InputStream(callback=callback):
+    with sd.InputStream(callback=callback, blocksize=1024):  # Set blocksize to 1024 for smaller chunks
         sd.sleep(duration * 1000)
 
 # Define a function to transcribe the captured audio and send it to the cursor position
@@ -33,9 +50,13 @@ def audio_callback(indata, frames, time, status):
         print(status)
     audio_data = indata.copy()
     logging.debug(f"Audio data shape: {audio_data.shape}")
-    segments, _ = model.transcribe(audio_data, beam_size=5, language="en", condition_on_previous_text=False)
-    for segment in segments:
-        text_queue.put(segment.text)
+    # Process audio data in smaller chunks
+    chunk_length = 30  # Adjust chunk length as needed
+    for i in range(0, len(audio_data), chunk_length):
+        chunk = audio_data[i:i + chunk_length]
+        segments, _ = model.transcribe(chunk, beam_size=5, language="en", condition_on_previous_text=False)
+        for segment in segments:
+            text_queue.put(segment.text)
 
 # Function to start transcription
 def start_transcription(text_queue, stop_event):
