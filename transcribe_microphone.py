@@ -11,8 +11,12 @@ model_size = "distil-small.en"
 model = WhisperModel(model_size, device="cpu", compute_type="int8")  # Adjust device and compute type as needed
 
 # Define a function to capture audio in real-time
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 def record_audio(callback):
-    duration = 10  # Duration of recording in seconds (adjust as needed)
+    duration = 5  # Reduced duration to 5 seconds
     with sd.InputStream(callback=callback):
         sd.sleep(duration * 1000)
 
@@ -28,6 +32,7 @@ def audio_callback(indata, frames, time, status):
     if status:
         print(status)
     audio_data = indata.copy()
+    logging.debug(f"Audio data shape: {audio_data.shape}")
     segments, _ = model.transcribe(audio_data, beam_size=5, language="en", condition_on_previous_text=False)
     for segment in segments:
         text_queue.put(segment.text)
