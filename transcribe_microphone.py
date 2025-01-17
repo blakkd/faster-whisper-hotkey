@@ -145,9 +145,12 @@ def get_language_choice():
     ]
     print("Available language codes:")
     print(", ".join(accepted_languages))
+    print("Press Enter to use automatic language detection.")
     while True:
-        language = input("Enter the language code (e.g., en for English): ").strip().lower()
-        if language in accepted_languages:
+        language = input("Enter the language code (e.g., en for English) or press Enter for auto-detection: ").strip().lower()
+        if language == "":
+            return None
+        elif language in accepted_languages:
             return language
         else:
             print(f"Invalid language code. Please choose from: {', '.join(accepted_languages)}")
