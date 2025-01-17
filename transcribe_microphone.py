@@ -153,14 +153,15 @@ def get_device_index_by_name(device_name):
 if __name__ == "__main__":
     try:
         # List all available devices to verify the correct name
-        list_audio_devices()
+        device_index = list_audio_devices()
         
-        # Manually set the device index for "Broo"
-        device_index = get_device_index_by_name("Broo")  # Ensure this matches exactly
+        # Verify the device index is valid
+        if device_index < 0 or device_index >= len(sd.query_devices()):
+            raise ValueError(f"Invalid device index: {device_index}")
         
         transcriber = AudioTranscriber(device_index)
         transcriber.run()
     except KeyboardInterrupt:
-        if transcriber.is_transcribing:
-            transcriber.stop_transcription()
         logger.info("Program terminated by user")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
