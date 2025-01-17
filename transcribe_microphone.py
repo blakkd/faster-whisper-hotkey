@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
-    def __init__(self):
+    def __init__(self, device_index):
         self.model_size = "medium"  # Using tiny model to reduce memory usage
         self.model = WhisperModel(
             self.model_size,
@@ -23,6 +23,7 @@ class AudioTranscriber:
         self.stop_event = threading.Event()
         self.is_transcribing = False
         self.sample_rate = 16000
+        self.device_index = device_index
         
     def audio_callback(self, indata, frames, time, status):
         if status:
@@ -83,7 +84,8 @@ class AudioTranscriber:
                 callback=self.audio_callback,
                 channels=1,
                 samplerate=self.sample_rate,
-                blocksize=4000  # Smaller blocksize for more frequent processing
+                blocksize=4000,  # Smaller blocksize for more frequent processing
+                device=self.device_index
             )
             self.stream.start()
 
@@ -111,8 +113,15 @@ class AudioTranscriber:
             logger.info("Press left CTRL to start/stop transcription. Press Ctrl+C to exit.")
             listener.join()
 
+def list_audio_devices():
+    devices = sd.query_devices()
+    for i, device in enumerate(devices):
+        print(f"Device {i}: {device['name']}")
+    return int(input("Enter the number of the audio device you want to use: "))
+
 if __name__ == "__main__":
-    transcriber = AudioTranscriber()
+    device_index = list_audio_devices()
+    transcriber = AudioTranscriber(device_index)
     try:
         transcriber.run()
     except KeyboardInterrupt:
