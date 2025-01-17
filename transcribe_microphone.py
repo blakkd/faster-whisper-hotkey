@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class AudioTranscriber:
     def __init__(self, device_name):
-        self.model_size = "small.en"
+        self.model_size = "distil-small.en"
         self.model = WhisperModel(
             self.model_size,
             device="cpu",
