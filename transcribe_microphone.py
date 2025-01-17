@@ -63,7 +63,7 @@ class MicrophoneTranscriber:
             segments, _ = self.model.transcribe(
                 audio_data,
                 beam_size=5,
-                language="en",
+                #language="en",
                 condition_on_previous_text=False
             )
             transcribed_text = ""
