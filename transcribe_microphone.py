@@ -50,7 +50,7 @@ def stop_transcription(stop_event):
 # Hotkey listener function
 def on_press(key):
     try:
-        if key.char == 't':  # Change 't' to any other key you prefer
+        if key == keyboard.Key.ctrl_l:  # Use left control key
             global is_transcribing
             if is_transcribing:
                 stop_transcription(stop_event)
