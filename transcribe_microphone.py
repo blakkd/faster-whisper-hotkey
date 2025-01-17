@@ -1,15 +1,18 @@
 import sounddevice as sd
 import numpy as np
 from faster_whisper import WhisperModel
-import pyperclip
 import threading
 import queue
 from pynput import keyboard
 import logging
 import pulsectl
+import time
+from pynput.keyboard import Controller, Key
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+keyboard_controller = Controller()
 
 class AudioTranscriber:
     def __init__(self, device_name):
@@ -63,8 +66,12 @@ class AudioTranscriber:
                 if segment.text.strip():
                     transcribed_text += segment.text + " "
             if transcribed_text.strip():
-                pyperclip.copy(transcribed_text)
-                logger.info(f"Transcribed: {transcribed_text}")
+                # Directly type the text at the current cursor position with a small delay
+                for char in transcribed_text:
+                    keyboard_controller.press(char)
+                    keyboard_controller.release(char)
+                    time.sleep(0.01)  # Small delay between characters
+                logger.info(f"Transcribed and typed: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
 
