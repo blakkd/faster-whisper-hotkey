@@ -57,6 +57,7 @@ class AudioTranscriber:
                 # Get text with a timeout to prevent blocking forever
                 text = self.text_queue.get(timeout=0.1)
                 if text.strip():
+                    print(f"Debug Transcription: {text}")  # Debug print
                     pyperclip.copy(text)
                     logger.info(f"Transcribed: {text}")
             except queue.Empty:
