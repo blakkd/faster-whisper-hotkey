@@ -11,14 +11,11 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class MicrophoneTranscriber:
     def __init__(self, device_name, language):
         self.model_size = "medium.en"
-        self.model = WhisperModel(
-            self.model_size,
-            device="cpu",
-            compute_type="int8"
-        )
+        self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.is_recording = False
@@ -32,7 +29,7 @@ class MicrophoneTranscriber:
         self.language = language
 
     def set_default_audio_source(self):
-        with pulsectl.Pulse('set-default-source') as pulse:
+        with pulsectl.Pulse("set-default-source") as pulse:
             for source in pulse.source_list():
                 if source.name == self.device_name:
                     pulse.source_default_set(source)
@@ -44,14 +41,10 @@ class MicrophoneTranscriber:
         if status:
             logger.warning(f"Status: {status}")
 
-        if indata.ndim > 1 and indata.shape[1] == 2:
-            audio_data = np.mean(indata, axis=1)
-        else:
-            audio_data = indata.flatten()
-
+        audio_data = np.mean(indata, axis=1) if indata.ndim > 1 and indata.shape[1] == 2 else indata.flatten()
         audio_data = audio_data.astype(np.float32)
         if np.abs(audio_data).max() > 0:
-            audio_data = audio_data / np.abs(audio_data).max()
+            audio_data /= np.abs(audio_data).max()
 
         self.audio_buffer.extend(audio_data)
         if len(self.audio_buffer) > self.max_buffer_samples:
@@ -64,12 +57,9 @@ class MicrophoneTranscriber:
                 audio_data,
                 beam_size=5,
                 condition_on_previous_text=False,
-                language=self.language
+                language=self.language,
             )
-            transcribed_text = ""
-            for segment in segments:
-                if segment.text.strip():
-                    transcribed_text += segment.text + " "
+            transcribed_text = " ".join(segment.text for segment in segments if segment.text.strip())
             if transcribed_text.strip():
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
@@ -89,7 +79,7 @@ class MicrophoneTranscriber:
                 channels=1,
                 samplerate=self.sample_rate,
                 blocksize=4000,
-                device='default'
+                device="default",
             )
             self.stream.start()
 
@@ -102,12 +92,11 @@ class MicrophoneTranscriber:
             self.stream.close()
             audio_data = np.array(self.audio_buffer, dtype=np.float32)
             if len(audio_data) > 0:
-                self.transcription_thread = threading.Thread(
+                threading.Thread(
                     target=self.transcribe_and_send,
-                    args=(audio_data,)
-                )
-                self.transcription_thread.daemon = True
-                self.transcription_thread.start()
+                    args=(audio_data,),
+                    daemon=True,
+                ).start()
             self.audio_buffer = []
 
     def on_press(self, key):
@@ -128,7 +117,9 @@ class MicrophoneTranscriber:
 
     def run(self):
         self.set_default_audio_source()
-        with keyboard.Listener(on_press=self.on_press, on_release=self.on_release) as listener:
+        with keyboard.Listener(
+            on_press=self.on_press, on_release=self.on_release
+        ) as listener:
             logger.info("Press PAUSE to start/stop recording. Press Ctrl+C to exit.")
             try:
                 listener.join()
@@ -136,6 +127,7 @@ class MicrophoneTranscriber:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
+
 
 def get_language_choice():
     accepted_languages = [
@@ -150,14 +142,15 @@ def get_language_choice():
     print(", ".join(accepted_languages))
     print("Press Enter to use automatic language detection.")
     while True:
-        language = input("Enter the language code (e.g., en for English) or press Enter for auto-detection: ").strip().lower()
-        if language == "":
+        language = input(
+                "Enter the language code (e.g., en for English) or press Enter for auto-detection: "
+        ).strip().lower()
+        if not language:
             return None
         elif language in accepted_languages:
             return language
         else:
             print(f"Invalid language code. Please choose from: {', '.join(accepted_languages)}")
-
 if __name__ == "__main__":
     try:
         device_name = "Broo"
@@ -169,5 +162,5 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"An error occurred: {e}")
     finally:
-        if 'transcriber' in locals() and hasattr(transcriber, 'keyboard_controller'):
+        if "transcriber" in locals() and hasattr(transcriber, "keyboard_controller"):
             del transcriber.keyboard_controller
