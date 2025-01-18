@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 class MicrophoneTranscriber:
     def __init__(self, device_name, language):
-        self.model_size = "large-v2"
+        self.model_size = "medium.en"
         self.model = WhisperModel(
             self.model_size,
-            device="cuda",
+            device="cpu",
             compute_type="int8"
         )
         self.text_queue = queue.Queue()
