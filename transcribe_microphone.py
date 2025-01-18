@@ -112,7 +112,7 @@ class MicrophoneTranscriber:
 
     def on_press(self, key):
         try:
-            if key == keyboard.Key.f7:
+            if key == keyboard.Key.pause:
                 if not self.is_recording:
                     self.start_recording()
         except AttributeError:
@@ -120,7 +120,7 @@ class MicrophoneTranscriber:
 
     def on_release(self, key):
         try:
-            if key == keyboard.Key.f7:
+            if key == keyboard.Key.pause:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
         except AttributeError:
