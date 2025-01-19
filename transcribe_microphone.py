@@ -173,6 +173,10 @@ def get_model_choice_curses(stdscr):
             current_row += 1
         elif key == curses.KEY_ENTER or key in [10, 13]:
             return accepted_models[current_row]
+        elif key == 27:  # ASCII value for ESC
+            stdscr.clear()
+            stdscr.refresh()
+            return None
 
         print_menu(stdscr, current_row)
 
@@ -232,16 +236,26 @@ def get_language_choice_curses(stdscr):
         elif key == curses.KEY_ENTER or key in [10, 13]:
             selected_index = current_row * num_columns + current_col
             return accepted_languages[selected_index]
+        elif key == 27:  # ASCII value for ESC
+            stdscr.clear()
+            stdscr.refresh()
+            return None
 
         print_menu(stdscr, current_row, current_col)
 
 if __name__ == "__main__":
     try:
         device_name = "Broo"
-        model_size = curses.wrapper(get_model_choice_curses)
-        language = curses.wrapper(get_language_choice_curses)
-        transcriber = MicrophoneTranscriber(device_name, language, model_size)
-        transcriber.run()
+        while True:
+            model_size = curses.wrapper(get_model_choice_curses)
+            if model_size is None:
+                continue  # Go back to model selection
+            language = curses.wrapper(get_language_choice_curses)
+            if language is None:
+                continue  # Go back to model selection
+            transcriber = MicrophoneTranscriber(device_name, language, model_size)
+            transcriber.run()
+            break  # Exit the loop after successful transcription setup
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
     except Exception as e:
