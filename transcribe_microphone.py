@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class MicrophoneTranscriber:
-    def __init__(self, device_name, language):
-        self.model_size = "distil-large-v2"
+    def __init__(self, device_name, language, model_size="distil-large-v2"):
         self.model = WhisperModel(self.model_size, device="cuda", compute_type="int8")
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
@@ -128,6 +127,23 @@ class MicrophoneTranscriber:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
 
+def get_model_choice():
+    accepted_models = [
+        "distil-large-v2", "distil-large-v3", "distil-small.en", "distil-medium.en",
+        "large-v2", "large-v1", "medium.en", "medium", "base.en", "base",
+        "small.en", "small", "tiny.en", "tiny", "large-v3"
+    ]
+    print("Available models:")
+    print(", ".join(accepted_models))
+    while True:
+        model_size = input(
+            "Enter the model size (e.g., distil-large-v2): "
+        ).strip().lower()
+        if model_size in accepted_models:
+            return model_size
+        else:
+            print(f"Invalid model size. Please choose from: {', '.join(accepted_models)}")
+
 def get_language_choice():
     accepted_languages = [
         "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en",
@@ -153,8 +169,9 @@ def get_language_choice():
 if __name__ == "__main__":
     try:
         device_name = "Broo"
+        model_size = get_model_choice()
         language = get_language_choice()
-        transcriber = MicrophoneTranscriber(device_name, language)
+        transcriber = MicrophoneTranscriber(device_name, language, model_size)
         transcriber.run()
     except KeyboardInterrupt:
         logger.info("Program terminated by user")
