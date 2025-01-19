@@ -57,7 +57,7 @@ class MicrophoneTranscriber:
                 audio_data,
                 beam_size=5,
                 condition_on_previous_text=False,
-                language=self.language,
+                language=self.language if self.language != "auto" else None,
             )
             transcribed_text = " ".join(segment.text for segment in segments if segment.text.strip())
             if transcribed_text.strip():
@@ -178,7 +178,7 @@ def get_model_choice_curses(stdscr):
 
 def get_language_choice_curses(stdscr):
     accepted_languages = [
-        "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en",
+        "auto", "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en",
         "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu", "hy", "id", "is",
         "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "la", "lb", "ln", "lo", "lt", "lv", "mg", "mi", "mk", "ml", "mn",
         "mr", "ms", "mt", "my", "ne", "nl", "nn", "no", "oc", "pa", "pl", "ps", "pt", "ro", "ru", "sa", "sd", "si", "sk",
