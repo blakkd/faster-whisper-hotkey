@@ -128,25 +128,6 @@ class MicrophoneTranscriber:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
 
-#AI! add model selection at start among those:
-# # 
-#  • distil-large-v2                                                                                                                                
-#  • distil-large-v3                                                                                                                                
-#  • distil-small.en                                                                                                                                
-#  • distil-medium.en                                                                                                                               
-#  • large-v2                                                                                                                                       
-#  • large-v1                                                                                                                                       
-#  • medium.en                                                                                                                                      
-#  • medium                                                                                                                                         
-#  • base.en                                                                                                                                        
-#  • base                                                                                                                                           
-#  • small.en                                                                                                                                       
-#  • small                                                                                                                                          
-#  • tiny.en                                                                                                                                        
-#  • tiny                                                                                                                                           
-#  • large-v3                                                                                                                                       
- 
-
 def get_language_choice():
     accepted_languages = [
         "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el", "en",
