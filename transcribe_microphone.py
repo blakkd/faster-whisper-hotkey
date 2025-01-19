@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 class MicrophoneTranscriber:
     def __init__(self, device_name, language):
-        self.model_size = "medium.en"
-        self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
+        self.model_size = "distil-large-v2"
+        self.model = WhisperModel(self.model_size, device="cuda", compute_type="int8")
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.is_recording = False
@@ -128,6 +128,24 @@ class MicrophoneTranscriber:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
 
+#AI! add model selection at start among those:
+# # 
+#  • distil-large-v2                                                                                                                                
+#  • distil-large-v3                                                                                                                                
+#  • distil-small.en                                                                                                                                
+#  • distil-medium.en                                                                                                                               
+#  • large-v2                                                                                                                                       
+#  • large-v1                                                                                                                                       
+#  • medium.en                                                                                                                                      
+#  • medium                                                                                                                                         
+#  • base.en                                                                                                                                        
+#  • base                                                                                                                                           
+#  • small.en                                                                                                                                       
+#  • small                                                                                                                                          
+#  • tiny.en                                                                                                                                        
+#  • tiny                                                                                                                                           
+#  • large-v3                                                                                                                                       
+ 
 
 def get_language_choice():
     accepted_languages = [
