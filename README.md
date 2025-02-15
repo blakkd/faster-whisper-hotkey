@@ -20,13 +20,18 @@ So the goal was to provide a simple tool that **can be used anywhere** and can r
 
 ## Installation
 
+First, clone the repository:
+
+    git clone https://github.com/blakkd/faster-whisper-hotkey
+    cd faster-whisper-hotkey
+
 Install the required dependencies:
 
-    uv pip install sounddevice numpy faster-whisper pynput pulsectl curses logging
+    uv pip install -r requirements.txt
 
 *see https://docs.astral.sh/uv/ for more information on the advantages of using uv, or try it by yourself with this example ;)*
 
-*or just use `pip install` instead*
+*or just use `pip install -r requirements.txt` instead*
 
 ## Usage
 
@@ -34,9 +39,9 @@ Install the required dependencies:
     ```sh
     python transcribe_microphone.py
     ```
-2. Go through the the menu steps
-3. When the model is loaded, be sure to be in a text field
-4. Simply press the hotkey (PAUSE by default) while you speak, then release, and see the magic happenning!
+2. Go through the menu steps.
+3. When the model is loaded, be sure to be in a text field.
+4. Simply press the hotkey (PAUSE by default) while you speak, then release, and see the magic happening!
 
 Once the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
@@ -50,7 +55,7 @@ The script loads configuration from `available_models_languages.json`, which inc
 
 ### Settings File
 
-The script saves and loads settings to/from `transcriber_settings.json`. This allows remember your previous settings for ease.
+The script saves and loads settings to/from `transcriber_settings.json`. This allows remembering your previous settings for ease.
 
 ## Logging
 
