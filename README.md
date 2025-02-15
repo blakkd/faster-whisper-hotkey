@@ -1,14 +1,22 @@
-# Microphone Transcription Project
+This repository contains a Python script for a push-to-talk style transcription experience using the `faster-whisper` library.
 
-This repository contains a Python script for a push-to-talk style transcription experience using the `faster-whisper` library. The project aims to provide an easy-to-use tool that transcribes audio input from your microphone and simulates typing the transcribed text.
+**Hold the hotkey - Speak -> Baamm in the currently focused text field**
+
+In the terminal, in a text editor, or even in the chat of an online game, there is no limit!
+
+## Motivations
+
+I know there are many other projects trying to achieve the same goal. But unfortunately, few were about a simple push-to-talk approach.
+Also, I wanted a solution convenient enough for me, that would be no pain to launch - no pain to use!
+So the goal was to provide a simple tool that **can be used anywhere** and can run in the background without using any resources apart from RAM.
 
 ## Features
 
-- **Automatic Download**: The missing models will automatically be retrieved from huggingface, faster-whisper handles this.
+- **Automatic Download**: The missing models will automatically be retrieved from Hugging Face; `faster-whisper` handles this.
 - **Push-to-talk Transcription**: Just hold the PAUSE key, speak and release when you're done.
-- **Efficient Performance**: Utilizes `faster-whisper` for efficient and fast transcription.
-- **User-Friendly Interface**: Simple interactive menu for configuration, with fast "last config" reuse.
-- **Configurable Settings**: Allows users to configure the transcription model, compute type, device, and language through the menu.
+- **Efficient Performance**: Utilizes `faster-whisper` for efficient and fast transcription, with blazing-fast model loading.
+- **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
+- **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 
 ## Installation
 
@@ -16,10 +24,9 @@ Install the required dependencies:
 
     uv pip install sounddevice numpy faster-whisper pynput pulsectl curses logging
 
-*see https://docs.astral.sh/uv/ for more info on the advantages of using uv, or try by yourself with this example ;)*
+*see https://docs.astral.sh/uv/ for more information on the advantages of using uv, or try it by yourself with this example ;)*
 
 *or just use `pip install` instead*
-    
 
 ## Usage
 
@@ -27,28 +34,23 @@ Install the required dependencies:
     ```sh
     python transcribe_microphone.py
     ```
+2. Go through the the menu steps
+3. When the model is loaded, be sure to be in a text field
+4. Simply press the hotkey (PAUSE by default) while you speak, then release, and see the magic happenning!
 
-2. Choose between using last settings or choosing new ones.
-
-3. If you choose "Choose New Settings", you will be presented with a series of menus to select your desired configuration:
-
-    - **Device Name**: Select the audio input device.
-    - **Model Size**: Choose the transcription model size.
-    - **Compute Type**: Specify the compute type (`float16` or `int8`).
-    - **Device**: Select the computing device (`cpu` or `cuda`).
-    - **Language**: Choose the language for transcription.
-
-4. Press `PAUSE` on your keyboard to start/stop recording.
-
-5. The transcribed text will be simulated as if typed by a user.
+Once the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
 ## Configuration
 
-The script loads configuration from `available_models_languages.json`, which includes accepted models and languages. You can modify this file to add or remove supported models and languages.
+The script loads configuration from `available_models_languages.json`, which includes all the accepted models and languages.
+
+- GPU (cuda): instant transcription, even on large models.
+- On CPU: even medium model size, INT8, can still be acceptable (less than 5sec for ~1-2 sentences on my setup)
+- While you will always face the initial delay, transcribing longer sequences compared to just few words won't lead to significant added delay
 
 ### Settings File
 
-The script saves and loads settings to/from `transcriber_settings.json`. This allows the application to remember your previous configurations for future use.
+The script saves and loads settings to/from `transcriber_settings.json`. This allows remember your previous settings for ease.
 
 ## Logging
 
@@ -63,6 +65,10 @@ Logs are written to `transcriber.log` for debugging purposes. The log level is s
 - **pulsectl**: For managing PulseAudio sources.
 - **curses**: For creating the user interface menu.
 
+## LIMITATIONS
+
+Currently, the script doesn't propose translating, but only transcription. That said, if you select `en` as language while talking in another language it will be translated to English.
+
 ## License
 
 See the [LICENSE](LICENSE.txt) file for details.
@@ -70,7 +76,3 @@ See the [LICENSE](LICENSE.txt) file for details.
 ## Acknowledgements
 
 Special thanks to the developers of `faster-whisper` for providing an efficient transcription library, and to all contributors of the used libraries <3
-
----
-
-Feel free to contribute, report issues, or suggest improvements!
