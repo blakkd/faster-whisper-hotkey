@@ -60,6 +60,12 @@ The script saves and loads settings to/from `transcriber_settings.json`. This al
 - **GPU (cuda)**: instant transcription, even on large models.
 - **CPU**: even for large model sizes, time to first word is still be acceptable when language is set (language detection doubles the time): ~ 8sec for ~15s length audio on my setup
 
+**Consideration**
+
+It seems distilled model are lacking precision for non-native English speakers. I personally don't really like them, I also find them a bit "rigid".
+
+Another thing: I personnaly always had the feeling of getting better accuracy with large-v2 compared to large-v3 which seems broken to me.
+
 ## Logging
 
 Logs are written to `transcriber.log` for debugging purposes. The log level is set to `INFO`, so you will see informative messages about the script's operation.

@@ -14,7 +14,6 @@ from dataclasses import dataclass
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load configuration for accepted models, languages, etc.
 try:
     with open("available_models_languages.json") as f:
         config = json.load(f)
@@ -28,6 +27,16 @@ accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cpu", "cuda"]
 SETTINGS_FILE = "transcriber_settings.json"
 
+ENGLISH_ONLY_MODELS = {
+    "tiny.en",
+    "small.en",
+    "base.en",
+    "medium.en",
+    "distil-medium.en",
+    "distil-small.en",
+}
+
+
 @dataclass
 class Settings:
     device_name: str
@@ -36,16 +45,16 @@ class Settings:
     device: str
     language: str
 
+
 def save_settings(settings: dict):
-    """Save settings to a JSON file."""
     try:
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
 
+
 def load_settings() -> Settings | None:
-    """Load settings from JSON or return None if unavailable."""
     try:
         with open(SETTINGS_FILE) as f:
             data = json.load(f)
@@ -54,8 +63,8 @@ def load_settings() -> Settings | None:
         logger.warning(f"Failed to load settings: {e}")
         return None
 
+
 def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
-    """Generic curses menu function for user interaction with an optional message."""
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
 
@@ -65,15 +74,13 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
         start = max(0, current_row - (max_visible // 2))
         end = min(start + max_visible, len(options))
 
-        # Draw the message if present
         if message:
-            lines = message.split('\n')
+            lines = message.split("\n")
             for i, line in enumerate(lines):
                 x = w // 2 - len(line) // 2
                 y = h // 4 - len(lines) + i
-                stdscr.addstr(y, x, line[:w-1])
+                stdscr.addstr(y, x, line[: w - 1])
 
-        # Draw the options
         for i in range(start, end):
             text = options[i]
             x = w // 2 - len(text) // 2
@@ -81,12 +88,11 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
 
             if i == current_row:
                 stdscr.attron(curses.color_pair(1))
-                stdscr.addstr(y, x, text[:w-1])
+                stdscr.addstr(y, x, text[: w - 1])
                 stdscr.attroff(curses.color_pair(1))
             else:
-                stdscr.addstr(y, x, text[:w-1])
+                stdscr.addstr(y, x, text[: w - 1])
 
-        # Progress bar if needed
         if max_visible < len(options):
             ratio = (current_row + 1) / len(options)
             y = h - 2
@@ -122,11 +128,12 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
 
         draw_menu()
 
+
 def get_initial_choice(stdscr):
-    """Get initial user choice using curses menu between using last settings or choosing new ones."""
     options = ["Use Last Settings", "Choose New Settings"]
     selected = curses_menu(stdscr, "", options)
     return selected
+
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
@@ -148,7 +155,6 @@ class MicrophoneTranscriber:
         self.language = settings.language
 
     def set_default_audio_source(self):
-        """Set the default audio source using pulseaudio."""
         with pulsectl.Pulse("set-default-source") as pulse:
             for source in pulse.source_list():
                 if source.name == self.device_name:
@@ -158,11 +164,9 @@ class MicrophoneTranscriber:
             logger.warning(f"Source '{self.device_name}' not found")
 
     def audio_callback(self, indata, frames, time, status):
-        """Callback function for processing audio input."""
         if status:
             logger.warning(f"Status: {status}")
 
-        # Convert stereo to mono and normalize
         audio_data = (
             np.mean(indata, axis=1)
             if indata.ndim > 1 and indata.shape[1] == 2
@@ -173,13 +177,11 @@ class MicrophoneTranscriber:
             audio_data /= np.abs(audio_data).max()
 
         self.audio_buffer.extend(audio_data)
-        # Maintain buffer size within max samples
         if len(self.audio_buffer) > self.max_buffer_samples:
             excess = len(self.audio_buffer) - self.max_buffer_samples
             self.audio_buffer = self.audio_buffer[excess:]
 
     def transcribe_and_send(self, audio_data):
-        """Transcribe audio and simulate typing the text."""
         try:
             segments, _ = self.model.transcribe(
                 audio_data,
@@ -190,7 +192,6 @@ class MicrophoneTranscriber:
 
             transcribed_text = " ".join(segment.text for segment in segments)
             if transcribed_text.strip():
-                # Simulate typing each character
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
                     self.keyboard_controller.release(char)
@@ -200,7 +201,6 @@ class MicrophoneTranscriber:
             logger.error(f"Transcription error: {e}")
 
     def start_recording(self):
-        """Start audio recording using sounddevice."""
         if not self.is_recording:
             logger.info("Starting recording...")
             self.stop_event.clear()
@@ -215,7 +215,6 @@ class MicrophoneTranscriber:
             self.stream.start()
 
     def stop_recording_and_transcribe(self):
-        """Stop recording, process and transcribe the buffered audio."""
         if self.is_recording:
             logger.info("Stopping recording and starting transcription...")
             self.stop_event.set()
@@ -233,7 +232,6 @@ class MicrophoneTranscriber:
             self.audio_buffer.clear()
 
     def on_press(self, key):
-        """Handle key press events for starting recording."""
         try:
             if key == keyboard.Key.pause and not self.is_recording:
                 self.start_recording()
@@ -241,7 +239,6 @@ class MicrophoneTranscriber:
             pass
 
     def on_release(self, key):
-        """Handle key release events for stopping recording."""
         try:
             if key == keyboard.Key.pause and self.is_recording:
                 self.stop_recording_and_transcribe()
@@ -249,7 +246,6 @@ class MicrophoneTranscriber:
             pass
 
     def run(self):
-        """Main loop for the transcriber application."""
         self.set_default_audio_source()
 
         with keyboard.Listener(
@@ -263,6 +259,8 @@ class MicrophoneTranscriber:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
+
+
 def main():
     while True:
         try:
@@ -274,7 +272,9 @@ def main():
             if initial_choice == "Use Last Settings":
                 settings = load_settings()
                 if not settings:
-                    logger.info("No previous settings found. Proceeding with new settings.")
+                    logger.info(
+                        "No previous settings found. Proceeding with new settings."
+                    )
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
@@ -286,6 +286,8 @@ def main():
                 model_size = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "", accepted_models)
                 )
+                english_only = model_size in ENGLISH_ONLY_MODELS
+
                 device = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "", accepted_devices)
                 )
@@ -299,24 +301,53 @@ def main():
                     available_compute_types = accepted_compute_types
                     compute_type_message = ""
 
+                if english_only:
+                    compute_type_message += (
+                        "\n\nLanguage selection skipped for this English-only model."
+                    )
+
                 compute_type = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=compute_type_message)
-                )
-                language = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                    lambda stdscr: curses_menu(
+                        stdscr,
+                        "",
+                        available_compute_types,
+                        message=compute_type_message,
+                    )
                 )
 
-                if any([not x for x in [device_name, model_size, compute_type, device, language]]):
+                if not english_only:
+                    language = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                    )
+                else:
+                    language = "en"
+
+                if any(
+                    [
+                        not x
+                        for x in [
+                            device_name,
+                            model_size,
+                            compute_type,
+                            device,
+                            language,
+                        ]
+                    ]
+                ):
                     continue
 
-                save_settings({
+                save_settings(
+                    {
                         "device_name": device_name,
                         "model_size": model_size,
                         "compute_type": compute_type,
                         "device": device,
                         "language": language,
-                })
-                settings = Settings(device_name, model_size, compute_type, device, language)
+                    }
+                )
+                settings = Settings(
+                    device_name, model_size, compute_type, device, language
+                )
 
             transcriber = MicrophoneTranscriber(settings)
             try:
@@ -329,6 +360,7 @@ def main():
         except KeyboardInterrupt:
             logger.info("Program terminated by user")
             break
+
 
 if __name__ == "__main__":
     main()
