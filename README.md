@@ -58,7 +58,7 @@ The script saves and loads settings to/from `transcriber_settings.json`. This al
 
 - **initial delay**: While you will always face the initial delay, transcribing longer sequences compared to just few words won't lead to significant added delay
 - **GPU (cuda)**: instant transcription, even on large models.
-- **CPU**: even for large model sizes, time to first word is still be acceptable (~ 8sec for ~15s length audio on my setup)
+- **CPU**: even for large model sizes, time to first word is still be acceptable when language is set (language detection doubles the time): ~ 8sec for ~15s length audio on my setup
 
 ## Logging
 

@@ -28,7 +28,6 @@ accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cpu", "cuda"]
 SETTINGS_FILE = "transcriber_settings.json"
 
-
 @dataclass
 class Settings:
     device_name: str
@@ -37,7 +36,6 @@ class Settings:
     device: str
     language: str
 
-
 def save_settings(settings: dict):
     """Save settings to a JSON file."""
     try:
@@ -45,7 +43,6 @@ def save_settings(settings: dict):
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
-
 
 def load_settings() -> Settings | None:
     """Load settings from JSON or return None if unavailable."""
@@ -57,9 +54,8 @@ def load_settings() -> Settings | None:
         logger.warning(f"Failed to load settings: {e}")
         return None
 
-
-def curses_menu(stdscr, title: str, options: list, initial_idx=0):
-    """Generic curses menu function for user interaction."""
+def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
+    """Generic curses menu function for user interaction with an optional message."""
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
 
@@ -69,6 +65,15 @@ def curses_menu(stdscr, title: str, options: list, initial_idx=0):
         start = max(0, current_row - (max_visible // 2))
         end = min(start + max_visible, len(options))
 
+        # Draw the message if present
+        if message:
+            lines = message.split('\n')
+            for i, line in enumerate(lines):
+                x = w // 2 - len(line) // 2
+                y = h // 4 - len(lines) + i
+                stdscr.addstr(y, x, line[:w-1])
+
+        # Draw the options
         for i in range(start, end):
             text = options[i]
             x = w // 2 - len(text) // 2
@@ -76,11 +81,12 @@ def curses_menu(stdscr, title: str, options: list, initial_idx=0):
 
             if i == current_row:
                 stdscr.attron(curses.color_pair(1))
-                stdscr.addstr(y, x, text[: w - 1])
+                stdscr.addstr(y, x, text[:w-1])
                 stdscr.attroff(curses.color_pair(1))
             else:
-                stdscr.addstr(y, x, text[: w - 1])
+                stdscr.addstr(y, x, text[:w-1])
 
+        # Progress bar if needed
         if max_visible < len(options):
             ratio = (current_row + 1) / len(options)
             y = h - 2
@@ -116,13 +122,11 @@ def curses_menu(stdscr, title: str, options: list, initial_idx=0):
 
         draw_menu()
 
-
 def get_initial_choice(stdscr):
     """Get initial user choice using curses menu between using last settings or choosing new ones."""
     options = ["Use Last Settings", "Choose New Settings"]
     selected = curses_menu(stdscr, "", options)
     return selected
-
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
@@ -259,8 +263,6 @@ class MicrophoneTranscriber:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
-
-
 def main():
     while True:
         initial_choice = curses.wrapper(get_initial_choice)
@@ -283,34 +285,34 @@ def main():
             model_size = curses.wrapper(
                 lambda stdscr: curses_menu(stdscr, "", accepted_models)
             )
-            compute_type = curses.wrapper(
-                lambda stdscr: curses_menu(stdscr, "", accepted_compute_types)
-            )
             device = curses.wrapper(
                 lambda stdscr: curses_menu(stdscr, "", accepted_devices)
+            )
+
+            if device == "cpu":
+                available_compute_types = ["int8"]
+                compute_type_message = (
+                    "float16 is not supported on CPU: only int8 is available"
+                )
+            else:
+                available_compute_types = accepted_compute_types
+                compute_type_message = ""
+
+            compute_type = curses.wrapper(
+                lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=compute_type_message)
             )
             language = curses.wrapper(
                 lambda stdscr: curses_menu(stdscr, "", accepted_languages)
             )
-
-            if any(
-                [
-                    not x
-                    for x in [device_name, model_size, compute_type, device, language]
-                ]
-            ):
+            if any([not x for x in [device_name, model_size, compute_type, device, language]]):
                 continue
-
-            save_settings(
-                {
+            save_settings({
                     "device_name": device_name,
                     "model_size": model_size,
                     "compute_type": compute_type,
                     "device": device,
                     "language": language,
-                }
-            )
-
+            })
             settings = Settings(device_name, model_size, compute_type, device, language)
 
         transcriber = MicrophoneTranscriber(settings)
@@ -320,7 +322,6 @@ def main():
         except Exception as e:
             logger.error(f"Error: {e}")
             continue
-
 
 if __name__ == "__main__":
     main()
