@@ -265,63 +265,70 @@ class MicrophoneTranscriber:
                 logger.info("Program terminated by user")
 def main():
     while True:
-        initial_choice = curses.wrapper(get_initial_choice)
-
-        if initial_choice not in ["Use Last Settings", "Choose New Settings"]:
-            continue
-
-        if initial_choice == "Use Last Settings":
-            settings = load_settings()
-            if not settings:
-                logger.info("No previous settings found. Proceeding with new settings.")
-                initial_choice = "Choose New Settings"
-
-        if initial_choice == "Choose New Settings":
-            device_name = curses.wrapper(
-                lambda stdscr: curses_menu(
-                    stdscr, "", [src.name for src in pulsectl.Pulse().source_list()]
-                )
-            )
-            model_size = curses.wrapper(
-                lambda stdscr: curses_menu(stdscr, "", accepted_models)
-            )
-            device = curses.wrapper(
-                lambda stdscr: curses_menu(stdscr, "", accepted_devices)
-            )
-
-            if device == "cpu":
-                available_compute_types = ["int8"]
-                compute_type_message = (
-                    "float16 is not supported on CPU: only int8 is available"
-                )
-            else:
-                available_compute_types = accepted_compute_types
-                compute_type_message = ""
-
-            compute_type = curses.wrapper(
-                lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=compute_type_message)
-            )
-            language = curses.wrapper(
-                lambda stdscr: curses_menu(stdscr, "", accepted_languages)
-            )
-            if any([not x for x in [device_name, model_size, compute_type, device, language]]):
-                continue
-            save_settings({
-                    "device_name": device_name,
-                    "model_size": model_size,
-                    "compute_type": compute_type,
-                    "device": device,
-                    "language": language,
-            })
-            settings = Settings(device_name, model_size, compute_type, device, language)
-
-        transcriber = MicrophoneTranscriber(settings)
         try:
-            transcriber.run()
+            initial_choice = curses.wrapper(get_initial_choice)
+
+            if initial_choice not in ["Use Last Settings", "Choose New Settings"]:
+                continue
+
+            if initial_choice == "Use Last Settings":
+                settings = load_settings()
+                if not settings:
+                    logger.info("No previous settings found. Proceeding with new settings.")
+                    initial_choice = "Choose New Settings"
+
+            if initial_choice == "Choose New Settings":
+                device_name = curses.wrapper(
+                    lambda stdscr: curses_menu(
+                        stdscr, "", [src.name for src in pulsectl.Pulse().source_list()]
+                    )
+                )
+                model_size = curses.wrapper(
+                    lambda stdscr: curses_menu(stdscr, "", accepted_models)
+                )
+                device = curses.wrapper(
+                    lambda stdscr: curses_menu(stdscr, "", accepted_devices)
+                )
+
+                if device == "cpu":
+                    available_compute_types = ["int8"]
+                    compute_type_message = (
+                        "float16 is not supported on CPU: only int8 is available"
+                    )
+                else:
+                    available_compute_types = accepted_compute_types
+                    compute_type_message = ""
+
+                compute_type = curses.wrapper(
+                    lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=compute_type_message)
+                )
+                language = curses.wrapper(
+                    lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                )
+
+                if any([not x for x in [device_name, model_size, compute_type, device, language]]):
+                    continue
+
+                save_settings({
+                        "device_name": device_name,
+                        "model_size": model_size,
+                        "compute_type": compute_type,
+                        "device": device,
+                        "language": language,
+                })
+                settings = Settings(device_name, model_size, compute_type, device, language)
+
+            transcriber = MicrophoneTranscriber(settings)
+            try:
+                transcriber.run()
+                break
+            except Exception as e:
+                logger.error(f"Error: {e}")
+                continue
+
+        except KeyboardInterrupt:
+            logger.info("Program terminated by user")
             break
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            continue
 
 if __name__ == "__main__":
     main()
