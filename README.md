@@ -43,8 +43,8 @@ Install the required dependencies:
     python transcribe_microphone.py
     ```
 2. Go through the menu steps.
-3. When the model is loaded, be sure to be in a text field.
-4. Simply press the hotkey (PAUSE by default) while you speak, then release, and see the magic happening!
+3. When the model is loaded, just click in any text field.
+4. Just press the hotkey (PAUSE by default) while you speak, release it when you're done, and see the magic happening!
 
 Once the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
@@ -68,7 +68,7 @@ Another thing: I personnaly always had the feeling of getting better accuracy wi
 
 ## Logging
 
-Logs are written to `transcriber.log` for debugging purposes. The log level is set to `INFO`, so you will see informative messages about the script's operation.
+Logs are written to `transcriber.log` for debugging purposes (the default log level is set to `INFO`).
 
 ## Dependencies
 
@@ -79,7 +79,7 @@ Logs are written to `transcriber.log` for debugging purposes. The log level is s
 - **pulsectl**: For managing PulseAudio sources.
 - **curses**: For creating the user interface menu.
 
-## LIMITATIONS
+## Limitations
 
 - Currently, the script doesn't propose translating, but only transcription. That said, if you select `en` as language while talking in another language it will be translated to English.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar for example.
