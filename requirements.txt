@@ -3,5 +3,3 @@ numpy
 faster-whisper
 pynput
 pulsectl
-curses
-logging

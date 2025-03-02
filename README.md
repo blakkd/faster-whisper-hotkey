@@ -32,9 +32,13 @@ Install the required dependencies:
 
     uv pip install -r requirements.txt
 
-*see https://docs.astral.sh/uv/ for more information on the advantages of using uv, or try it by yourself with this example ;)*
+*see https://docs.astral.sh/uv/ for more information on uv, uv is fast :)
 
 *or just use `pip install -r requirements.txt` instead*
+
+### Nvidia GPU
+
+You need to install cudnn https://developer.nvidia.com/cudnn-downloads
 
 ## Usage
 
