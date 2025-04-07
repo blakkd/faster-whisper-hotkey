@@ -9,13 +9,20 @@ import pulsectl
 import time
 import curses
 import json
+import os
+import pkg_resources
 from dataclasses import dataclass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def get_resource_path(filename):
+    """Get the path to a package resource file."""
+    return pkg_resources.resource_filename("faster_whisper_hotkey", filename)
+
 try:
-    with open("available_models_languages.json") as f:
+    config_path = get_resource_path("available_models_languages.json")
+    with open(config_path) as f:
         config = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logger.error(f"Configuration error: {e}")
@@ -25,7 +32,12 @@ accepted_models = config.get("accepted_models", [])
 accepted_languages = config.get("accepted_languages", [])
 accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cpu", "cuda"]
-SETTINGS_FILE = "transcriber_settings.json"
+
+# Store settings in user's home directory
+user_home = os.path.expanduser("~")
+settings_dir = os.path.join(user_home, ".faster_whisper_hotkey")
+os.makedirs(settings_dir, exist_ok=True)
+SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
 ENGLISH_ONLY_MODELS = {
     "tiny.en",
