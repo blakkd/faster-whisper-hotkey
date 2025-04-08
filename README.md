@@ -8,9 +8,9 @@ In the terminal, in a text editor, or even in the chat of a fullscreen video gam
 
 ## Motivations
 
-I know there are many other projects trying to achieve the same goal. But unfortunately, few were about a simple push-to-talk approach.
+Many projects are revolving around `faster-whisper`. But unfortunately, I coudln't find any about a simple push-to-talk approach.
 Also, I wanted a solution convenient enough for me, that would be no pain to launch - no pain to use!
-So the goal was to provide a simple tool that **can be used anywhere** and can run in the background without using any resources apart from RAM.
+So the goal was to provide a simple tool that **works everywhere**, with **zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
 
 ## Features
 
@@ -23,46 +23,73 @@ So the goal was to provide a simple tool that **can be used anywhere** and can r
 
 ## Installation
 
-First, clone the repository:
+*see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)*
 
+### From PyPi
+
+```
+uv pip install faster-whisper-hotkey # or pip install faster-whisper-hotkey
+```
+
+or install as a tool, so that you can run faster-whisper-hotkey from any env:
+
+```
+uv tool install faster-whisper-hotkey
+```
+
+### From source
+
+1. Clone the repository:
+
+    ```
     git clone https://github.com/blakkd/faster-whisper-hotkey
     cd faster-whisper-hotkey
+    ```
 
-Install the required dependencies:
+2. Install the required dependencies:
 
-    uv pip install -r requirements.txt
+    ```
+    uv pip install -r requirements.txt # or pip install -r requirements.txt
+    ```
 
-*see https://docs.astral.sh/uv/ for more information on uv, uv is fast :)
+    or as tool:
 
-*or just use `pip install -r requirements.txt` instead*
+    ```
+    uv tool install .
+    ```
 
-### Nvidia GPU
+### For Nvidia GPU
 
 You need to install cudnn https://developer.nvidia.com/cudnn-downloads
 
 ## Usage
 
-1. Run the script:
-    ```sh
-    python transcribe_microphone.py
+1. If you installed from PyPi, simply run:
+
     ```
+    faster-whisper-hotkey
+    ```
+   
+   Or if installed from source:
+
+    ```
+    python -m faster_whisper_hotkey
+    ```
+   
 2. Go through the menu steps.
-3. When the model is loaded, just click in any text field.
-4. Just press the hotkey (PAUSE by default) while you speak, release it when you're done, and see the magic happening!
+3. Once the model is loaded, just focus on any text field.
+4. Then, simply press the hotkey (PAUSE by default) while you speak, release it when you're done, and see the magic happening!
 
-Once the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
+When the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
-## Configuration Files
+## Configuration File
 
-The script loads configuration from `available_models_languages.json`, which includes all the accepted models and languages.
-
-The script saves and loads settings to/from `transcriber_settings.json`. This allows remembering your previous settings for ease.
+The script automatically saves your settings to `~/.faster_whisper_hotkey/transcriber_settings.json`.
 
 ## Performances
 
-- **initial delay**: While you will always face the initial delay, transcribing longer sequences compared to just few words won't lead to significant added delay
-- **GPU (cuda)**: instant transcription, even on large models.
-- **CPU**: even for large model sizes, time to first word is still be acceptable when language is set (language detection doubles the time): ~ 8sec for ~15s length audio on my setup
+- **GPU (cuda)**: instant transcription, on any models, even with auto language detection.
+- **CPU**: Time-to-first-word can be longer, but transcribing longer sequences compared to just few words won't lead to significant added delay. That said, even for large model, time to first word should still be acceptable without language detection.
 
 **Consideration**
 
@@ -72,20 +99,20 @@ Another thing: I personnaly always had the feeling of getting better accuracy wi
 
 ## Logging
 
-Logs are written to `transcriber.log` for debugging purposes (the default log level is set to `INFO`).
+Logs are written to `~/.faster_whisper_hotkey/transcriber.log` for debugging purposes (the default log level is set to `INFO`).
 
 ## Dependencies
 
+- **faster_whisper**: For efficient transcription using Whisper models.
+- **pulsectl**: For managing PulseAudio sources.
 - **sounddevice**: For capturing audio from the microphone.
 - **numpy**: For numerical operations on audio data.
-- **faster_whisper**: For efficient transcription using Whisper models.
 - **pynput**: For keyboard simulation to type out transcribed text.
-- **pulsectl**: For managing PulseAudio sources.
 - **curses**: For creating the user interface menu.
 
 ## Limitations
 
-- Currently, the script doesn't propose translating, but only transcription. That said, if you select `en` as language while talking in another language it will be translated to English.
+- Currently, the script doesn't propose translating, only transcription. Nevertheless, if you select `en` as language while talking in another language it will be translated to English.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar for example.
 
 ## License
@@ -94,6 +121,6 @@ See the [LICENSE](LICENSE.txt) file for details.
 
 ## Acknowledgements
 
-Many thanks to the developers of `faster-whisper` for providing an efficient transcription library, and to all contributors of the used libraries
+Many thanks to the developers of `faster-whisper` for providing an efficient transcription library, and to all contributors of the libraries I used.
 
-Also a special mention to @siddhpant for their useful [broo](https://github.com/siddhpant/broo) script which gaveaway me a mic <3
+Also a special mention to @siddhpant for their useful [broo](https://github.com/siddhpant/broo) script which gaveaway me a virtual mic <3

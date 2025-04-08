@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools >= 42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faster-whisper-hotkey"
+version = "0.1.0"
+description = "Push-to-talk transcription using faster-whisper"
+readme = "README.md"
+authors = [
+    {name = "blakkd"}
+]
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+keywords = ["whisper", "transcription", "hotkey", "speech-to-text"]
+dependencies = [
+    "sounddevice",
+    "numpy",
+    "faster-whisper",
+    "pynput",
+    "pulsectl",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/blakkd/faster-whisper-hotkey"
+"Bug Tracker" = "https://github.com/blakkd/faster-whisper-hotkey/issues"
+
+[project.scripts]
+faster-whisper-hotkey = "faster_whisper_hotkey.__main__:main"
+
+[tool.setuptools]
+packages = ["faster_whisper_hotkey"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+faster_whisper_hotkey = ["*.json"]

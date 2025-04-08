@@ -2,3 +2,6 @@
 .env
 transcriber_settings.json
 transcriber.log
+src/faster_whisper_hotkey.egg-info/
+dist/
+build/
