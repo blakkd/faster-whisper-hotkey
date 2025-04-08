@@ -46,6 +46,8 @@ ENGLISH_ONLY_MODELS = {
     "medium.en",
     "distil-medium.en",
     "distil-small.en",
+    "distil-large-v3",
+    "distil-large-v2",
 }
 
 
