@@ -1,10 +1,10 @@
 # *faster-whisper Hotkey*
 
-This repository contains a Python script for a push-to-talk style transcription experience using the `faster-whisper` library.
+a minimalist push-to-talk style transcription tool built upon `faster-whisper`.
 
-**Hold the hotkey, Speak, Release ==> And baamm in the currently focused text field!**
+**Hold the hotkey, Speak, Release ==> And baamm in your text field!**
 
-In the terminal, in a text editor, or even in the chat of a fullscreen video game, there is no limit!
+In the terminal, in a text editor, or even in the chat of a fullscreen video game, anywhere.
 
 ## Motivations
 
@@ -105,7 +105,7 @@ Logs are written to `~/.faster_whisper_hotkey/transcriber.log` for debugging pur
 
 ## Limitations
 
-- Currently, the script doesn't propose translating, only transcription. Nevertheless, if you select `en` as language while talking in another language it will be translated to English.
+- Currently, the script doesn't propose translating, only transcription. But if you pick a multilingual model and select `en` as language while talking in another language it will be translated to English.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar for example.
 
 ## License
