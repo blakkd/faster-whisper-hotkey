@@ -8,9 +8,9 @@ In the terminal, in a text editor, or even in the chat of a fullscreen video gam
 
 ## Motivations
 
-I know there are many other projects trying to achieve the same goal. But unfortunately, few were about a simple push-to-talk approach.
+Many projects are revolving around `faster-whisper`. But unfortunately, I coudln't find any about a simple push-to-talk approach.
 Also, I wanted a solution convenient enough for me, that would be no pain to launch - no pain to use!
-So the goal was to provide a simple tool that **can be used anywhere** and can run in the background without using any resources apart from RAM.
+So the goal was to provide a simple tool that **works everywhere**, with **zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
 
 ## Features
 

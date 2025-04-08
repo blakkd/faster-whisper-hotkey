@@ -1,20 +1,20 @@
 {
     "accepted_models": [
-        "distil-large-v2",
         "distil-large-v3",
-        "distil-small.en",
+        "distil-large-v2",
         "distil-medium.en",
+        "distil-small.en",
+        "large-v3",
         "large-v2",
         "large-v1",
         "medium.en",
         "medium",
-        "base.en",
-        "base",
         "small.en",
         "small",
+        "base.en",
+        "base",
         "tiny.en",
-        "tiny",
-        "large-v3"
+        "tiny"
     ],
     "accepted_languages": [
         "auto",
