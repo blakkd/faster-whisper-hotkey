@@ -1,7 +1,2 @@
-.aider*
-.env
-transcriber_settings.json
-transcriber.log
-src/faster_whisper_hotkey.egg-info/
-dist/
 build/
+src/faster_whisper_hotkey.egg-info/
