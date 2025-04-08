@@ -27,15 +27,16 @@ So the goal was to provide a simple tool that **works everywhere**, with **zero 
 
 ### From PyPi
 
-```
-uv pip install faster-whisper-hotkey # or pip install faster-whisper-hotkey
-```
+- As a pip package:
+    ```
+    uv pip install faster-whisper-hotkey # or pip install faster-whisper-hotkey
+    ```
 
-or install as a tool, so that you can run faster-whisper-hotkey from any env:
+- or as an tool, so that you can run faster-whisper-hotkey from any venv:
 
-```
-uv tool install faster-whisper-hotkey
-```
+    ```
+    uv tool install faster-whisper-hotkey
+    ```
 
 ### From source
 
@@ -46,13 +47,15 @@ uv tool install faster-whisper-hotkey
     cd faster-whisper-hotkey
     ```
 
-2. Install the required dependencies:
+2. Install the package and dependencies:
+
+- as a pip package:
 
     ```
-    uv pip install -r requirements.txt # or pip install -r requirements.txt
+    uv pip install . # or pip install .
     ```
 
-    or as tool:
+- or as an uv tool:
 
     ```
     uv tool install .
@@ -64,17 +67,7 @@ You need to install cudnn https://developer.nvidia.com/cudnn-downloads
 
 ## Usage
 
-1. If you installed from PyPi, simply run:
-
-    ```
-    faster-whisper-hotkey
-    ```
-   
-   Or if installed from source:
-
-    ```
-    python -m faster_whisper_hotkey
-    ```
+1. Whether you installed from PyPi or from source, just run `faster-whisper-hotkey`
    
 2. Go through the menu steps.
 3. Once the model is loaded, just focus on any text field.
