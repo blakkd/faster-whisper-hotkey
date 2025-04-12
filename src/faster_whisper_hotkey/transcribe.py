@@ -34,8 +34,8 @@ accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cpu", "cuda"]
 
 # Store settings in user's home directory
-user_home = os.path.expanduser("~")
-settings_dir = os.path.join(user_home, ".faster_whisper_hotkey")
+conf_dir = os.path.expanduser("~/.config")
+settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 

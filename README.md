@@ -68,7 +68,6 @@ You need to install cudnn https://developer.nvidia.com/cudnn-downloads
 ## Usage
 
 1. Whether you installed from PyPi or from source, just run `faster-whisper-hotkey`
-   
 2. Go through the menu steps.
 3. Once the model is loaded, just focus on any text field.
 4. Then, simply press the hotkey (PAUSE by default) while you speak, release it when you're done, and see the magic happening!
@@ -77,7 +76,7 @@ When the script is running, you can forget it, the model will remain loaded, and
 
 ## Configuration File
 
-The script automatically saves your settings to `~/.faster_whisper_hotkey/transcriber_settings.json`.
+The script automatically saves your settings to `~/.config/faster_whisper_hotkey/transcriber_settings.json`.
 
 ## Performances
 
@@ -92,7 +91,7 @@ Another thing: I personnaly always had the feeling of getting better accuracy wi
 
 ## Logging
 
-Logs are written to `~/.faster_whisper_hotkey/transcriber.log` for debugging purposes (the default log level is set to `INFO`).
+Logs are written to `~/.config/faster_whisper_hotkey/transcriber.log` for debugging purposes (the default log level is set to `INFO`).
 
 ## Dependencies
 
@@ -107,10 +106,6 @@ Logs are written to `~/.faster_whisper_hotkey/transcriber.log` for debugging pur
 
 - Currently, the script doesn't propose translating, only transcription. But if you pick a multilingual model and select `en` as language while talking in another language it will be translated to English.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar for example.
-
-## License
-
-See the [LICENSE](LICENSE.txt) file for details.
 
 ## Acknowledgements
 
