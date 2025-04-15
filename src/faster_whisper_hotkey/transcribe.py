@@ -16,9 +16,11 @@ from dataclasses import dataclass
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def get_resource_path(filename):
     """Get the path to a package resource file."""
     return pkg_resources.resource_filename("faster_whisper_hotkey", filename)
+
 
 try:
     config_path = get_resource_path("available_models_languages.json")
@@ -50,6 +52,7 @@ ENGLISH_ONLY_MODELS = {
     "distil-large-v2",
 }
 
+
 @dataclass
 class Settings:
     device_name: str
@@ -59,6 +62,7 @@ class Settings:
     language: str
     hotkey: str = "pause"  # Default hotkey is Pause
 
+
 def save_settings(settings: dict):
     try:
         with open(SETTINGS_FILE, "w") as f:
@@ -66,15 +70,17 @@ def save_settings(settings: dict):
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
 
+
 def load_settings() -> Settings | None:
     try:
         with open(SETTINGS_FILE) as f:
             data = json.load(f)
-            data.setdefault('hotkey', 'pause')  # Ensure hotkey exists
+            data.setdefault("hotkey", "pause")  # Ensure hotkey exists
             return Settings(**data)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load settings: {e}")
         return None
+
 
 def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
     current_row = initial_idx
@@ -140,10 +146,12 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
 
         draw_menu()
 
+
 def get_initial_choice(stdscr):
     options = ["Use Last Settings", "Choose New Settings"]
     selected = curses_menu(stdscr, "", options)
     return selected
+
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
@@ -168,9 +176,9 @@ class MicrophoneTranscriber:
 
     def _parse_hotkey(self, hotkey_str):
         key_mapping = {
-            'pause': keyboard.Key.pause,
-            'f4': keyboard.Key.f4,
-            'f8': keyboard.Key.f8,
+            "pause": keyboard.Key.pause,
+            "f4": keyboard.Key.f4,
+            "f8": keyboard.Key.f8,
         }
         return key_mapping.get(hotkey_str, keyboard.Key.pause)  # Default to pause
 
@@ -273,7 +281,9 @@ class MicrophoneTranscriber:
         with keyboard.Listener(
             on_press=self.on_press, on_release=self.on_release
         ) as listener:
-            logger.info(f"Press {self.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit.")
+            logger.info(
+                f"Press {self.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
+            )
 
             try:
                 listener.join()
@@ -281,6 +291,7 @@ class MicrophoneTranscriber:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
+
 
 def main():
     while True:
@@ -343,12 +354,9 @@ def main():
                 else:
                     language = "en"
 
-                hotkey_options = [
-                    'Pause', 'F4', 'F8'
-                ]
+                hotkey_options = ["Pause", "F4", "F8"]
                 selected_hotkey = curses.wrapper(
-                    lambda stdscr: curses_menu(
-                        stdscr, "Select Hotkey", hotkey_options)
+                    lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
                 )
                 if selected_hotkey is None:
                     continue  # User canceled, exit settings setup
@@ -375,7 +383,7 @@ def main():
                         "compute_type": compute_type,
                         "device": device,
                         "language": language,
-                        "hotkey": hotkey
+                        "hotkey": hotkey,
                     }
                 )
                 settings = Settings(
@@ -393,7 +401,3 @@ def main():
         except KeyboardInterrupt:
             logger.info("Program terminated by user")
             break
-
-
-if __name__ == "__main__":
-    main()
