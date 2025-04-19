@@ -15,9 +15,8 @@ So the goal was to provide a simple tool that **works everywhere**, with **zero 
 ## Features
 
 - **Automatic Download**: The missing models will automatically be retrieved from Hugging Face; `faster-whisper` handles this.
-- **Push-to-talk Transcription**: Just hold the PAUSE key, speak and release when you're done.
 - **No clipboard usage**: The script uses `pynput` to directly simulate keypresses instead.
-- **Efficient Performance**: Utilizes `faster-whisper` for efficient and fast transcription, with blazing-fast model loading.
+- **Efficient Performance**: Utilizes `faster-whisper` for efficient and fast transcription.
 - **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
 - **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 
@@ -70,7 +69,7 @@ You need to install cudnn https://developer.nvidia.com/cudnn-downloads
 1. Whether you installed from PyPi or from source, just run `faster-whisper-hotkey`
 2. Go through the menu steps.
 3. Once the model is loaded, just focus on any text field.
-4. Then, simply press the hotkey (PAUSE by default) while you speak, release it when you're done, and see the magic happening!
+4. Then, simply press the hotkey (PAUSE, F4 or F8) while you speak, release it when you're done, and see the magic happening!
 
 When the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
@@ -87,8 +86,6 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 It seems distilled model are lacking precision for non-native English speakers. I personally don't really like them, I also find them a bit "rigid".
 
-Another thing: I personnaly always had the feeling of getting better accuracy with large-v2 compared to large-v3 which seems broken to me.
-
 ## Logging
 
 Logs are written to `~/.config/faster_whisper_hotkey/transcriber.log` for debugging purposes (the default log level is set to `INFO`).
@@ -104,7 +101,7 @@ Logs are written to `~/.config/faster_whisper_hotkey/transcriber.log` for debugg
 
 ## Limitations
 
-- Currently, the script doesn't propose translating, only transcription. But if you pick a multilingual model and select `en` as language while talking in another language it will be translated to English.
+- Currently, the script doesn't propose translating, only transcription. But if you pick a multilingual model and select `en` as language while talking in another language it will be translated to English, provided you speak for long enough.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar for example.
 
 ## Acknowledgements
