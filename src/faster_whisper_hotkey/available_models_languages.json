@@ -118,5 +118,15 @@
         "yo",
         "zh",
         "yue"
+    ],
+    "english_only_models": [
+        "tiny.en",
+        "small.en",
+        "base.en",
+        "medium.en",
+        "distil-medium.en",
+        "distil-small.en",
+        "distil-large-v3",
+        "distil-large-v2"
     ]
 }

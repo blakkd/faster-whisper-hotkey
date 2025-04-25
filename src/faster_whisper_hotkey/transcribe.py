@@ -33,24 +33,14 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
 accepted_models = config.get("accepted_models", [])
 accepted_languages = config.get("accepted_languages", [])
 accepted_compute_types = ["float16", "int8"]
-accepted_devices = ["cpu", "cuda"]
+accepted_devices = ["cuda", "cpu"]
 
-# Store settings in user's home directory
 conf_dir = os.path.expanduser("~/.config")
 settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
-ENGLISH_ONLY_MODELS = {
-    "tiny.en",
-    "small.en",
-    "base.en",
-    "medium.en",
-    "distil-medium.en",
-    "distil-small.en",
-    "distil-large-v3",
-    "distil-large-v2",
-}
+ENGLISH_ONLY_MODELS = set(config.get("english_only_models", []))
 
 
 @dataclass
@@ -60,7 +50,7 @@ class Settings:
     compute_type: str
     device: str
     language: str
-    hotkey: str = "pause"  # Default hotkey is Pause
+    hotkey: str = "pause"
 
 
 def save_settings(settings: dict):
@@ -75,7 +65,7 @@ def load_settings() -> Settings | None:
     try:
         with open(SETTINGS_FILE) as f:
             data = json.load(f)
-            data.setdefault("hotkey", "pause")  # Ensure hotkey exists
+            data.setdefault("hotkey", "pause")
             return Settings(**data)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load settings: {e}")
@@ -180,7 +170,7 @@ class MicrophoneTranscriber:
             "f4": keyboard.Key.f4,
             "f8": keyboard.Key.f8,
         }
-        return key_mapping.get(hotkey_str, keyboard.Key.pause)  # Default to pause
+        return key_mapping.get(hotkey_str, keyboard.Key.pause)
 
     def set_default_audio_source(self):
         with pulsectl.Pulse("set-default-source") as pulse:
@@ -263,7 +253,7 @@ class MicrophoneTranscriber:
         try:
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
-                return True  # Suppress the key press
+                return True
         except AttributeError:
             pass
 
@@ -271,7 +261,7 @@ class MicrophoneTranscriber:
         try:
             if key == self.hotkey_key and self.is_recording:
                 self.stop_recording_and_transcribe()
-                return True  # Suppress the key release
+                return True
         except AttributeError:
             pass
 
@@ -359,7 +349,7 @@ def main():
                     lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
                 )
                 if selected_hotkey is None:
-                    continue  # User canceled, exit settings setup
+                    continue
                 hotkey = selected_hotkey.lower()
                 if any(
                     [
