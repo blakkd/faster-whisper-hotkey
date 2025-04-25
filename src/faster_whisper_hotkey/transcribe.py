@@ -169,6 +169,7 @@ class MicrophoneTranscriber:
             "pause": keyboard.Key.pause,
             "f4": keyboard.Key.f4,
             "f8": keyboard.Key.f8,
+            "insert": keyboard.Key.insert,
         }
         return key_mapping.get(hotkey_str, keyboard.Key.pause)
 
@@ -344,7 +345,7 @@ def main():
                 else:
                     language = "en"
 
-                hotkey_options = ["Pause", "F4", "F8"]
+                hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                 selected_hotkey = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
                 )
