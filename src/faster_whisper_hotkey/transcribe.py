@@ -156,8 +156,8 @@ class MicrophoneTranscriber:
         self.sample_rate = 16000
         self.device_name = settings.device_name
         self.audio_buffer = []
-        self.buffer_time = 40
-        self.max_buffer_samples = self.sample_rate * self.buffer_time
+        # self.buffer_time = 40
+        # self.max_buffer_samples = self.sample_rate * self.buffer_time
         self.segment_number = 0
         self.keyboard_controller = keyboard.Controller()
         self.language = settings.language
@@ -196,9 +196,9 @@ class MicrophoneTranscriber:
             audio_data /= np.abs(audio_data).max()
 
         self.audio_buffer.extend(audio_data)
-        if len(self.audio_buffer) > self.max_buffer_samples:
-            excess = len(self.audio_buffer) - self.max_buffer_samples
-            self.audio_buffer = self.audio_buffer[excess:]
+        # if len(self.audio_buffer) > self.max_buffer_samples:
+        #     excess = len(self.audio_buffer) - self.max_buffer_samples
+        #     self.audio_buffer = self.audio_buffer[excess:]
 
     def transcribe_and_send(self, audio_data):
         try:
