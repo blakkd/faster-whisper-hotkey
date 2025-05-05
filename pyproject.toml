@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faster-whisper-hotkey"
-version = "0.1.5"
+version = "0.1.6"
 description = "Push-to-talk transcription using faster-whisper"
 readme = "README.md"
 authors = [
