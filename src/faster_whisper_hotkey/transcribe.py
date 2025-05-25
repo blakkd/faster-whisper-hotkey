@@ -209,7 +209,7 @@ class MicrophoneTranscriber:
                 language=self.language if self.language != "auto" else None,
             )
 
-            transcribed_text = " ".join(segment.text for segment in segments)
+            transcribed_text = " ".join(segment.text.strip() for segment in segments)
             if transcribed_text.strip():
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
