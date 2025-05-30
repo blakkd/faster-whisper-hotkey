@@ -1,5 +1,6 @@
 {
     "accepted_models": [
+        "deepdml/faster-whisper-large-v3-turbo-ct2",
         "distil-large-v3",
         "distil-large-v2",
         "distil-medium.en",
