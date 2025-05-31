@@ -86,6 +86,16 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 It seems distilled model are lacking precision for non-native English speakers. I personally don't really like them, finding them a bit "rigid".
 
+And apparently, the `large-v3-turbo` model is **faster** and has a **lower WER** (Word Error Rate) than the distilled version.
+
+See here: https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/discussions/3#67081f84761c066c92c7ccd2
+
+Also, the turbo version is only pruned from the original whisper-large-v3 model, so unlike the distilled version, **it is multilingual too**!
+
+I would advise to switch to it if you are using distilled ones.
+
+The distilled versions might be removed in the future.
+
 ## Dependencies
 
 - **faster_whisper**: For efficient transcription using Whisper models.
