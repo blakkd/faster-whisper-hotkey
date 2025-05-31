@@ -301,14 +301,29 @@ def main():
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
+                model_display_mapping = {
+                    "large-v3-turbo": "deepdml/faster-whisper-large-v3-turbo-ct2"
+                }
+
+                original_models = config.get("accepted_models", [])
+                display_models = []
+                for model in original_models:
+                    if model == "deepdml/faster-whisper-large-v3-turbo-ct2":
+                        display_models.append("large-v3-turbo")
+                    else:
+                        display_models.append(model)
+
                 device_name = curses.wrapper(
                     lambda stdscr: curses_menu(
                         stdscr, "", [src.name for src in pulsectl.Pulse().source_list()]
                     )
                 )
                 model_size = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "", accepted_models)
+                    lambda stdscr: curses_menu(stdscr, "", display_models)
                 )
+                if model_size in model_display_mapping:
+                    model_size = model_display_mapping[model_size]
+
                 english_only = model_size in ENGLISH_ONLY_MODELS
 
                 device = curses.wrapper(
