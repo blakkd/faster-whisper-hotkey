@@ -26,7 +26,8 @@ dependencies = [
     "torch",
     "nemo_toolkit[asr]",
     "requests==2.32.3",
-    "importlib_resources"
+    "importlib_resources",
+    "cuda-python>=12.3"
 ]
 
 [project.urls]
