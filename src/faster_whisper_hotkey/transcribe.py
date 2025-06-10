@@ -10,7 +10,7 @@ import time
 import curses
 import json
 import os
-import pkg_resources
+from importlib.resources import files
 from dataclasses import dataclass
 import torch
 from nemo.collections.asr.models import ASRModel
@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 
 def get_resource_path(filename):
     """Get the path to a package resource file."""
-    return pkg_resources.resource_filename("faster_whisper_hotkey", filename)
-
+    return files("faster_whisper_hotkey").joinpath(filename).as_posix()
 
 try:
     config_path = get_resource_path("available_models_languages.json")

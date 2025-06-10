@@ -25,7 +25,8 @@ dependencies = [
     "pulsectl",
     "torch",
     "nemo_toolkit[asr]",
-    "requests==2.32.3"
+    "requests==2.32.3",
+    "importlib_resources"
 ]
 
 [project.urls]
