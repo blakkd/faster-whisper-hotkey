@@ -2,7 +2,6 @@ import sounddevice as sd
 import numpy as np
 from faster_whisper import WhisperModel
 import threading
-import queue
 from pynput import keyboard
 import logging
 import pulsectl
@@ -29,7 +28,6 @@ def get_resource_path(filename):
 
 
 try:
-    # Load configuration specifying accepted models, languages, and other constraints
     config_path = get_resource_path("available_models_languages.json")
     with open(config_path) as f:
         config = json.load(f)
@@ -37,7 +35,6 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
     logger.error(f"Configuration error: {e}")
     raise
 
-# Extract allowed values from config for validation during settings setup
 accepted_models = config.get("accepted_models", [])
 accepted_languages = config.get("accepted_languages", [])
 accepted_compute_types = ["float16", "int8"]
@@ -48,7 +45,6 @@ settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
-# Set of Whisper model names that only support English (affects language selection UI)
 ENGLISH_ONLY_MODELS = set(config.get("english_only_models", []))
 
 
@@ -148,7 +144,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             x = w // 2 - len(text) // 2  # Center horizontally
             y = h // 2 - (max_visible // 2) + (i - start)  # Vertical position
             if i == current_row:
-                stdscr.attron(curses.color_pair(1))  # Highlight selected row
+                stdscr.attron(curses.color_pair(1))
                 stdscr.addstr(y, x, text[: w - 1])
                 stdscr.attroff(curses.color_pair(1))
             else:
@@ -156,16 +152,16 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
 
         # Draw scrollbar if options exceed visible area
         if max_visible < len(options):
-            ratio = (current_row + 1) / len(options)  # Position ratio (0-1)
+            ratio = (current_row + 1) / len(options)
             y = h - 2  # Scrollbar position at bottom
-            x_start = w // 4  # Left position
-            length = w // 2  # Total width
-            stdscr.addstr(y, x_start, "[")  # Left bracket
+            x_start = w // 4
+            length = w // 2
+            stdscr.addstr(y, x_start, "[")
             # Calculate end position based on ratio (clamped to valid range)
             end_pos = int(ratio * (length - 2)) + x_start + 1
             stdscr.addstr(y, x_start + 1, " " * (length - 2))  # Clear space
-            stdscr.addstr(y, end_pos, "█")  # Draw indicator
-            stdscr.addstr(y, x_start + length - 1, "]")  # Right bracket
+            stdscr.addstr(y, end_pos, "█")
+            stdscr.addstr(y, x_start + length - 1, "]")
 
         stdscr.refresh()
 
@@ -177,13 +173,10 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
 
     while True:
         key = stdscr.getch()  # Wait for user input
-        # Handle up arrow (move selection up)
         if key == curses.KEY_UP and current_row > 0:
             current_row -= 1
-        # Handle down arrow (move selection down)
         elif key == curses.KEY_DOWN and current_row < len(options) - 1:
             current_row += 1
-        # Handle Enter/Return to select option
         elif key in [curses.KEY_ENTER, 10, 13]:
             return options[current_row]
         # Handle ESC to exit menu
@@ -193,7 +186,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
         # Detect terminal resize and redraw
         if curses.is_term_resized(h, w):
             h, w = stdscr.getmaxyx()
-        draw_menu()  # Update display
+        draw_menu()
 
 
 def get_initial_choice(stdscr):
@@ -217,10 +210,8 @@ class MicrophoneTranscriber:
 
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.sample_rate = 16000  # Standard sample rate for Whisper/Parakeet
-        self.max_buffer_length = (
-            10 * 60 * self.sample_rate
-        )  # 10-minute buffer limit (samples)
+        self.sample_rate = 16000  # Standard sample rate
+        self.max_buffer_length = 10 * 60 * self.sample_rate  # buffer limit
         self.buffer_monitor_thread = None
 
         # Initialize ASR model based on settings
@@ -231,7 +222,6 @@ class MicrophoneTranscriber:
                 compute_type=self.settings.compute_type,
             )
         elif self.settings.model_type == "parakeet":
-            # Load Parakeet model (NVIDIA's ASR model)
             self.model = ASRModel.from_pretrained(
                 model_name=self.settings.model_name,
                 map_location=self.settings.device,
@@ -239,19 +229,13 @@ class MicrophoneTranscriber:
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
 
-        self.text_queue = (
-            queue.Queue()
-        )  # For inter-thread communication (unused in current logic)
-        self.stop_event = threading.Event()  # Signal to stop threads
-        self.is_recording = False  # Track recording state
+        self.stop_event = threading.Event()
+        self.is_recording = False
         self.device_name = self.settings.device_name
-        self.audio_buffer = []  # Stores raw audio data during recording
-        self.segment_number = 0  # For segment tracking (unused in current logic)
-        self.keyboard_controller = keyboard.Controller()  # Simulate keyboard input
+        self.audio_buffer = []
+        self.keyboard_controller = keyboard.Controller()
         self.language = self.settings.language
-        self.hotkey_key = self._parse_hotkey(
-            self.settings.hotkey
-        )  # Convert hotkey string to Key object
+        self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
 
     def _parse_hotkey(self, hotkey_str):
         """Map hotkey string (e.g., "pause") to pynput's Key constant.
@@ -291,7 +275,6 @@ class MicrophoneTranscriber:
         Args:
             indata: Raw audio data (numpy array)
             frames: Number of samples per block
-            time: Timestamp (unused)
             status: Stream status (error reporting)
         """
         if status:
@@ -324,7 +307,7 @@ class MicrophoneTranscriber:
                     beam_size=5,
                     condition_on_previous_text=False,
                     language=(
-                        self.settings.language  # Use specified lang or None for auto
+                        self.settings.language
                         if self.settings.language != "auto"
                         else None
                     ),
@@ -334,16 +317,16 @@ class MicrophoneTranscriber:
                 )
             elif self.settings.model_type == "parakeet":
                 # Parakeet expects input as a list of audio arrays (batch processing)
-                with torch.inference_mode():  # Disable gradient computation
+                with torch.inference_mode():
                     out = self.model.transcribe([audio_data])
                 transcribed_text = out[0].text
 
-            # Simulate typing each character (slow but accurate)
+            # Simulate typing each character
             if transcribed_text.strip():
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
                     self.keyboard_controller.release(char)
-                    time.sleep(0.001)  # Short delay to mimic natural typing
+                    time.sleep(0.001)
                 logger.info(f"Transcribed text: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
@@ -354,15 +337,14 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()  # Reset stop signal
             self.is_recording = True
-            # Initialize sounddevice stream with specified parameters
             self.stream = sd.InputStream(
-                callback=self.audio_callback,  # Process incoming audio
-                channels=1,  # Mono input
+                callback=self.audio_callback,
+                channels=1,
                 samplerate=self.sample_rate,
-                blocksize=4000,  # Block size for processing (adjust based on needs)
-                device="default",  # Use default audio source (set earlier via set_default_audio_source)
+                blocksize=4000,
+                device="default",
             )
-            self.stream.start()  # Begin capturing audio
+            self.stream.start()
             # Start buffer monitor thread to prevent overflow
             self.buffer_monitor_thread = threading.Thread(
                 target=self.monitor_buffer, daemon=True
@@ -378,7 +360,7 @@ class MicrophoneTranscriber:
             self.stream.stop()  # Halt audio capture
             self.stream.close()  # Release resources
 
-            # Transcribe and send if buffer has data (in background thread)
+            # Transcribe and send if buffer has data
             if self.audio_buffer:
                 threading.Thread(
                     target=self.transcribe_and_send,
@@ -414,7 +396,7 @@ class MicrophoneTranscriber:
         try:
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
-                return True  # Suppress default key handling
+                return True
         except AttributeError:
             pass  # Ignore non-key objects (e.g., special keys)
 
@@ -432,7 +414,7 @@ class MicrophoneTranscriber:
         try:
             if key == self.hotkey_key and self.is_recording:
                 self.stop_recording_and_transcribe()
-                return True  # Suppress default key handling
+                return True
         except AttributeError:
             pass
 
@@ -452,7 +434,7 @@ class MicrophoneTranscriber:
             )
 
             try:
-                listener.join()  # Block until interrupted (e.g., Ctrl+C)
+                listener.join()
             except KeyboardInterrupt:
                 if self.is_recording:
                     self.stop_recording_and_transcribe()
@@ -466,23 +448,21 @@ def main():
     """
     while True:
         try:
-            # Use curses to show initial choice menu (non-blocking via wrapper)
+            # Use curses to show initial choice menu
             initial_choice = curses.wrapper(get_initial_choice)
 
             if initial_choice not in ["Use Last Settings", "Choose New Settings"]:
-                continue  # Ignore invalid choices (e.g., ESC pressed)
+                continue
 
             # Attempt to load previous settings
             if initial_choice == "Use Last Settings":
                 settings = load_settings()
-                # If no valid settings, fall back to new settings flow
                 if not settings:
                     logger.info(
                         "No previous settings found. Proceeding with new settings."
                     )
                     initial_choice = "Choose New Settings"
 
-            # Handle new settings selection
             if initial_choice == "Choose New Settings":
                 # Select audio device (microphone) from available sources
                 with pulsectl.Pulse() as pulse:
@@ -493,9 +473,9 @@ def main():
                         lambda stdscr: curses_menu(stdscr, "", source_names)
                     )
                     if not device_name:
-                        continue  # User exited without selection
+                        continue
 
-                # Select ASR model type (Whisper or Parakeet)
+                # Select ASR model type
                 model_type_options = ["Whisper", "Parakeet"]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(
@@ -503,12 +483,11 @@ def main():
                     )
                 )
                 if not model_type:
-                    continue  # User exited without selection
+                    continue
 
                 # Handle Whisper model configuration
                 if model_type == "Whisper":
                     original_models = config.get("accepted_models", [])
-                    # Prepare display options with simplified names
                     display_models = []
                     for model in original_models:
                         display_models.append(model)
@@ -517,7 +496,7 @@ def main():
                         lambda stdscr: curses_menu(stdscr, "", display_models)
                     )
                     if not selected_model:
-                        continue  # User exited without selection
+                        continue
 
                     model_name = selected_model
 
@@ -529,9 +508,9 @@ def main():
                         lambda stdscr: curses_menu(stdscr, "", accepted_devices)
                     )
                     if not device:
-                        continue  # User exited without selection
+                        continue
 
-                    # Determine available compute types based on device (CPU has limited options)
+                    # Determine available compute types based on device
                     if device == "cpu":
                         available_compute_types = ["int8"]
                         compute_type_message = (
@@ -541,7 +520,6 @@ def main():
                         available_compute_types = accepted_compute_types
                         compute_type_message = ""
 
-                    # Add language note for English-only models
                     if english_only:
                         compute_type_message += "\n\nLanguage selection skipped for this English-only model."
 
@@ -555,9 +533,8 @@ def main():
                         )
                     )
                     if not compute_type:
-                        continue  # User exited without selection
+                        continue
 
-                    # Determine language (skip for English-only models)
                     if english_only:
                         language = "en"
                     else:
@@ -565,9 +542,8 @@ def main():
                             lambda stdscr: curses_menu(stdscr, "", accepted_languages)
                         )
                         if not language:
-                            continue  # User exited without selection
+                            continue
 
-                    # Select hotkey
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -575,7 +551,7 @@ def main():
                         )
                     )
                     if not selected_hotkey:
-                        continue  # User exited without selection
+                        continue
                     hotkey = selected_hotkey.lower()
 
                     # Save new settings to file
@@ -590,7 +566,6 @@ def main():
                             "hotkey": hotkey,
                         }
                     )
-                    # Create Settings object from selected values
                     settings = Settings(
                         device_name=device_name,
                         model_type="whisper",
@@ -601,21 +576,19 @@ def main():
                         hotkey=hotkey,
                     )
 
-                # Handle Parakeet model configuration (predefined model)
+                # Handle Parakeet model configuration
                 elif model_type == "Parakeet":
-                    model_name = (
-                        "nvidia/parakeet-tdt-0.6b-v2"  # Fixed model for this example
-                    )
-                    # Select hardware device (cuda/cpu)
+                    model_name = "nvidia/parakeet-tdt-0.6b-v2"
+                    # Select hardware device
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Select Device", accepted_devices
                         )
                     )
                     if not device:
-                        continue  # User exited without selection
+                        continue
 
-                    # Compute type options depend on device (CPU limited to int8)
+                    # Compute type options depend on device
                     compute_type_message = ""
                     if device == "cuda":
                         available_compute_types = accepted_compute_types
@@ -638,9 +611,9 @@ def main():
                         )
                     )
                     if not compute_type:
-                        continue  # User exited without selection
+                        continue
 
-                    language = "en"  # Parakeet is English-only in this setup
+                    language = "en"  # Parakeet is English-only
 
                     # Select hotkey
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
@@ -650,7 +623,7 @@ def main():
                         )
                     )
                     if not selected_hotkey:
-                        continue  # User exited without selection
+                        continue
                     hotkey = selected_hotkey.lower()
 
                     # Save new settings to file
@@ -665,7 +638,6 @@ def main():
                             "hotkey": hotkey,
                         }
                     )
-                    # Create Settings object from selected values
                     settings = Settings(
                         device_name=device_name,
                         model_type="parakeet",
@@ -676,18 +648,17 @@ def main():
                         hotkey=hotkey,
                     )
 
-            # Initialize and run the transcriber with selected settings
             transcriber = MicrophoneTranscriber(settings)
             try:
                 transcriber.run()
-                break  # Exit main loop after successful run (unless interrupted)
+                break
             except Exception as e:
                 logger.error(f"Error: {e}")
-                continue  # Restart settings flow on critical error
+                continue
 
         except KeyboardInterrupt:
             logger.info("Program terminated by user")
-            break  # Exit entirely on Ctrl+C
+            break
 
 
 if __name__ == "__main__":
