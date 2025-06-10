@@ -507,18 +507,11 @@ def main():
 
                 # Handle Whisper model configuration
                 if model_type == "Whisper":
-                    # Map display names to actual model identifiers (e.g., "large-v3-turbo" -> repo ID)
-                    model_display_mapping = {
-                        "large-v3-turbo": "deepdml/faster-whisper-large-v3-turbo-ct2"
-                    }
                     original_models = config.get("accepted_models", [])
                     # Prepare display options with simplified names
                     display_models = []
                     for model in original_models:
-                        if model == "deepdml/faster-whisper-large-v3-turbo-ct2":
-                            display_models.append("large-v3-turbo")
-                        else:
-                            display_models.append(model)
+                        display_models.append(model)
                     # Let user select model size/variant
                     selected_model = curses.wrapper(
                         lambda stdscr: curses_menu(stdscr, "", display_models)
@@ -526,10 +519,7 @@ def main():
                     if not selected_model:
                         continue  # User exited without selection
 
-                    # Map back to actual model name (if needed)
-                    model_name = model_display_mapping.get(
-                        selected_model, selected_model
-                    )
+                    model_name = selected_model
 
                     # Check if model is English-only (affects language UI)
                     english_only = model_name in ENGLISH_ONLY_MODELS
