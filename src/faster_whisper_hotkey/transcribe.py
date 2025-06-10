@@ -23,6 +23,7 @@ def get_resource_path(filename):
     """Get the path to a package resource file."""
     return files("faster_whisper_hotkey").joinpath(filename).as_posix()
 
+
 try:
     config_path = get_resource_path("available_models_languages.json")
     with open(config_path) as f:
@@ -47,8 +48,8 @@ ENGLISH_ONLY_MODELS = set(config.get("english_only_models", []))
 @dataclass
 class Settings:
     device_name: str
-    model_type: str  # 'parakeet' or 'whisper'
-    model_name: str  # e.g., 'nvidia/parakeet-tdt-0.6b-v2' or 'large-v3'
+    model_type: str
+    model_name: str
     compute_type: str
     device: str
     language: str
@@ -150,6 +151,9 @@ def get_initial_choice(stdscr):
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.sample_rate = 16000
+        self.max_buffer_length = 10 * 60 * self.sample_rate
+        self.buffer_monitor_thread = None
 
         if self.settings.model_type == "whisper":
             self.model = WhisperModel(
@@ -168,7 +172,6 @@ class MicrophoneTranscriber:
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.is_recording = False
-        self.sample_rate = 16000
         self.device_name = self.settings.device_name
         self.audio_buffer = []
         self.segment_number = 0
@@ -216,9 +219,15 @@ class MicrophoneTranscriber:
                     audio_data,
                     beam_size=5,
                     condition_on_previous_text=False,
-                    language=self.settings.language if self.settings.language != "auto" else None,
+                    language=(
+                        self.settings.language
+                        if self.settings.language != "auto"
+                        else None
+                    ),
                 )
-                transcribed_text = " ".join(segment.text.strip() for segment in segments)
+                transcribed_text = " ".join(
+                    segment.text.strip() for segment in segments
+                )
             elif self.settings.model_type == "parakeet":
                 with torch.inference_mode():
                     out = self.model.transcribe([audio_data])
@@ -246,6 +255,10 @@ class MicrophoneTranscriber:
                 device="default",
             )
             self.stream.start()
+            self.buffer_monitor_thread = threading.Thread(
+                target=self.monitor_buffer, daemon=True
+            )
+            self.buffer_monitor_thread.start()
 
     def stop_recording_and_transcribe(self):
         if self.is_recording:
@@ -263,6 +276,14 @@ class MicrophoneTranscriber:
                 ).start()
 
             self.audio_buffer.clear()
+
+    def monitor_buffer(self):
+        while self.is_recording:
+            time.sleep(0.1)
+            if len(self.audio_buffer) >= self.max_buffer_length:
+                logger.info("Audio buffer reached 10-minute limit. Stopping recording.")
+                self.stop_recording_and_transcribe()
+                break
 
     def on_press(self, key):
         try:
@@ -315,7 +336,6 @@ def main():
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
-                # Get audio device
                 device_name = curses.wrapper(
                     lambda stdscr: curses_menu(
                         stdscr, "", [src.name for src in pulsectl.Pulse().source_list()]
@@ -324,7 +344,6 @@ def main():
                 if not device_name:
                     continue
 
-                # Choose model type
                 model_type_options = ["Whisper", "Parakeet"]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(
@@ -371,9 +390,7 @@ def main():
                         compute_type_message = ""
 
                     if english_only:
-                        compute_type_message += (
-                            "\n\nLanguage selection skipped for this English-only model."
-                        )
+                        compute_type_message += "\n\nLanguage selection skipped for this English-only model."
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -393,7 +410,9 @@ def main():
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Hotkey", hotkey_options
+                        )
                     )
                     if selected_hotkey is None:
                         continue
@@ -411,47 +430,59 @@ def main():
                         }
                     )
                     settings = Settings(
-                        device_name, "whisper", model_name, compute_type, device, language, hotkey
+                        device_name,
+                        "whisper",
+                        model_name,
+                        compute_type,
+                        device,
+                        language,
+                        hotkey,
                     )
 
                 elif model_type == "Parakeet":
                     model_name = "nvidia/parakeet-tdt-0.6b-v2"
                     device = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Select Device", accepted_devices)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Device", accepted_devices
+                        )
                     )
                     if not device:
                         continue
 
-                    # Determine available compute types based on device
                     if device == "cuda":
                         available_compute_types = accepted_compute_types
-                        compute_type_message = "This model is English-only. Select compute type."
+                        compute_type_message = (
+                            "This model is English-only. Select compute type."
+                        )
                     else:
                         available_compute_types = ["int8"]
-                        compute_type_message = "This model is English-only. Using int8 on CPU."
+                        compute_type_message = (
+                            "This model is English-only. Using int8 on CPU."
+                        )
 
-                    # Present compute type menu
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "", available_compute_types, message=compute_type_message
+                            stdscr,
+                            "",
+                            available_compute_types,
+                            message=compute_type_message,
                         )
                     )
                     if not compute_type:
                         continue
 
-                    # Set language to English (Parakeet is English-only)
                     language = "en"
 
-                    # Select hotkey
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Hotkey", hotkey_options
+                        )
                     )
                     if selected_hotkey is None:
                         continue
                     hotkey = selected_hotkey.lower()
 
-                    # Save settings
                     save_settings(
                         {
                             "device_name": device_name,
@@ -464,7 +495,13 @@ def main():
                         }
                     )
                     settings = Settings(
-                        device_name, "parakeet", model_name, compute_type, device, language, hotkey
+                        device_name,
+                        "parakeet",
+                        model_name,
+                        compute_type,
+                        device,
+                        language,
+                        hotkey,
                     )
             transcriber = MicrophoneTranscriber(settings)
             try:
