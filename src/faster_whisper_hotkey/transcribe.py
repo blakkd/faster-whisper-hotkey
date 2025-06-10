@@ -12,6 +12,8 @@ import json
 import os
 import pkg_resources
 from dataclasses import dataclass
+import torch
+from nemo.collections.asr.models import ASRModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,7 +48,8 @@ ENGLISH_ONLY_MODELS = set(config.get("english_only_models", []))
 @dataclass
 class Settings:
     device_name: str
-    model_size: str
+    model_type: str  # 'parakeet' or 'whisper'
+    model_name: str  # e.g., 'nvidia/parakeet-tdt-0.6b-v2' or 'large-v3'
     compute_type: str
     device: str
     language: str
@@ -66,6 +69,8 @@ def load_settings() -> Settings | None:
         with open(SETTINGS_FILE) as f:
             data = json.load(f)
             data.setdefault("hotkey", "pause")
+            data.setdefault("model_type", "whisper")
+            data.setdefault("model_name", "large-v3")
             return Settings(**data)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load settings: {e}")
@@ -145,24 +150,32 @@ def get_initial_choice(stdscr):
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
-        self.model = WhisperModel(
-            settings.model_size,
-            device=settings.device,
-            compute_type=settings.compute_type,
-        )
+        self.settings = settings
+
+        if self.settings.model_type == "whisper":
+            self.model = WhisperModel(
+                model_size_or_path=self.settings.model_name,
+                device=self.settings.device,
+                compute_type=self.settings.compute_type,
+            )
+        elif self.settings.model_type == "parakeet":
+            self.model = ASRModel.from_pretrained(
+                model_name=self.settings.model_name,
+                map_location=self.settings.device,
+            ).eval()
+        else:
+            raise ValueError(f"Unknown model type: {self.settings.model_type}")
+
         self.text_queue = queue.Queue()
         self.stop_event = threading.Event()
         self.is_recording = False
         self.sample_rate = 16000
-        self.device_name = settings.device_name
+        self.device_name = self.settings.device_name
         self.audio_buffer = []
-        # self.buffer_time = 40
-        # self.max_buffer_samples = self.sample_rate * self.buffer_time
         self.segment_number = 0
         self.keyboard_controller = keyboard.Controller()
-        self.language = settings.language
-        self.hotkey = settings.hotkey
-        self.hotkey_key = self._parse_hotkey(self.hotkey)
+        self.language = self.settings.language
+        self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
 
     def _parse_hotkey(self, hotkey_str):
         key_mapping = {
@@ -196,20 +209,22 @@ class MicrophoneTranscriber:
             audio_data /= np.abs(audio_data).max()
 
         self.audio_buffer.extend(audio_data)
-        # if len(self.audio_buffer) > self.max_buffer_samples:
-        #     excess = len(self.audio_buffer) - self.max_buffer_samples
-        #     self.audio_buffer = self.audio_buffer[excess:]
 
     def transcribe_and_send(self, audio_data):
         try:
-            segments, _ = self.model.transcribe(
-                audio_data,
-                beam_size=5,
-                condition_on_previous_text=False,
-                language=self.language if self.language != "auto" else None,
-            )
+            if self.settings.model_type == "whisper":
+                segments, _ = self.model.transcribe(
+                    audio_data,
+                    beam_size=5,
+                    condition_on_previous_text=False,
+                    language=self.settings.language if self.settings.language != "auto" else None,
+                )
+                transcribed_text = " ".join(segment.text.strip() for segment in segments)
+            elif self.settings.model_type == "parakeet":
+                with torch.inference_mode():
+                    out = self.model.transcribe([audio_data])
+                transcribed_text = out[0].text
 
-            transcribed_text = " ".join(segment.text.strip() for segment in segments)
             if transcribed_text.strip():
                 for char in transcribed_text:
                     self.keyboard_controller.press(char)
@@ -273,7 +288,7 @@ class MicrophoneTranscriber:
             on_press=self.on_press, on_release=self.on_release
         ) as listener:
             logger.info(
-                f"Press {self.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
+                f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
             )
 
             try:
@@ -301,101 +316,157 @@ def main():
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
-                model_display_mapping = {
-                    "large-v3-turbo": "deepdml/faster-whisper-large-v3-turbo-ct2"
-                }
-
-                original_models = config.get("accepted_models", [])
-                display_models = []
-                for model in original_models:
-                    if model == "deepdml/faster-whisper-large-v3-turbo-ct2":
-                        display_models.append("large-v3-turbo")
-                    else:
-                        display_models.append(model)
-
+                # Get audio device
                 device_name = curses.wrapper(
                     lambda stdscr: curses_menu(
                         stdscr, "", [src.name for src in pulsectl.Pulse().source_list()]
                     )
                 )
-                model_size = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "", display_models)
-                )
-                if model_size in model_display_mapping:
-                    model_size = model_display_mapping[model_size]
+                if not device_name:
+                    continue
 
-                english_only = model_size in ENGLISH_ONLY_MODELS
-
-                device = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "", accepted_devices)
-                )
-
-                if device == "cpu":
-                    available_compute_types = ["int8"]
-                    compute_type_message = (
-                        "float16 is not supported on CPU: only int8 is available"
-                    )
-                else:
-                    available_compute_types = accepted_compute_types
-                    compute_type_message = ""
-
-                if english_only:
-                    compute_type_message += (
-                        "\n\nLanguage selection skipped for this English-only model."
-                    )
-
-                compute_type = curses.wrapper(
+                # Choose model type
+                model_type_options = ["Whisper", "Parakeet"]
+                model_type = curses.wrapper(
                     lambda stdscr: curses_menu(
-                        stdscr,
-                        "",
-                        available_compute_types,
-                        message=compute_type_message,
+                        stdscr, "Select Model Type", model_type_options
                     )
                 )
+                if not model_type:
+                    continue
 
-                if not english_only:
-                    language = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                if model_type == "Whisper":
+                    model_display_mapping = {
+                        "large-v3-turbo": "deepdml/faster-whisper-large-v3-turbo-ct2"
+                    }
+
+                    original_models = config.get("accepted_models", [])
+                    display_models = []
+                    for model in original_models:
+                        if model == "deepdml/faster-whisper-large-v3-turbo-ct2":
+                            display_models.append("large-v3-turbo")
+                        else:
+                            display_models.append(model)
+
+                    model_size = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "", display_models)
                     )
-                else:
+                    if model_size in model_display_mapping:
+                        model_name = model_display_mapping[model_size]
+                    else:
+                        model_name = model_size
+
+                    english_only = model_name in ENGLISH_ONLY_MODELS
+
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "", accepted_devices)
+                    )
+
+                    if device == "cpu":
+                        available_compute_types = ["int8"]
+                        compute_type_message = (
+                            "float16 is not supported on CPU: only int8 is available"
+                        )
+                    else:
+                        available_compute_types = accepted_compute_types
+                        compute_type_message = ""
+
+                    if english_only:
+                        compute_type_message += (
+                            "\n\nLanguage selection skipped for this English-only model."
+                        )
+
+                    compute_type = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr,
+                            "",
+                            available_compute_types,
+                            message=compute_type_message,
+                        )
+                    )
+
+                    if not english_only:
+                        language = curses.wrapper(
+                            lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                        )
+                    else:
+                        language = "en"
+
+                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
+                    )
+                    if selected_hotkey is None:
+                        continue
+                    hotkey = selected_hotkey.lower()
+
+                    save_settings(
+                        {
+                            "device_name": device_name,
+                            "model_type": "whisper",
+                            "model_name": model_name,
+                            "compute_type": compute_type,
+                            "device": device,
+                            "language": language,
+                            "hotkey": hotkey,
+                        }
+                    )
+                    settings = Settings(
+                        device_name, "whisper", model_name, compute_type, device, language, hotkey
+                    )
+
+                elif model_type == "Parakeet":
+                    model_name = "nvidia/parakeet-tdt-0.6b-v2"
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "Select Device", accepted_devices)
+                    )
+                    if not device:
+                        continue
+
+                    # Determine available compute types based on device
+                    if device == "cuda":
+                        available_compute_types = accepted_compute_types
+                        compute_type_message = "This model is English-only. Select compute type."
+                    else:
+                        available_compute_types = ["int8"]
+                        compute_type_message = "This model is English-only. Using int8 on CPU."
+
+                    # Present compute type menu
+                    compute_type = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "", available_compute_types, message=compute_type_message
+                        )
+                    )
+                    if not compute_type:
+                        continue
+
+                    # Set language to English (Parakeet is English-only)
                     language = "en"
 
-                hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                selected_hotkey = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
-                )
-                if selected_hotkey is None:
-                    continue
-                hotkey = selected_hotkey.lower()
-                if any(
-                    [
-                        not x
-                        for x in [
-                            device_name,
-                            model_size,
-                            compute_type,
-                            device,
-                            language,
-                            hotkey,
-                        ]
-                    ]
-                ):
-                    continue
+                    # Select hotkey
+                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options)
+                    )
+                    if selected_hotkey is None:
+                        continue
+                    hotkey = selected_hotkey.lower()
 
-                save_settings(
-                    {
-                        "device_name": device_name,
-                        "model_size": model_size,
-                        "compute_type": compute_type,
-                        "device": device,
-                        "language": language,
-                        "hotkey": hotkey,
-                    }
-                )
-                settings = Settings(
-                    device_name, model_size, compute_type, device, language, hotkey
-                )
-
+                    # Save settings
+                    save_settings(
+                        {
+                            "device_name": device_name,
+                            "model_type": "parakeet",
+                            "model_name": model_name,
+                            "compute_type": compute_type,
+                            "device": device,
+                            "language": language,
+                            "hotkey": hotkey,
+                        }
+                    )
+                    settings = Settings(
+                        device_name, "parakeet", model_name, compute_type, device, language, hotkey
+                    )
             transcriber = MicrophoneTranscriber(settings)
             try:
                 transcriber.run()

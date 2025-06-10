@@ -23,6 +23,9 @@ dependencies = [
     "faster-whisper",
     "pynput",
     "pulsectl",
+    "torch",
+    "nemo_toolkit[asr]",
+    "requests==2.32.3"
 ]
 
 [project.urls]
