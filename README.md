@@ -20,7 +20,7 @@ So the goal was to provide a simple tool that **works everywhere**, with **zero 
 - **Automatic Download**: The missing models will automatically be retrieved from Hugging Face.
 - **No clipboard usage**: Uses `pynput` to directly simulate keypresses instead.
 - **Zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
-  - Parakeet allows **zero VRAM usage** because it's **so fast** that it can be **entirely offloaded to the CPU**!
+  - **Parakeet** allows **zero VRAM usage** because it's **so fast** that it can be entirely offloaded to the CPU, **even in float16**!
 - **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
 - **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 

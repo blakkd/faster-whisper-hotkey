@@ -590,15 +590,17 @@ def main():
 
                     # Compute type options depend on device
                     compute_type_message = ""
+                    available_compute_types = accepted_compute_types
+
                     if device == "cuda":
                         available_compute_types = accepted_compute_types
                         compute_type_message = (
-                            "This model is English-only. Select compute type."
+                            "Language selection skipped for this English-only model. Select compute type."
                         )
                     else:
-                        available_compute_types = ["int8"]
+                        available_compute_types = accepted_compute_types
                         compute_type_message = (
-                            "This model is English-only. Using int8 on CPU."
+                            "Language selection skipped for this English-only model. Select compute type."
                         )
 
                     # Let user select compute type
