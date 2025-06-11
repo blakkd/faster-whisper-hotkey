@@ -104,29 +104,19 @@ def load_settings() -> Settings | None:
 
 
 def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
-    """Create an interactive text menu using curses library.
-
-    Handles scrolling for long option lists and provides visual feedback.
-
-    Args:
-        stdscr: Curses screen object
-        title: Menu title (not used in current implementation)
-        options: List of strings to display as selectable options
-        message: Additional text to show above the options
-        initial_idx: Starting selected index
-
-    Returns:
-        Selected option string or None if exited with ESC
-    """
+    """Create an interactive text menu using curses library."""
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
 
     def draw_menu():
         """Redraw the menu interface based on current state."""
         stdscr.clear()
-        # Calculate visible options (up to 2 less than height for status)
+        # Check if window has valid dimensions
+        if h == 0 or w == 0:
+            stdscr.refresh()
+            return
+        
         max_visible = min(h - 2, len(options))
-        # Determine scroll start/end to center selection
         start = max(0, current_row - (max_visible // 2))
         end = min(start + max_visible, len(options))
 
@@ -134,34 +124,51 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
         if message:
             lines = message.split("\n")
             for i, line in enumerate(lines):
-                x = w // 2 - len(line) // 2  # Center horizontally
-                y = h // 4 - len(lines) + i  # Position above menu
-                stdscr.addstr(y, x, line[: w - 1])  # Truncate to screen width
+                # Truncate line to fit window width and center horizontally
+                truncated_line = line[:w-1] if w > 0 else ""
+                x = (w - len(truncated_line)) // 2
+                y_pos = h // 4 - len(lines) + i
+                if 0 <= y_pos < h:  # Ensure y is valid before drawing
+                    stdscr.addstr(y_pos, x, truncated_line)
 
         # Draw options with highlight on current selection
         for i in range(start, end):
             text = options[i]
-            x = w // 2 - len(text) // 2  # Center horizontally
-            y = h // 2 - (max_visible // 2) + (i - start)  # Vertical position
+            # Calculate x position and clamp to valid range [0, w-1]
+            x = w // 2 - len(text) // 2
+            x = max(0, min(x, w - 1)) if w > 0 else 0
+            # Calculate y position
+            y = h // 2 - (max_visible // 2) + (i - start)
+            # Skip if y is out of bounds
+            if y < 0 or y >= h:
+                continue
+            # Truncate text to fit window width
+            truncated_text = text[:w-1] if w > 0 else ""
+            # Determine if current option is selected
             if i == current_row:
                 stdscr.attron(curses.color_pair(1))
-                stdscr.addstr(y, x, text[: w - 1])
+                stdscr.addstr(y, x, truncated_text)
                 stdscr.attroff(curses.color_pair(1))
             else:
-                stdscr.addstr(y, x, text[: w - 1])
+                stdscr.addstr(y, x, truncated_text)
 
         # Draw scrollbar if options exceed visible area
-        if max_visible < len(options):
+        if max_visible < len(options) and h > 0 and w > 0:
             ratio = (current_row + 1) / len(options)
-            y = h - 2  # Scrollbar position at bottom
+            y_scroll = h - 2  # Scrollbar position at bottom
             x_start = w // 4
             length = w // 2
-            stdscr.addstr(y, x_start, "[")
+            # Ensure x_start and length are valid
+            x_start = max(0, min(x_start, w - 1))
+            length = max(1, min(length, w))  # At least 1 column
+            stdscr.addstr(y_scroll, x_start, "[")
             # Calculate end position based on ratio (clamped to valid range)
             end_pos = int(ratio * (length - 2)) + x_start + 1
-            stdscr.addstr(y, x_start + 1, " " * (length - 2))  # Clear space
-            stdscr.addstr(y, end_pos, "█")
-            stdscr.addstr(y, x_start + length - 1, "]")
+            end_pos = max(x_start + 1, min(end_pos, x_start + length - 1))
+            # Clear space and draw scrollbar marker
+            stdscr.addstr(y_scroll, x_start + 1, " " * (length - 2))
+            stdscr.addstr(y_scroll, end_pos, "█")
+            stdscr.addstr(y_scroll, x_start + length - 1, "]")
 
         stdscr.refresh()
 
@@ -184,10 +191,10 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             return None
 
         # Detect terminal resize and redraw
-        if curses.is_term_resized(h, w):
-            h, w = stdscr.getmaxyx()
+        new_h, new_w = stdscr.getmaxyx()
+        if (new_h != h) or (new_w != w):
+            h, w = new_h, new_w
         draw_menu()
-
 
 def get_initial_choice(stdscr):
     """Present initial menu to choose between last settings or new settings.
