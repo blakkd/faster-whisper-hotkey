@@ -17,7 +17,7 @@ So the goal was to provide a simple tool that **works everywhere**, with **zero 
 - **Current models**:
   - Any [openai/whisper models](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) models, via [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
   - [nvidia/parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2).
-- **Automatic Download**: The missing models will automatically be retrieved from Hugging Face.
+- **Automatic Download**: The missing models are automatically retrieved from Hugging Face.
 - **No clipboard usage**: Uses `pynput` to directly simulate keypresses instead.
 - **Zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
   - **Parakeet** allows **zero VRAM usage** because it's **so fast** that it can be entirely offloaded to the CPU, **even in float16**!
