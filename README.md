@@ -1,6 +1,6 @@
 # _faster-whisper Hotkey_
 
-a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)**.
+a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)** such as Whisper or Parakeet (and Canary is on the way!).
 
 **Hold the hotkey, Speak, Release ==> And baamm in your text field!**
 
@@ -17,10 +17,10 @@ So the goal was to provide a simple tool that **works everywhere**, with **zero 
 - **Current models**:
   - Any [openai/whisper models](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) models, via [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
   - [nvidia/parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2).
-- **Automatic Download**: The missing models will automatically be retrieved from Hugging Face.
+- **Automatic Download**: The missing models are automatically retrieved from Hugging Face.
 - **No clipboard usage**: Uses `pynput` to directly simulate keypresses instead.
 - **Zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
-  - **Parakeet** allows **zero VRAM usage** because it's **so fast** that it can be entirely offloaded to the CPU, **even in float16**!
+  - **Parakeet** uses **zero VRAM** because it's **so fast** that it can be entirely offloaded to the CPU, **even in float16**!
 - **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
 - **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 
