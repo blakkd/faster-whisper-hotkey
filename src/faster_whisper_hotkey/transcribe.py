@@ -471,7 +471,7 @@ def main():
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
-                # Select audio device (microphone) from available sources
+                # Select audio device from available sources
                 with pulsectl.Pulse() as pulse:
                     sources = pulse.source_list()
                     source_names = [src.name for src in sources]
@@ -507,10 +507,10 @@ def main():
 
                     model_name = selected_model
 
-                    # Check if model is English-only (affects language UI)
+                    # Check if model is English-only
                     english_only = model_name in ENGLISH_ONLY_MODELS
 
-                    # Select hardware device (cuda/cpu)
+                    # Select hardware device
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(stdscr, "", accepted_devices)
                     )
@@ -530,7 +530,7 @@ def main():
                     if english_only:
                         compute_type_message += "\n\nLanguage selection skipped for this English-only model."
 
-                    # Let user select compute type (precision)
+                    # Let user select compute type
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
