@@ -1,4 +1,6 @@
+import tempfile
 import sounddevice as sd
+import soundfile as sf
 import numpy as np
 from faster_whisper import WhisperModel
 import threading
@@ -13,6 +15,7 @@ from importlib.resources import files
 from dataclasses import dataclass
 import torch
 from nemo.collections.asr.models import ASRModel
+from nemo.collections.asr.models import EncDecMultiTaskModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -115,7 +118,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
         if h == 0 or w == 0:
             stdscr.refresh()
             return
-        
+
         max_visible = min(h - 2, len(options))
         start = max(0, current_row - (max_visible // 2))
         end = min(start + max_visible, len(options))
@@ -125,7 +128,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             lines = message.split("\n")
             for i, line in enumerate(lines):
                 # Truncate line to fit window width and center horizontally
-                truncated_line = line[:w-1] if w > 0 else ""
+                truncated_line = line[: w - 1] if w > 0 else ""
                 x = (w - len(truncated_line)) // 2
                 y_pos = h // 4 - len(lines) + i
                 if 0 <= y_pos < h:  # Ensure y is valid before drawing
@@ -143,7 +146,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             if y < 0 or y >= h:
                 continue
             # Truncate text to fit window width
-            truncated_text = text[:w-1] if w > 0 else ""
+            truncated_text = text[: w - 1] if w > 0 else ""
             # Determine if current option is selected
             if i == current_row:
                 stdscr.attron(curses.color_pair(1))
@@ -196,6 +199,7 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             h, w = new_h, new_w
         draw_menu()
 
+
 def get_initial_choice(stdscr):
     """Present initial menu to choose between last settings or new settings.
 
@@ -233,6 +237,14 @@ class MicrophoneTranscriber:
                 model_name=self.settings.model_name,
                 map_location=self.settings.device,
             ).eval()
+        elif self.settings.model_type == "canary":
+            # Load Canary model
+            model_name = self.settings.model_name  # Should be "nvidia/canary-1b-flash"
+            map_location = self.settings.device  # 'cuda' or 'cpu'
+            self.model = EncDecMultiTaskModel.from_pretrained(
+                model_name, map_location=map_location
+            )
+            self.model.eval()
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
 
@@ -301,14 +313,9 @@ class MicrophoneTranscriber:
         self.audio_buffer.extend(audio_data)
 
     def transcribe_and_send(self, audio_data):
-        """Transcribe audio data and simulate typing the result.
-
-        Args:
-            audio_data: Numpy array of raw audio samples
-        """
+        """Transcribe audio data and simulate typing the result."""
         try:
             if self.settings.model_type == "whisper":
-                # Whisper transcription parameters (beam search for accuracy)
                 segments, _ = self.model.transcribe(
                     audio_data,
                     beam_size=5,
@@ -323,10 +330,31 @@ class MicrophoneTranscriber:
                     segment.text.strip() for segment in segments
                 )
             elif self.settings.model_type == "parakeet":
-                # Parakeet expects input as a list of audio arrays (batch processing)
                 with torch.inference_mode():
                     out = self.model.transcribe([audio_data])
-                transcribed_text = out[0].text
+                transcribed_text = out[0].text if out else ""
+            elif self.settings.model_type == "canary":
+                with torch.inference_mode():
+                    temp_path = None
+                    try:
+                        # Create and save audio data to a temporary WAV file
+                        with tempfile.NamedTemporaryFile(
+                            suffix=".wav", delete=False
+                        ) as f:
+                            temp_path = f.name
+                        sf.write(temp_path, audio_data, self.sample_rate)
+                        # Transcribe using the temporary file
+                        out = self.model.transcribe(audio=[temp_path])
+                        # Extract transcribed text
+                        transcribed_text = ""
+                        if out and len(out) > 0:
+                            transcribed_text = out[0].text.strip()
+                    finally:
+                        # Clean up temporary file
+                        if temp_path and os.path.exists(temp_path):
+                            os.remove(temp_path)
+            else:
+                raise ValueError(f"Unknown model type: {self.settings.model_type}")
 
             # Simulate typing each character
             if transcribed_text.strip():
@@ -483,7 +511,7 @@ def main():
                         continue
 
                 # Select ASR model type
-                model_type_options = ["Whisper", "Parakeet"]
+                model_type_options = ["Whisper", "Parakeet", "Canary"]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(
                         stdscr, "Select Model Type", model_type_options
@@ -520,15 +548,15 @@ def main():
                     # Determine available compute types based on device
                     if device == "cpu":
                         available_compute_types = ["int8"]
-                        compute_type_message = (
+                        info_message = (
                             "float16 is not supported on CPU: only int8 is available"
                         )
                     else:
                         available_compute_types = accepted_compute_types
-                        compute_type_message = ""
+                        info_message = ""
 
                     if english_only:
-                        compute_type_message += "\n\nLanguage selection skipped for this English-only model."
+                        info_message += "\n\nLanguage selection skipped for this English-only model."
 
                     # Let user select compute type
                     compute_type = curses.wrapper(
@@ -536,7 +564,7 @@ def main():
                             stdscr,
                             "",
                             available_compute_types,
-                            message=compute_type_message,
+                            message=info_message,
                         )
                     )
                     if not compute_type:
@@ -582,6 +610,71 @@ def main():
                         language=language,
                         hotkey=hotkey,
                     )
+                elif model_type == "Canary":
+                    model_name = "nvidia/canary-1b-flash"
+                    # Select hardware device
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Device", accepted_devices
+                        )
+                    )
+                    if not device:
+                        continue
+
+                    # Determine available compute types based on device
+                    available_compute_types = accepted_compute_types
+                    info_message = ""
+
+                    # Let user select compute type
+                    compute_type = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr,
+                            "",
+                            available_compute_types,
+                            message=info_message,
+                        )
+                    )
+                    if not compute_type:
+                        continue
+
+                    language = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                    )
+                    if not language:
+                        continue
+
+                    # Select hotkey
+                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Hotkey", hotkey_options
+                        )
+                    )
+                    if not selected_hotkey:
+                        continue
+                    hotkey = selected_hotkey.lower()
+
+                    # Save new settings to file
+                    save_settings(
+                        {
+                            "device_name": device_name,
+                            "model_type": "canary",
+                            "model_name": model_name,
+                            "compute_type": compute_type,
+                            "device": device,
+                            "language": language,
+                            "hotkey": hotkey,
+                        }
+                    )
+                    settings = Settings(
+                        device_name=device_name,
+                        model_type="canary",
+                        model_name=model_name,
+                        compute_type=compute_type,
+                        device=device,
+                        language=language,
+                        hotkey=hotkey,
+                    )
 
                 # Handle Parakeet model configuration
                 elif model_type == "Parakeet":
@@ -596,19 +689,9 @@ def main():
                         continue
 
                     # Compute type options depend on device
-                    compute_type_message = ""
+                    info_message = ""
                     available_compute_types = accepted_compute_types
-
-                    if device == "cuda":
-                        available_compute_types = accepted_compute_types
-                        compute_type_message = (
-                            "Language selection skipped for this English-only model. Select compute type."
-                        )
-                    else:
-                        available_compute_types = accepted_compute_types
-                        compute_type_message = (
-                            "Language selection skipped for this English-only model. Select compute type."
-                        )
+                    info_message = "Language selection skipped for this English-only model. Select compute type."
 
                     # Let user select compute type
                     compute_type = curses.wrapper(
@@ -616,7 +699,7 @@ def main():
                             stdscr,
                             "",
                             available_compute_types,
-                            message=compute_type_message,
+                            message=info_message,
                         )
                     )
                     if not compute_type:
