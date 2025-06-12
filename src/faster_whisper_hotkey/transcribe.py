@@ -334,23 +334,26 @@ class MicrophoneTranscriber:
                     out = self.model.transcribe([audio_data])
                 transcribed_text = out[0].text if out else ""
             elif self.settings.model_type == "canary":
+                # Split the stored language string into source and target languages
+                lang_parts = self.settings.language.split("-")
+                if len(lang_parts) != 2:
+                    source_lang, target_lang = "en", "en"  # Fallback to English if parsing fails
+                else:
+                    source_lang, target_lang = lang_parts
+
                 with torch.inference_mode():
                     temp_path = None
                     try:
-                        # Create and save audio data to a temporary WAV file
-                        with tempfile.NamedTemporaryFile(
-                            suffix=".wav", delete=False
-                        ) as f:
+                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                             temp_path = f.name
                         sf.write(temp_path, audio_data, self.sample_rate)
-                        # Transcribe using the temporary file
-                        out = self.model.transcribe(audio=[temp_path])
-                        # Extract transcribed text
-                        transcribed_text = ""
-                        if out and len(out) > 0:
-                            transcribed_text = out[0].text.strip()
+                        out = self.model.transcribe(
+                            audio=[temp_path],
+                            source_lang=source_lang,
+                            target_lang=target_lang
+                        )
+                        transcribed_text = out[0].text.strip() if out and len(out) > 0 else ""
                     finally:
-                        # Clean up temporary file
                         if temp_path and os.path.exists(temp_path):
                             os.remove(temp_path)
             else:
@@ -613,11 +616,7 @@ def main():
                 elif model_type == "Canary":
                     model_name = "nvidia/canary-1b-flash"
                     # Select hardware device
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Device", accepted_devices
-                        )
-                    )
+                    device = curses.wrapper(lambda stdscr: curses_menu(stdscr, "Select Device", accepted_devices))
                     if not device:
                         continue
 
@@ -627,34 +626,41 @@ def main():
 
                     # Let user select compute type
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "",
-                            available_compute_types,
-                            message=info_message,
-                        )
+                        lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=info_message)
                     )
                     if not compute_type:
                         continue
 
-                    language = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", accepted_languages_whisper)
+                    # Select source language
+                    source_language = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr,
+                            "Select Source Language",
+                            config.get("canary_source_target_languages", ["en", "fr", "de", "es"]),
+                        )
                     )
-                    if not language:
+                    if not source_language:
+                        continue
+
+                    # Select target language
+                    target_language = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr,
+                            "Select Target Language",
+                            config.get("canary_source_target_languages", ["en", "fr", "de", "es"]),
+                        )
+                    )
+                    if not target_language:
                         continue
 
                     # Select hotkey
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Hotkey", hotkey_options
-                        )
-                    )
+                    selected_hotkey = curses.wrapper(lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options))
                     if not selected_hotkey:
                         continue
                     hotkey = selected_hotkey.lower()
 
-                    # Save new settings to file
+                    # Save settings
                     save_settings(
                         {
                             "device_name": device_name,
@@ -662,7 +668,7 @@ def main():
                             "model_name": model_name,
                             "compute_type": compute_type,
                             "device": device,
-                            "language": language,
+                            "language": f"{source_language}-{target_language}",  # Store as combined string
                             "hotkey": hotkey,
                         }
                     )
@@ -672,7 +678,7 @@ def main():
                         model_name=model_name,
                         compute_type=compute_type,
                         device=device,
-                        language=language,
+                        language=f"{source_language}-{target_language}",
                         hotkey=hotkey,
                     )
 
