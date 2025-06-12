@@ -1,5 +1,5 @@
 {
-    "accepted_models": [
+    "accepted_models_whisper": [
         "distil-large-v3",
         "distil-large-v2",
         "distil-medium.en",
@@ -16,7 +16,7 @@
         "tiny.en",
         "tiny"
     ],
-    "accepted_languages": [
+    "accepted_languages_whisper": [
         "auto",
         "af",
         "am",
@@ -119,7 +119,7 @@
         "zh",
         "yue"
     ],
-    "english_only_models": [
+    "english_only_models_whisper": [
         "tiny.en",
         "small.en",
         "base.en",

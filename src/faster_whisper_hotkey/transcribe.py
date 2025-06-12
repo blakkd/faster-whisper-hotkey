@@ -38,8 +38,8 @@ except (FileNotFoundError, json.JSONDecodeError) as e:
     logger.error(f"Configuration error: {e}")
     raise
 
-accepted_models = config.get("accepted_models", [])
-accepted_languages = config.get("accepted_languages", [])
+accepted_models_whisper = config.get("accepted_models_whisper", [])
+accepted_languages_whisper = config.get("accepted_languages_whisper", [])
 accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cuda", "cpu"]
 
@@ -48,7 +48,7 @@ settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
-ENGLISH_ONLY_MODELS = set(config.get("english_only_models", []))
+english_only_models_whisper = set(config.get("english_only_models_whisper", []))
 
 
 @dataclass
@@ -61,7 +61,7 @@ class Settings:
         model_name: Specific model identifier/name
         compute_type: Precision for model computation ("float16", "int8")
         device: Hardware device to use ("cuda" for GPU, "cpu" for CPU)
-        language: Target language code (e.g., "en", "es")
+        language: Source language code (e.g., "en", "es")
         hotkey: Keyboard key to trigger recording ("pause", "f4", etc.)
     """
 
@@ -522,7 +522,7 @@ def main():
 
                 # Handle Whisper model configuration
                 if model_type == "Whisper":
-                    original_models = config.get("accepted_models", [])
+                    original_models = config.get("accepted_models_whisper", [])
                     display_models = []
                     for model in original_models:
                         display_models.append(model)
@@ -536,7 +536,7 @@ def main():
                     model_name = selected_model
 
                     # Check if model is English-only
-                    english_only = model_name in ENGLISH_ONLY_MODELS
+                    english_only = model_name in english_only_models_whisper
 
                     # Select hardware device
                     device = curses.wrapper(
@@ -574,7 +574,7 @@ def main():
                         language = "en"
                     else:
                         language = curses.wrapper(
-                            lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                            lambda stdscr: curses_menu(stdscr, "", accepted_languages_whisper)
                         )
                         if not language:
                             continue
@@ -638,7 +638,7 @@ def main():
                         continue
 
                     language = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", accepted_languages)
+                        lambda stdscr: curses_menu(stdscr, "", accepted_languages_whisper)
                     )
                     if not language:
                         continue
