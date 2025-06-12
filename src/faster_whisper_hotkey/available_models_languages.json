@@ -128,5 +128,11 @@
         "distil-small.en",
         "distil-large-v3",
         "distil-large-v2"
+    ],
+    "canary_source_target_languages": [
+        "en",
+        "fr",
+        "de",
+        "es"
     ]
 }
