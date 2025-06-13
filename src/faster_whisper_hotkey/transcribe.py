@@ -155,8 +155,9 @@ class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.sample_rate = 16000
-        self.max_buffer_length = 10 * 60 * self.sample_rate
-        self.buffer_monitor_thread = None
+        self.max_buffer_length = 10 * 60 * self.sample_rate  # 10 minutes
+        self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+        self.buffer_index = 0
         if self.settings.model_type == "whisper":
             self.model = WhisperModel(
                 model_size_or_path=self.settings.model_name,
@@ -169,18 +170,15 @@ class MicrophoneTranscriber:
                 map_location=self.settings.device,
             ).eval()
         elif self.settings.model_type == "canary":
-            model_name = self.settings.model_name
-            map_location = self.settings.device
             self.model = EncDecMultiTaskModel.from_pretrained(
-                model_name, map_location=map_location
-            )
-            self.model.eval()
+                self.settings.model_name,
+                map_location=self.settings.device
+            ).eval()
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
         self.stop_event = threading.Event()
         self.is_recording = False
         self.device_name = self.settings.device_name
-        self.audio_buffer = []
         self.keyboard_controller = keyboard.Controller()
         self.language = self.settings.language
         self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
@@ -213,7 +211,13 @@ class MicrophoneTranscriber:
         ).astype(np.float32)
         if not np.isclose(audio_data.max(), 0):
             audio_data /= np.abs(audio_data).max()
-        self.audio_buffer.extend(audio_data)
+
+        new_index = self.buffer_index + len(audio_data)
+        if new_index > self.max_buffer_length:
+            audio_data = audio_data[:self.max_buffer_length - self.buffer_index]
+            new_index = self.max_buffer_length
+        self.audio_buffer[self.buffer_index:new_index] = audio_data
+        self.buffer_index = new_index
 
     def transcribe_and_send(self, audio_data):
         try:
@@ -280,10 +284,6 @@ class MicrophoneTranscriber:
                 device="default",
             )
             self.stream.start()
-            self.buffer_monitor_thread = threading.Thread(
-                target=self.monitor_buffer, daemon=True
-            )
-            self.buffer_monitor_thread.start()
 
     def stop_recording_and_transcribe(self):
         if self.is_recording:
@@ -292,21 +292,14 @@ class MicrophoneTranscriber:
             self.is_recording = False
             self.stream.stop()
             self.stream.close()
-            if self.audio_buffer:
+            if self.buffer_index > 0:
+                audio_data = self.audio_buffer[:self.buffer_index]
                 threading.Thread(
                     target=self.transcribe_and_send,
-                    args=(np.array(self.audio_buffer, dtype=np.float32),),
+                    args=(audio_data,),
                     daemon=True,
                 ).start()
-            self.audio_buffer.clear()
-
-    def monitor_buffer(self):
-        while not self.stop_event.is_set():
-            time.sleep(0.1)
-            if len(self.audio_buffer) >= self.max_buffer_length:
-                logger.info("Audio buffer reached 10-minute limit. Stopping recording.")
-                self.stop_recording_and_transcribe()
-                break
+            self.buffer_index = 0
 
     def on_press(self, key):
         try:
