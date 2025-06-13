@@ -163,7 +163,7 @@ class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.sample_rate = 16000
-        self.max_buffer_length = 10 * 60 * self.sample_rate  # 10 minutes
+        self.max_buffer_length = 10 * 60 * self.sample_rate
         self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
         self.buffer_index = 0
         if self.settings.model_type == "whisper":
@@ -485,7 +485,6 @@ def main():
                     if not compute_type:
                         continue
 
-                    # Get source language
                     source_language = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
@@ -494,12 +493,12 @@ def main():
                                 "canary_source_target_languages",
                                 ["en", "fr", "de", "es"],
                             ),
+                            "Source language",
                         )
                     )
                     if not source_language:
                         continue
 
-                    # Generate allowed target languages based on source
                     allowed_pairs = config.get("canary_allowed_language_pairs", [])
                     allowed_targets = set()
                     for pair in allowed_pairs:
@@ -508,10 +507,12 @@ def main():
                             allowed_targets.add(tgt)
                     target_options = sorted(allowed_targets)
 
-                    # Get target language
                     target_language = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Select Target Language", target_options
+                            stdscr,
+                            "Select Target Language",
+                            target_options,
+                            "Target language - pick the same as source for transcription.",
                         )
                     )
                     if not target_language:

@@ -136,15 +136,15 @@
         "es"
     ],
     "canary_allowed_language_pairs": [
+        "en-en",
         "fr-fr",
         "de-de",
         "es-es",
-        "en-en",
-        "fr-en",
-        "de-en",
-        "es-en",
         "en-fr",
         "en-de",
-        "en-es"
+        "en-es",
+        "fr-en",
+        "de-en",
+        "es-en"
     ]
 }
