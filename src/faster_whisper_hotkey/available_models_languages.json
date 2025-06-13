@@ -134,5 +134,17 @@
         "fr",
         "de",
         "es"
+    ],
+    "canary_allowed_language_pairs": [
+        "fr-fr",
+        "de-de",
+        "es-es",
+        "en-en",
+        "fr-en",
+        "de-en",
+        "es-en",
+        "en-fr",
+        "en-de",
+        "en-es"
     ]
 }

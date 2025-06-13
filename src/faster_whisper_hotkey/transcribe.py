@@ -20,8 +20,10 @@ from nemo.collections.asr.models import EncDecMultiTaskModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def get_resource_path(filename):
     return files("faster_whisper_hotkey").joinpath(filename).as_posix()
+
 
 try:
     config_path = get_resource_path("available_models_languages.json")
@@ -43,6 +45,7 @@ SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
 english_only_models_whisper = set(config.get("english_only_models_whisper", []))
 
+
 @dataclass
 class Settings:
     device_name: str
@@ -53,12 +56,14 @@ class Settings:
     language: str
     hotkey: str = "pause"
 
+
 def save_settings(settings: dict):
     try:
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
+
 
 def load_settings() -> Settings | None:
     try:
@@ -71,6 +76,7 @@ def load_settings() -> Settings | None:
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load settings: {e}")
         return None
+
 
 def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
     current_row = initial_idx
@@ -147,9 +153,11 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             h, w = new_h, new_w
         draw_menu()
 
+
 def get_initial_choice(stdscr):
     options = ["Use Last Settings", "Choose New Settings"]
     return curses_menu(stdscr, "", options)
+
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
@@ -171,8 +179,7 @@ class MicrophoneTranscriber:
             ).eval()
         elif self.settings.model_type == "canary":
             self.model = EncDecMultiTaskModel.from_pretrained(
-                self.settings.model_name,
-                map_location=self.settings.device
+                self.settings.model_name, map_location=self.settings.device
             ).eval()
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
@@ -214,9 +221,9 @@ class MicrophoneTranscriber:
 
         new_index = self.buffer_index + len(audio_data)
         if new_index > self.max_buffer_length:
-            audio_data = audio_data[:self.max_buffer_length - self.buffer_index]
+            audio_data = audio_data[: self.max_buffer_length - self.buffer_index]
             new_index = self.max_buffer_length
-        self.audio_buffer[self.buffer_index:new_index] = audio_data
+        self.audio_buffer[self.buffer_index : new_index] = audio_data
         self.buffer_index = new_index
 
     def transcribe_and_send(self, audio_data):
@@ -248,15 +255,19 @@ class MicrophoneTranscriber:
                 with torch.inference_mode():
                     temp_path = None
                     try:
-                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                        with tempfile.NamedTemporaryFile(
+                            suffix=".wav", delete=False
+                        ) as f:
                             temp_path = f.name
                         sf.write(temp_path, audio_data, self.sample_rate)
                         out = self.model.transcribe(
                             audio=[temp_path],
                             source_lang=source_lang,
-                            target_lang=target_lang
+                            target_lang=target_lang,
                         )
-                        transcribed_text = out[0].text.strip() if out and len(out) > 0 else ""
+                        transcribed_text = (
+                            out[0].text.strip() if out and len(out) > 0 else ""
+                        )
                     finally:
                         if temp_path and os.path.exists(temp_path):
                             os.remove(temp_path)
@@ -293,7 +304,7 @@ class MicrophoneTranscriber:
             self.stream.stop()
             self.stream.close()
             if self.buffer_index > 0:
-                audio_data = self.audio_buffer[:self.buffer_index]
+                audio_data = self.audio_buffer[: self.buffer_index]
                 threading.Thread(
                     target=self.transcribe_and_send,
                     args=(audio_data,),
@@ -332,6 +343,7 @@ class MicrophoneTranscriber:
                     self.stop_recording_and_transcribe()
                 logger.info("Program terminated by user")
 
+
 def main():
     while True:
         try:
@@ -360,7 +372,9 @@ def main():
 
                 model_type_options = ["Whisper", "Parakeet", "Canary"]
                 model_type = curses.wrapper(
-                    lambda stdscr: curses_menu(stdscr, "Select Model Type", model_type_options)
+                    lambda stdscr: curses_menu(
+                        stdscr, "Select Model Type", model_type_options
+                    )
                 )
                 if not model_type:
                     continue
@@ -388,7 +402,9 @@ def main():
 
                     if device == "cpu":
                         available_compute_types = ["int8"]
-                        info_message = "float16 is not supported on CPU: only int8 is available"
+                        info_message = (
+                            "float16 is not supported on CPU: only int8 is available"
+                        )
                     else:
                         available_compute_types = accepted_compute_types
                         info_message = ""
@@ -411,7 +427,9 @@ def main():
                         language = "en"
                     else:
                         language = curses.wrapper(
-                            lambda stdscr: curses_menu(stdscr, "", accepted_languages_whisper)
+                            lambda stdscr: curses_menu(
+                                stdscr, "", accepted_languages_whisper
+                            )
                         )
                         if not language:
                             continue
@@ -448,7 +466,11 @@ def main():
                     )
                 elif model_type == "Canary":
                     model_name = "nvidia/canary-1b-flash"
-                    device = curses.wrapper(lambda stdscr: curses_menu(stdscr, "Select Device", accepted_devices))
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Device", accepted_devices
+                        )
+                    )
                     if not device:
                         continue
 
@@ -456,33 +478,51 @@ def main():
                     info_message = ""
 
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", available_compute_types, message=info_message)
+                        lambda stdscr: curses_menu(
+                            stdscr, "", available_compute_types, message=info_message
+                        )
                     )
                     if not compute_type:
                         continue
 
+                    # Get source language
                     source_language = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
                             "Select Source Language",
-                            config.get("canary_source_target_languages", ["en", "fr", "de", "es"]),
+                            config.get(
+                                "canary_source_target_languages",
+                                ["en", "fr", "de", "es"],
+                            ),
                         )
                     )
                     if not source_language:
                         continue
 
+                    # Generate allowed target languages based on source
+                    allowed_pairs = config.get("canary_allowed_language_pairs", [])
+                    allowed_targets = set()
+                    for pair in allowed_pairs:
+                        src, tgt = pair.split("-")
+                        if src == source_language:
+                            allowed_targets.add(tgt)
+                    target_options = sorted(allowed_targets)
+
+                    # Get target language
                     target_language = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr,
-                            "Select Target Language",
-                            config.get("canary_source_target_languages", ["en", "fr", "de", "es"]),
+                            stdscr, "Select Target Language", target_options
                         )
                     )
                     if not target_language:
                         continue
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(lambda stdscr: curses_menu(stdscr, "Select Hotkey", hotkey_options))
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Hotkey", hotkey_options
+                        )
+                    )
                     if not selected_hotkey:
                         continue
                     hotkey = selected_hotkey.lower()
@@ -576,6 +616,7 @@ def main():
         except KeyboardInterrupt:
             logger.info("Program terminated by user")
             break
+
 
 if __name__ == "__main__":
     main()
