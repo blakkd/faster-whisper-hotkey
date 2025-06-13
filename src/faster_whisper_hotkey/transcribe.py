@@ -189,6 +189,9 @@ class MicrophoneTranscriber:
         self.keyboard_controller = keyboard.Controller()
         self.language = self.settings.language
         self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
+        self.is_transcribing = False
+        self.last_transcription_end_time = 0.0
+        self.transcription_queue = []
 
     def _parse_hotkey(self, hotkey_str):
         key_mapping = {
@@ -281,6 +284,16 @@ class MicrophoneTranscriber:
                 logger.info(f"Transcribed text: {transcribed_text}")
         except Exception as e:
             logger.error(f"Transcription error: {e}")
+        finally:
+            self.is_transcribing = False
+            self.last_transcription_end_time = time.time()
+            self.process_next_transcription()
+
+    def process_next_transcription(self):
+        if self.transcription_queue and not self.is_transcribing:
+            audio_data = self.transcription_queue.pop(0)
+            self.is_transcribing = True
+            threading.Thread(target=self.transcribe_and_send, args=(audio_data,), daemon=True).start()
 
     def start_recording(self):
         if not self.is_recording:
@@ -305,28 +318,39 @@ class MicrophoneTranscriber:
             self.stream.close()
             if self.buffer_index > 0:
                 audio_data = self.audio_buffer[: self.buffer_index]
-                threading.Thread(
-                    target=self.transcribe_and_send,
-                    args=(audio_data,),
-                    daemon=True,
-                ).start()
-            self.buffer_index = 0
+                self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+                self.buffer_index = 0
+                self.transcription_queue.append(audio_data)
+                self.process_next_transcription()
+            else:
+                self.buffer_index = 0
+                self.is_transcribing = False
+                self.last_transcription_end_time = time.time()
+                self.process_next_transcription()
 
     def on_press(self, key):
         try:
+            current_time = time.time()
+            if self.is_recording or (current_time - self.last_transcription_end_time < 0.5):
+                return True  # Ignore the key press
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
                 return True
         except AttributeError:
             pass
+        return True
 
     def on_release(self, key):
         try:
+            current_time = time.time()
+            if self.is_recording and (self.is_transcribing or (current_time - self.last_transcription_end_time < 0.5)):
+                return True  # Ignore the release
             if key == self.hotkey_key and self.is_recording:
                 self.stop_recording_and_transcribe()
                 return True
         except AttributeError:
             pass
+        return True
 
     def run(self):
         self.set_default_audio_source()
