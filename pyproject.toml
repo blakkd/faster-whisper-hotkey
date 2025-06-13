@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-keywords = ["whisper", "transcription", "hotkey", "speech-to-text"]
+keywords = ["keyboard", "recognition", "voice", "typing", "speech", "shortcut", "speech-recognition", "hotkey", "speech-to-text", "transcription", "stt", "asr", "faster-whisper", "whisper", "parakeet", "canary"]
 dependencies = [
     "sounddevice",
     "numpy",
