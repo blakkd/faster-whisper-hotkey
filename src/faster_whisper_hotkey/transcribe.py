@@ -303,7 +303,7 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
-            self.timer = threading.Timer(40.0, self.stop_recording_and_transcribe)
+            self.timer = threading.Timer(39.7, self.stop_recording_and_transcribe)
             self.timer.start()
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
@@ -501,7 +501,7 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    warning_message = "WARNING: The Canary model can only process 40 seconds of audio.\nRecording will automatically stop after 40 seconds."
+                    warning_message = "Info: Canary can only process 40 seconds of audio.\nTranscription will be triggered if reached."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Warning", ["Continue"], message=warning_message
