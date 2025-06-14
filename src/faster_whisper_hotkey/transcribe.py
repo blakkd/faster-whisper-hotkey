@@ -192,6 +192,7 @@ class MicrophoneTranscriber:
         self.is_transcribing = False
         self.last_transcription_end_time = 0.0
         self.transcription_queue = []
+        self.timer = None
 
     def _parse_hotkey(self, hotkey_str):
         key_mapping = {
@@ -293,13 +294,17 @@ class MicrophoneTranscriber:
         if self.transcription_queue and not self.is_transcribing:
             audio_data = self.transcription_queue.pop(0)
             self.is_transcribing = True
-            threading.Thread(target=self.transcribe_and_send, args=(audio_data,), daemon=True).start()
+            threading.Thread(
+                target=self.transcribe_and_send, args=(audio_data,), daemon=True
+            ).start()
 
     def start_recording(self):
         if not self.is_recording:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
+            self.timer = threading.Timer(40.0, self.stop_recording_and_transcribe)
+            self.timer.start()
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
@@ -310,6 +315,8 @@ class MicrophoneTranscriber:
             self.stream.start()
 
     def stop_recording_and_transcribe(self):
+        if hasattr(self, "timer"):
+            self.timer.cancel()
         if self.is_recording:
             logger.info("Stopping recording and starting transcription...")
             self.stop_event.set()
@@ -331,8 +338,10 @@ class MicrophoneTranscriber:
     def on_press(self, key):
         try:
             current_time = time.time()
-            if self.is_recording or (current_time - self.last_transcription_end_time < 0.5):
-                return True  # Ignore the key press
+            if self.is_recording or (
+                current_time - self.last_transcription_end_time < 0.1
+            ):
+                return True
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
                 return True
@@ -343,8 +352,11 @@ class MicrophoneTranscriber:
     def on_release(self, key):
         try:
             current_time = time.time()
-            if self.is_recording and (self.is_transcribing or (current_time - self.last_transcription_end_time < 0.5)):
-                return True  # Ignore the release
+            if self.is_recording and (
+                self.is_transcribing
+                or (current_time - self.last_transcription_end_time < 0.1)
+            ):
+                return True
             if key == self.hotkey_key and self.is_recording:
                 self.stop_recording_and_transcribe()
                 return True
@@ -489,6 +501,10 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
+                    warning_message = "WARNING: The Canary model can only process 40 seconds of audio. Recording will automatically stop after 40 seconds."
+                    curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "Warning", [warning_message])
+                    )
                     model_name = "nvidia/canary-1b-flash"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -572,7 +588,6 @@ def main():
                         language=f"{source_language}-{target_language}",
                         hotkey=hotkey,
                     )
-
                 elif model_type == "Parakeet":
                     model_name = "nvidia/parakeet-tdt-0.6b-v2"
                     device = curses.wrapper(
