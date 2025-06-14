@@ -1,28 +1,46 @@
 # _faster-whisper Hotkey_
 
-a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)** such as Whisper or Parakeet (and Canary is on the way!).
+a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)** such as Canary, Parakeet or Whisper.
 
 **Hold the hotkey, Speak, Release ==> And baamm in your text field!**
 
 In the terminal, in a text editor, or even in the text chat of your online video game, anywhere!
 
-## Motivations
+## Current models
 
-Many projects are revolving around ASR. But unfortunately, I coudln't find any about a simple push-to-talk approach.
-Also, I wanted a solution convenient enough for me, that would be no pain to launch - no pain to use!
-So the goal was to provide a simple tool that **works everywhere**, with **zero impact on resources** apart from RAM (because we want the load to stay loaded to be always ready-to-use).
+- **[canary-1b-flash](https://huggingface.co/nvidia/canary-1b-flash)** 🆕
+- **[parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)** 🆕
+- **[whisper](https://github.com/SYSTRAN/faster-whisper)**
 
 ## Features
 
-- **Current models**:
-  - Any [openai/whisper models](https://huggingface.co/collections/openai/whisper-release-6501bba2cf999715fd953013) models, via [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
-  - [nvidia/parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2).
 - **Automatic Download**: The missing models are automatically retrieved from Hugging Face.
 - **No clipboard usage**: Uses `pynput` to directly simulate keypresses instead.
-- **Zero impact on resources** apart from RAM (cause we want the load to stay loaded to be always ready-to-use).
-  - **Parakeet** uses **zero VRAM** because it's **so fast** that it can be entirely offloaded to the CPU, **even in float16**!
+- **Zero impact on resources** apart from RAM/VRAM (cause we want the load to stay loaded to be always ready-to-use).
 - **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
 - **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
+
+## Performances
+
+- **openai/whisper** (multilanguage):
+  - **GPU (cuda)**: instant transcription using any models, even with auto language detection.
+  - **CPU**: Time-to-first-word can be longer, but transcribing longer sequences compared to just few words won't lead to significant added delay. For large model, time to first word should still be acceptable without language detection.
+
+_Personnal note:
+I feel distilled whisper models are lacking precision for non-native English speakers. I personally don't really like them, finding them a bit "rigid"._
+
+- (New) **nvidia/parakeet-tdt-0.6b-v2** (english only):
+
+  - **~20% lower error rate** than whisper-large-v3 despite being **~20x faster!**
+  - **CPU**: instant transcription, even in F16!
+  - **GPU**: really not necessary
+
+- (New) **nvidia/canary-1b-flash** (4 languages):
+  - **~20% lower error rate** than whisper-large-v3 despite being **~10x faster!**
+  - **CPU**: almost instant transcription, even in F16!
+  - **GPU**: really not necessary
+
+See https://huggingface.co/spaces/hf-audio/open_asr_leaderboard for details.
 
 ## Installation
 
@@ -82,31 +100,15 @@ When the script is running, you can forget it, the model will remain loaded, and
 
 The script automatically saves your settings to `~/.config/faster_whisper_hotkey/transcriber_settings.json`.
 
-## Performances
-
-- **faster-whisper**:
-  - **GPU (cuda)**: instant transcription using any models, even with auto language detection.
-  - **CPU**: Time-to-first-word can be longer, but transcribing longer sequences compared to just few words won't lead to significant added delay. For large model, time to first word should still be acceptable without language detection.
-
-_Personnal note:
-I feel whisper distilled model are lacking precision for non-native English speakers. I personally don't really like them, finding them a bit "rigid"._
-
-- (New) **parakeet-tdt-0.6b-v2**:
-
-  - **~20% lower word error rate** than whisper-large-v3
-  - despite being **~20x faster!**
-
-  See https://huggingface.co/spaces/hf-audio/open_asr_leaderboard
-
-  _--\> **I would advise to switch to it for English-only transcription.**_
-
 ## Limitations
 
-- The script doesn't propose translating, only transcription. But if you you pick a multilingual **whisper model** and select `en` as language while talking in another language it will be natively translated to English, provided you speak for long enough.
-
-  _--> However, note this trick doesn't apply to parakeet which only understands English._
-
+- Canary is limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope)
+- Canary is really good at transcribing, but not so much at translating.
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar.
+
+## Tricks
+
+- If you you pick a multilingual **whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 
 ## Acknowledgements
 
