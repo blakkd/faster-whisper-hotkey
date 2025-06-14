@@ -501,10 +501,13 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    warning_message = "WARNING: The Canary model can only process 40 seconds of audio. Recording will automatically stop after 40 seconds."
+                    warning_message = "WARNING: The Canary model can only process 40 seconds of audio.\nRecording will automatically stop after 40 seconds."
                     curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Warning", [warning_message])
+                        lambda stdscr: curses_menu(
+                            stdscr, "Warning", ["Continue"], message=warning_message
+                        )
                     )
+
                     model_name = "nvidia/canary-1b-flash"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
