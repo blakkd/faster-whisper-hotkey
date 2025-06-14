@@ -501,10 +501,10 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    warning_message = "Info: Canary can only process 40 seconds of audio.\nTranscription will be triggered if reached."
+                    canary_message = "Canary can only process up to 40 seconds of audio."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Warning", ["Continue"], message=warning_message
+                            stdscr, "Info", ["Continue"], message=canary_message
                         )
                     )
 
@@ -555,7 +555,7 @@ def main():
                             stdscr,
                             "Select Target Language",
                             target_options,
-                            "Target language - pick the same as source for transcription.",
+                            "Target language (pick the same as source for transcription)",
                         )
                     )
                     if not target_language:

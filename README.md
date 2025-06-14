@@ -102,8 +102,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- Canary is limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope)
-- Canary is really good at transcribing, but not so much at translating.
+- Canary is limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope).
 - Almost all text fields are supported. But there can be some rare exception such as the cinnamon start menu search bar.
 
 ## Tricks
@@ -114,8 +113,10 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 Many thanks to:
 
-- **the developers of `faster-whisper`** for providing such an efficient transcription library, **NVIDIA** for their awesome **parakeet-tdt-0.6b-v2 model**, and to all contributors of the libraries I used.
+- **the developers of faster-whisper** for providing such an efficient transcription inference engine
+- **NVIDIA** for their awesome parakeet-tdt-0.6b-v2 and canary-1b-flash models
+- and to **all the contributors** of the libraries I used
 
-- @wgabrys88 for their [parakeet HF space demo example](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) that has been helpful!
+Also thanks to @wgabrys88 for their [parakeet HF space demo example](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) that has been helpful!
 
-And to finish, a special mention to @siddhpant for their useful [broo](https://github.com/siddhpant/broo) script which gave me a mic <3
+And to finish, a special mention to **@siddhpant** for their useful [broo](https://github.com/siddhpant/broo) tool, who gave me a mic <3
