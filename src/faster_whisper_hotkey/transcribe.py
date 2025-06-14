@@ -555,7 +555,7 @@ def main():
                             stdscr,
                             "Select Target Language",
                             target_options,
-                            "Target language - pick the same as source for transcription.",
+                            "Target language (pick the same as source for transcription)",
                         )
                     )
                     if not target_language:
