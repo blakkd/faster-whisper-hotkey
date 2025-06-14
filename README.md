@@ -9,7 +9,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Current models
 
 - (NEW) **[canary-1b-flash](https://huggingface.co/nvidia/canary-1b-flash)**: 4 languages: en, fr, de, es
-- (NEW)**[parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**: en-only model
+- (NEW) **[parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**: en-only model
 - **[whisper](https://github.com/SYSTRAN/faster-whisper)**: many languages
 
 ## Features
