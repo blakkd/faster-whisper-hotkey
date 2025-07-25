@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import torch
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models import EncDecMultiTaskModel
+from transformers import VoxtralForConditionalGeneration, AutoProcessor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -181,6 +182,19 @@ class MicrophoneTranscriber:
             self.model = EncDecMultiTaskModel.from_pretrained(
                 self.settings.model_name, map_location=self.settings.device
             ).eval()
+        elif self.settings.model_type == "voxtral":
+            repo_id = self.settings.model_name
+            compute_dtype = {
+                "float16": torch.float16,
+                "bfloat16": torch.bfloat16,
+            }.get(self.settings.compute_type, torch.float16)
+
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+            self.model = VoxtralForConditionalGeneration.from_pretrained(
+                repo_id,
+                torch_dtype=compute_dtype,
+                device_map=self.settings.device,
+            ).eval()
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
         self.stop_event = threading.Event()
@@ -275,6 +289,26 @@ class MicrophoneTranscriber:
                     finally:
                         if temp_path and os.path.exists(temp_path):
                             os.remove(temp_path)
+            elif self.settings.model_type == "voxtral":
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+                    sf.write(tmp_audio.name, audio_data, self.sample_rate)
+                    audio_path = tmp_audio.name
+
+                inputs = self.processor.apply_transcription_request(
+                    language="en",
+                    audio=audio_path,
+                    model_id=self.settings.model_name
+                )
+                inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+
+                with torch.inference_mode():
+                    outputs = self.model.generate(**inputs, max_new_tokens=500)
+                    transcribed_text = self.processor.batch_decode(
+                        outputs[:, inputs.input_ids.shape[1]:],
+                        skip_special_tokens=True
+                    )[0]
+
+                os.unlink(audio_path)
             else:
                 raise ValueError(f"Unknown model type: {self.settings.model_type}")
             if transcribed_text.strip():
@@ -303,7 +337,7 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
-            self.timer = threading.Timer(39.7, self.stop_recording_and_transcribe)
+            self.timer = threading.Timer(40, self.stop_recording_and_transcribe)
             self.timer.start()
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
@@ -406,7 +440,7 @@ def main():
                     if not device_name:
                         continue
 
-                model_type_options = ["Whisper", "Parakeet", "Canary"]
+                model_type_options = ["Whisper", "Parakeet", "Canary", "Voxtral"]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(
                         stdscr, "Select Model Type", model_type_options
@@ -645,6 +679,67 @@ def main():
                         compute_type=compute_type,
                         device=device,
                         language=language,
+                        hotkey=hotkey,
+                    )
+                elif model_type == "Voxtral":
+                    model_name = "mistralai/Voxtral-Mini-3B-2507"
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Device", accepted_devices
+                        )
+                    )
+                    if not device:
+                        continue
+
+                    available_compute_types = accepted_compute_types
+                    compute_type = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "", available_compute_types, message="Use bfloat16 if available"
+                        )
+                    )
+                    if not compute_type:
+                        continue
+
+                    info_message_voxtral = (
+                        "Voxtral supports automatic language detection in English, Spanish, French, "
+                        "Portuguese, Hindi, German, Dutch, and Italian."
+                    )
+                    curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Info", ["Continue"], message=info_message_voxtral
+                        )
+                    )
+
+                    language = "auto"  # Set to auto for automatic detection
+
+                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Select Hotkey", hotkey_options
+                        )
+                    )
+                    if not selected_hotkey:
+                        continue
+                    hotkey = selected_hotkey.lower()
+
+                    save_settings(
+                        {
+                            "device_name": device_name,
+                            "model_type": "voxtral",
+                            "model_name": model_name,
+                            "compute_type": compute_type,
+                            "device": device,
+                            "language": language,  # "auto" is used here
+                            "hotkey": hotkey,
+                        }
+                    )
+                    settings = Settings(
+                        device_name=device_name,
+                        model_type="voxtral",
+                        model_name=model_name,
+                        compute_type=compute_type,
+                        device=device,
+                        language=language,  # "auto"
                         hotkey=hotkey,
                     )
 

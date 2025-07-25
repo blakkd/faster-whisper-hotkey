@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-keywords = ["keyboard", "recognition", "voice", "typing", "speech", "shortcut", "speech-recognition", "hotkey", "speech-to-text", "transcription", "stt", "asr", "faster-whisper", "whisper", "parakeet", "canary"]
+keywords = ["keyboard", "recognition", "voice", "typing", "speech", "shortcut", "speech-recognition", "hotkey", "speech-to-text", "transcription", "stt", "asr", "faster-whisper", "whisper", "parakeet", "canary", "voxtral"]
 dependencies = [
     "sounddevice",
     "numpy",
@@ -27,7 +27,10 @@ dependencies = [
     "nemo_toolkit[asr]",
     "requests==2.32.3",
     "importlib_resources",
-    "cuda-python>=12.3"
+    "cuda-python>=12.3",
+    "transformers",
+    "mistral-common[audio]",
+    "uv"
 ]
 
 [project.urls]
