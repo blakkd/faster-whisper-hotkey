@@ -184,17 +184,24 @@ class MicrophoneTranscriber:
             ).eval()
         elif self.settings.model_type == "voxtral":
             repo_id = self.settings.model_name
-            compute_dtype = {
-                "float16": torch.float16,
-                "bfloat16": torch.bfloat16,
-            }.get(self.settings.compute_type, torch.float16)
-
-            self.processor = AutoProcessor.from_pretrained(repo_id)
-            self.model = VoxtralForConditionalGeneration.from_pretrained(
-                repo_id,
-                torch_dtype=compute_dtype,
-                device_map=self.settings.device,
-            ).eval()
+            if self.settings.compute_type == "int8":
+                self.processor = AutoProcessor.from_pretrained(repo_id)
+                self.model = VoxtralForConditionalGeneration.from_pretrained(
+                    repo_id,
+                    load_in_8bit=True,
+                    device_map="auto",
+                ).eval()
+            else:
+                compute_dtype = {
+                    "float16": torch.float16,
+                    "bfloat16": torch.bfloat16,
+                }.get(self.settings.compute_type, torch.float16)
+                self.processor = AutoProcessor.from_pretrained(repo_id)
+                self.model = VoxtralForConditionalGeneration.from_pretrained(
+                    repo_id,
+                    torch_dtype=compute_dtype,
+                    device_map="auto",
+                ).eval()
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
         self.stop_event = threading.Event()
@@ -290,22 +297,22 @@ class MicrophoneTranscriber:
                         if temp_path and os.path.exists(temp_path):
                             os.remove(temp_path)
             elif self.settings.model_type == "voxtral":
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+                with tempfile.NamedTemporaryFile(
+                    suffix=".wav", delete=False
+                ) as tmp_audio:
                     sf.write(tmp_audio.name, audio_data, self.sample_rate)
                     audio_path = tmp_audio.name
 
                 inputs = self.processor.apply_transcription_request(
-                    language="en",
-                    audio=audio_path,
-                    model_id=self.settings.model_name
+                    language="en", audio=audio_path, model_id=self.settings.model_name
                 )
                 inputs = inputs.to(self.model.device, dtype=self.model.dtype)
 
                 with torch.inference_mode():
                     outputs = self.model.generate(**inputs, max_new_tokens=500)
                     transcribed_text = self.processor.batch_decode(
-                        outputs[:, inputs.input_ids.shape[1]:],
-                        skip_special_tokens=True
+                        outputs[:, inputs.input_ids.shape[1] :],
+                        skip_special_tokens=True,
                     )[0]
 
                 os.unlink(audio_path)
@@ -535,7 +542,9 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    canary_message = "Canary can only process up to 40 seconds of audio."
+                    canary_message = (
+                        "Canary can only process up to 40 seconds of audio."
+                    )
                     curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Info", ["Continue"], message=canary_message
@@ -694,7 +703,10 @@ def main():
                     available_compute_types = accepted_compute_types
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "", available_compute_types, message="Use bfloat16 if available"
+                            stdscr,
+                            "",
+                            available_compute_types,
+                            message="Use bfloat16 if available",
                         )
                     )
                     if not compute_type:
@@ -710,7 +722,7 @@ def main():
                         )
                     )
 
-                    language = "auto"  # Set to auto for automatic detection
+                    language = "auto"
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
@@ -729,7 +741,7 @@ def main():
                             "model_name": model_name,
                             "compute_type": compute_type,
                             "device": device,
-                            "language": language,  # "auto" is used here
+                            "language": language,
                             "hotkey": hotkey,
                         }
                     )
@@ -739,7 +751,7 @@ def main():
                         model_name=model_name,
                         compute_type=compute_type,
                         device=device,
-                        language=language,  # "auto"
+                        language=language,
                         hotkey=hotkey,
                     )
 

@@ -19,7 +19,7 @@ classifiers = [
 keywords = ["keyboard", "recognition", "voice", "typing", "speech", "shortcut", "speech-recognition", "hotkey", "speech-to-text", "transcription", "stt", "asr", "faster-whisper", "whisper", "parakeet", "canary", "voxtral"]
 dependencies = [
     "sounddevice",
-    "numpy",
+    "numpy<=2.2",
     "faster-whisper",
     "pynput",
     "pulsectl",
@@ -28,9 +28,10 @@ dependencies = [
     "requests==2.32.3",
     "importlib_resources",
     "cuda-python>=12.3",
-    "transformers",
     "mistral-common[audio]",
-    "uv"
+    "uv",
+    "transformers",
+
 ]
 
 [project.urls]
