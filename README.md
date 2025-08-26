@@ -1,6 +1,6 @@
 # _faster-whisper Hotkey_
 
-a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)** such as Canary, Parakeet or Whisper.
+a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)**.
 
 **Hold the hotkey, Speak, Release ==> And baamm in your text field!**
 
@@ -8,9 +8,20 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
-- (NEW) **[canary-1b-flash](https://huggingface.co/nvidia/canary-1b-flash)**: 4 languages: en, fr, de, es
-- (NEW) **[parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**: en-only model
-- **[whisper](https://github.com/SYSTRAN/faster-whisper)**: many languages
+- (NEW) **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**: 
+  - English, Spanish, French, Portuguese, Hindi, German, Dutch, Italian
+  - Transcription only
+  - GPU only for now
+
+- **[nvidia/canary-1b-flash](https://huggingface.co/nvidia/canary-1b-flash)**:
+  - English, French, German, Spanish
+  - Transcription and translation
+
+- **[nvidia/parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**: English only
+
+- **[faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
+  - Many languages
+  - Transcription only
 
 ## Features
 
