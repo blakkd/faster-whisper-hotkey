@@ -16,7 +16,7 @@ from dataclasses import dataclass
 import torch
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models import EncDecMultiTaskModel
-from transformers import VoxtralForConditionalGeneration, AutoProcessor
+from transformers import VoxtralForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -184,10 +184,10 @@ class MicrophoneTranscriber:
             ).eval()
         elif self.settings.model_type == "voxtral":
             from typing import Optional
-            from pydantic_extra_types.language_code import LanguageAlpha2
             from mistral_common.protocol.transcription.request import (
                 TranscriptionRequest as _TR,
             )
+            from pydantic_extra_types.language_code import LanguageAlpha2
 
             class TranscriptionRequest(_TR):
                 language: Optional[LanguageAlpha2] = None
@@ -196,11 +196,31 @@ class MicrophoneTranscriber:
             self.processor = AutoProcessor.from_pretrained(repo_id)
 
             if self.settings.compute_type == "int8":
+                # 8‑bit quantisation with bitsandbytes
+                quant_cfg = BitsAndBytesConfig(load_in_8bit=True)
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
-                    load_in_8bit=True,
+                    quantization_config=quant_cfg,
                     device_map="auto",
                 ).eval()
+
+            elif self.settings.compute_type == "int4":
+                # 4‑bit quantisation (uses bfloat16 if the GPU supports it)
+                bnb_dtype = (
+                    torch.bfloat16
+                    if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
+                    else torch.float16
+                )
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=bnb_dtype,
+                )
+                self.model = VoxtralForConditionalGeneration.from_pretrained(
+                    repo_id,
+                    quantization_config=quant_cfg,
+                    device_map="auto",
+                ).eval()
+
             else:
                 compute_dtype = {
                     "float16": torch.float16,
@@ -745,7 +765,7 @@ def main():
                     if not device:
                         continue
 
-                    available_compute_types = accepted_compute_types
+                    available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
