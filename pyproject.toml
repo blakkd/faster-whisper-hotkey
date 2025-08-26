@@ -7,40 +7,42 @@ name = "faster-whisper-hotkey"
 version = "0.2.5"
 description = "Push-to-talk transcription using faster-whisper"
 readme = "README.md"
-authors = [
-    {name = "blakkd"}
-]
+authors = [{name = "blakkd"}]
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.10"
+
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+    "Operating System :: Linux",
 ]
-keywords = ["keyboard", "recognition", "voice", "typing", "speech", "shortcut", "speech-recognition", "hotkey", "speech-to-text", "transcription", "stt", "asr", "faster-whisper", "whisper", "parakeet", "canary", "voxtral"]
+
+keywords = [
+    "keyboard", "recognition", "voice", "typing", "speech",
+    "shortcut", "speech-to-text", "hotkey", "stt", "asr",
+    "faster-whisper", "whisper", "parakeet", "canary", "voxtral",
+]
+
+# -------------- DEPENDENCIES -----------------
 dependencies = [
     "sounddevice",
-    "numpy<=2.2",
+    "numpy",
     "faster-whisper",
     "pynput",
     "pulsectl",
     "torch",
     "nemo_toolkit[asr]",
-    "requests==2.32.3",
+    "requests",
     "importlib_resources",
     "cuda-python>=12.3",
     "mistral-common[audio]",
-    "uv",
-    "transformers",
-
+    "transformers==4.55.4",
 ]
 
-[project.urls]
-"Homepage" = "https://github.com/blakkd/faster-whisper-hotkey"
-"Bug Tracker" = "https://github.com/blakkd/faster-whisper-hotkey/issues"
-
+# -------------- SCRIPTS ----------------------
 [project.scripts]
 faster-whisper-hotkey = "faster_whisper_hotkey.__main__:main"
 
+# -------------- SETUPTOOLS --------------------
 [tool.setuptools]
 packages = ["faster_whisper_hotkey"]
 package-dir = {"" = "src"}
