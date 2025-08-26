@@ -16,7 +16,11 @@ from dataclasses import dataclass
 import torch
 from nemo.collections.asr.models import ASRModel
 from nemo.collections.asr.models import EncDecMultiTaskModel
-from transformers import VoxtralForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
+from transformers import (
+    VoxtralForConditionalGeneration,
+    AutoProcessor,
+    BitsAndBytesConfig,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,6 +42,7 @@ accepted_models_whisper = config.get("accepted_models_whisper", [])
 accepted_languages_whisper = config.get("accepted_languages_whisper", [])
 accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cuda", "cpu"]
+accepted_device_voxtral = ["cuda"]
 
 conf_dir = os.path.expanduser("~/.config")
 settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
@@ -196,7 +201,6 @@ class MicrophoneTranscriber:
             self.processor = AutoProcessor.from_pretrained(repo_id)
 
             if self.settings.compute_type == "int8":
-                # 8‑bit quantisation with bitsandbytes
                 quant_cfg = BitsAndBytesConfig(load_in_8bit=True)
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
@@ -205,16 +209,7 @@ class MicrophoneTranscriber:
                 ).eval()
 
             elif self.settings.compute_type == "int4":
-                # 4‑bit quantisation (uses bfloat16 if the GPU supports it)
-                bnb_dtype = (
-                    torch.bfloat16
-                    if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 8
-                    else torch.float16
-                )
-                quant_cfg = BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_compute_dtype=bnb_dtype,
-                )
+                quant_cfg = BitsAndBytesConfig(load_in_4bit=True)
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     quantization_config=quant_cfg,
@@ -759,7 +754,10 @@ def main():
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Select Device", accepted_devices
+                            stdscr,
+                            "Select Device",
+                            accepted_device_voxtral,
+                            message="Only GPU for now.",
                         )
                     )
                     if not device:
@@ -767,18 +765,13 @@ def main():
 
                     available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "",
-                            available_compute_types,
-                            message="Use bfloat16 if available",
-                        )
+                        lambda stdscr: curses_menu(stdscr, "", available_compute_types)
                     )
                     if not compute_type:
                         continue
 
                     info_message_voxtral = (
-                        "Voxtral supports automatic language detection in English, Spanish, French, "
+                        "Voxtral supports automatic language detection among English, Spanish, French, "
                         "Portuguese, Hindi, German, Dutch, and Italian."
                     )
                     curses.wrapper(
