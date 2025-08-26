@@ -183,9 +183,19 @@ class MicrophoneTranscriber:
                 self.settings.model_name, map_location=self.settings.device
             ).eval()
         elif self.settings.model_type == "voxtral":
+            from typing import Optional
+            from pydantic_extra_types.language_code import LanguageAlpha2
+            from mistral_common.protocol.transcription.request import (
+                TranscriptionRequest as _TR,
+            )
+
+            class TranscriptionRequest(_TR):
+                language: Optional[LanguageAlpha2] = None
+
             repo_id = self.settings.model_name
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+
             if self.settings.compute_type == "int8":
-                self.processor = AutoProcessor.from_pretrained(repo_id)
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     load_in_8bit=True,
@@ -196,12 +206,15 @@ class MicrophoneTranscriber:
                     "float16": torch.float16,
                     "bfloat16": torch.bfloat16,
                 }.get(self.settings.compute_type, torch.float16)
-                self.processor = AutoProcessor.from_pretrained(repo_id)
+
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     torch_dtype=compute_dtype,
                     device_map="auto",
                 ).eval()
+
+            self.TranscriptionRequest = TranscriptionRequest
+
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
         self.stop_event = threading.Event()
@@ -267,6 +280,7 @@ class MicrophoneTranscriber:
                 transcribed_text = " ".join(
                     segment.text.strip() for segment in segments
                 )
+
             elif self.settings.model_type == "parakeet":
                 with torch.inference_mode():
                     out = self.model.transcribe([audio_data])
@@ -296,6 +310,7 @@ class MicrophoneTranscriber:
                     finally:
                         if temp_path and os.path.exists(temp_path):
                             os.remove(temp_path)
+
             elif self.settings.model_type == "voxtral":
                 with tempfile.NamedTemporaryFile(
                     suffix=".wav", delete=False
@@ -303,19 +318,49 @@ class MicrophoneTranscriber:
                     sf.write(tmp_audio.name, audio_data, self.sample_rate)
                     audio_path = tmp_audio.name
 
-                inputs = self.processor.apply_transcription_request(
-                    language="en", audio=audio_path, model_id=self.settings.model_name
-                )
-                inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+                class FileWrapper:
+                    def __init__(self, file_obj):
+                        self.file = file_obj
 
-                with torch.inference_mode():
-                    outputs = self.model.generate(**inputs, max_new_tokens=500)
-                    transcribed_text = self.processor.batch_decode(
-                        outputs[:, inputs.input_ids.shape[1] :],
-                        skip_special_tokens=True,
-                    )[0]
+                try:
+                    with open(audio_path, "rb") as f:
+                        wrapped_file = FileWrapper(f)
 
-                os.unlink(audio_path)
+                        openai_req = {
+                            "model": self.settings.model_name,
+                            "file": wrapped_file,
+                        }
+                        if self.settings.language != "auto":
+                            openai_req["language"] = self.settings.language
+
+                        tr = self.TranscriptionRequest.from_openai(openai_req)
+
+                        tok = self.processor.tokenizer.tokenizer.encode_transcription(
+                            tr
+                        )
+
+                        audio_feats = self.processor.feature_extractor(
+                            audio_data,
+                            sampling_rate=self.sample_rate,
+                            return_tensors="pt",
+                        ).input_features.to(self.model.device)
+
+                        with torch.no_grad():
+                            ids = self.model.generate(
+                                input_features=audio_feats,
+                                input_ids=torch.tensor(
+                                    [tok.tokens], device=self.model.device
+                                ),
+                                max_new_tokens=500,
+                                num_beams=1,
+                            )
+
+                        transcribed_text = self.processor.batch_decode(
+                            ids, skip_special_tokens=True
+                        )[0]
+
+                finally:
+                    os.unlink(audio_path)
             else:
                 raise ValueError(f"Unknown model type: {self.settings.model_type}")
             if transcribed_text.strip():
