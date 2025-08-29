@@ -26,7 +26,6 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **Automatic Download**: The missing models are automatically retrieved from Hugging Face.
-- **No clipboard usage**: Uses `pynput` to directly simulate keypresses instead.
 - **Zero impact on resources** apart from RAM/VRAM (cause we want the load to stay loaded to be always ready-to-use).
 - **User-Friendly Interface**: Simple interactive menu for configuration, with quick "last config" reuse.
 - **Configurable Settings**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
