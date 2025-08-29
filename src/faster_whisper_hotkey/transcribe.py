@@ -1,35 +1,58 @@
+import os
+import re
+import shutil
+import subprocess
+import time
 import tempfile
+import json
+import logging
+from dataclasses import dataclass
+from importlib.resources import files
+
+import numpy as np
 import sounddevice as sd
 import soundfile as sf
-import numpy as np
-from faster_whisper import WhisperModel
 import threading
 from pynput import keyboard
-import logging
-import pulsectl
-import time
-import curses
-import json
-import os
-from importlib.resources import files
-from dataclasses import dataclass
+
 import torch
-from nemo.collections.asr.models import ASRModel
-from nemo.collections.asr.models import EncDecMultiTaskModel
+from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 from transformers import (
     VoxtralForConditionalGeneration,
     AutoProcessor,
     BitsAndBytesConfig,
 )
 
+from faster_whisper import WhisperModel
+import pulsectl
+import curses
+
+# ----------------------------------------------------------------------
+# Optional clipboard helper
+# ----------------------------------------------------------------------
+try:
+    import pyperclip
+except ImportError:
+    pyperclip = None
+    logging.getLogger(__name__).error(
+        "pyperclip not found - falling back to typing method - uppercase chars/symbols might fail in some text fields"
+    )
+
+# ----------------------------------------------------------------------
+# Logging
+# ----------------------------------------------------------------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
+# ----------------------------------------------------------------------
+# Helpers for packaged resources
+# ----------------------------------------------------------------------
 def get_resource_path(filename):
     return files("faster_whisper_hotkey").joinpath(filename).as_posix()
 
-
+# ----------------------------------------------------------------------
+# Load configuration
+# ----------------------------------------------------------------------
 try:
     config_path = get_resource_path("available_models_languages.json")
     with open(config_path) as f:
@@ -43,14 +66,15 @@ accepted_languages_whisper = config.get("accepted_languages_whisper", [])
 accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cuda", "cpu"]
 accepted_device_voxtral = ["cuda"]
+english_only_models_whisper = set(config.get("english_only_models_whisper", []))
 
+# ----------------------------------------------------------------------
+# Settings persistence
+# ----------------------------------------------------------------------
 conf_dir = os.path.expanduser("~/.config")
 settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
-
-english_only_models_whisper = set(config.get("english_only_models_whisper", []))
-
 
 @dataclass
 class Settings:
@@ -62,14 +86,12 @@ class Settings:
     language: str
     hotkey: str = "pause"
 
-
 def save_settings(settings: dict):
     try:
         with open(SETTINGS_FILE, "w") as f:
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
-
 
 def load_settings() -> Settings | None:
     try:
@@ -83,7 +105,9 @@ def load_settings() -> Settings | None:
         logger.warning(f"Failed to load settings: {e}")
         return None
 
-
+# ----------------------------------------------------------------------
+# Curses menu helpers
+# ----------------------------------------------------------------------
 def curses_menu(stdscr, title: str, options: list, message: str = "", initial_idx=0):
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
@@ -159,12 +183,31 @@ def curses_menu(stdscr, title: str, options: list, message: str = "", initial_id
             h, w = new_h, new_w
         draw_menu()
 
-
 def get_initial_choice(stdscr):
     options = ["Use Last Settings", "Choose New Settings"]
     return curses_menu(stdscr, "", options)
 
+# ----------------------------------------------------------------------
+# Terminal detection helpers
+# ----------------------------------------------------------------------
+# X11 terminal identifiers
+TERMINAL_IDENTIFIERS_X11 = [
+    "terminal",
+    "term",
+    "konsole",
+    "xterm",
+    "rxvt",
+    "urxvt",
+    "kitty",
+    "alacritty",
+    "terminator",
+]
+# Wayland terminal identifiers (same heuristic)
+TERMINAL_IDENTIFIERS_WAYLAND = TERMINAL_IDENTIFIERS_X11
 
+# ----------------------------------------------------------------------
+# MicrophoneTranscriber
+# ----------------------------------------------------------------------
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -172,6 +215,8 @@ class MicrophoneTranscriber:
         self.max_buffer_length = 10 * 60 * self.sample_rate
         self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
         self.buffer_index = 0
+
+        # Load the requested model
         if self.settings.model_type == "whisper":
             self.model = WhisperModel(
                 model_size_or_path=self.settings.model_name,
@@ -229,9 +274,9 @@ class MicrophoneTranscriber:
                 ).eval()
 
             self.TranscriptionRequest = TranscriptionRequest
-
         else:
             raise ValueError(f"Unknown model type: {self.settings.model_type}")
+
         self.stop_event = threading.Event()
         self.is_recording = False
         self.device_name = self.settings.device_name
@@ -243,6 +288,9 @@ class MicrophoneTranscriber:
         self.transcription_queue = []
         self.timer = None
 
+    # ------------------------------------------------------------------
+    # Hotkey mapping
+    # ------------------------------------------------------------------
     def _parse_hotkey(self, hotkey_str):
         key_mapping = {
             "pause": keyboard.Key.pause,
@@ -252,6 +300,9 @@ class MicrophoneTranscriber:
         }
         return key_mapping.get(hotkey_str, keyboard.Key.pause)
 
+    # ------------------------------------------------------------------
+    # Set default audio source
+    # ------------------------------------------------------------------
     def set_default_audio_source(self):
         with pulsectl.Pulse("set-default-source") as pulse:
             for source in pulse.source_list():
@@ -261,7 +312,10 @@ class MicrophoneTranscriber:
                     return
             logger.warning(f"Source '{self.device_name}' not found")
 
-    def audio_callback(self, indata, frames, time, status):
+    # ------------------------------------------------------------------
+    # Audio callback
+    # ------------------------------------------------------------------
+    def audio_callback(self, indata, frames, time_, status):
         if status:
             logger.warning(f"Status: {status}")
         audio_data = (
@@ -279,8 +333,149 @@ class MicrophoneTranscriber:
         self.audio_buffer[self.buffer_index : new_index] = audio_data
         self.buffer_index = new_index
 
+    # ------------------------------------------------------------------
+    # Clipboard helpers
+    # ------------------------------------------------------------------
+    def _backup_clipboard(self):
+        if pyperclip is None:
+            logger.warning("pyperclip unavailable - cannot backup clipboard")
+            return None
+        try:
+            return pyperclip.paste()
+        except Exception as e:
+            logger.debug(f"Could not read clipboard: {e}")
+            return None
+
+    def _set_clipboard(self, text: str):
+        if pyperclip is None:
+            logger.warning("pyperclip unavailable - cannot set clipboard")
+            return False
+        try:
+            pyperclip.copy(text)
+            return True
+        except Exception as e:
+            logger.error(f"Could not set clipboard: {e}")
+            return False
+
+    def _restore_clipboard(self, original_text: str):
+        if pyperclip is None:
+            return
+        try:
+            pyperclip.copy(original_text)
+        except Exception as e:
+            logger.debug(f"Could not restore clipboard: {e}")
+
+    # ------------------------------------------------------------------
+    # X11 active-window detection
+    # ------------------------------------------------------------------
+    def _get_active_window_class_x11(self):
+        try:
+            win_id = subprocess.check_output(["xdotool", "getactivewindow"])
+            win_id = win_id.decode().strip()
+            xprop_output = subprocess.check_output(["xprop", "-id", win_id, "WM_CLASS"])
+            return re.findall(r'"([^"]+)"', xprop_output.decode())
+        except Exception as e:
+            logger.debug(f"X11 active window detection failed: {e}")
+            return []
+
+    def _is_terminal_window_x11(self, classes: list):
+        for cls in classes:
+            if any(t in cls.lower() for t in TERMINAL_IDENTIFIERS_X11):
+                return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Wayland active-window detection (Sway)
+    # ------------------------------------------------------------------
+    def _get_focused_container_wayland(self):
+        try:
+            raw = subprocess.check_output(["swaymsg", "-t", "get_tree"])
+            tree = json.loads(raw.decode())
+        except Exception as e:
+            logger.debug(f"Wayland tree retrieval failed: {e}")
+            return None
+
+        def find_focused(node):
+            if node.get("focused"):
+                return node
+            for child in node.get("nodes", []):
+                r = find_focused(child)
+                if r:
+                    return r
+            for child in node.get("floating_nodes", []):
+                r = find_focused(child)
+                if r:
+                    return r
+            return None
+
+        return find_focused(tree)
+
+    def _is_terminal_window_wayland(self, container):
+        if not container:
+            return False
+        name = (container.get("app_id", "") + container.get("name", "")).lower()
+        return any(t in name for t in TERMINAL_IDENTIFIERS_WAYLAND)
+
+    # ------------------------------------------------------------------
+    # Paste helpers
+    # ------------------------------------------------------------------
+    def _paste_x11(self, is_terminal: bool):
+        """Send the paste shortcut on X11."""
+        time.sleep(0.05)  # give clipboard time to settle
+        if is_terminal:
+            # Ctrl+Shift+V
+            self.keyboard_controller.press(keyboard.Key.ctrl_l)
+            self.keyboard_controller.press(keyboard.Key.shift)
+            self.keyboard_controller.press("v")
+            time.sleep(0.01)
+            self.keyboard_controller.release("v")
+            self.keyboard_controller.release(keyboard.Key.shift)
+            self.keyboard_controller.release(keyboard.Key.ctrl_l)
+        else:
+            # Ctrl+V
+            self.keyboard_controller.press(keyboard.Key.ctrl_l)
+            self.keyboard_controller.press("v")
+            time.sleep(0.01)
+            self.keyboard_controller.release("v")
+            self.keyboard_controller.release(keyboard.Key.ctrl_l)
+
+    def _send_key_wayland(self, combo: str):
+        wtype_path = shutil.which("wtype")
+        if not wtype_path:
+            logger.warning("wtype not found - cannot auto-paste on Wayland.")
+            return False
+        try:
+            subprocess.run([wtype_path, combo], check=True)
+            return True
+        except Exception as e:
+            logger.error(f"wtype failed: {e}")
+            return False
+
+    def _paste_wayland(self, is_terminal: bool):
+        combo = "ctrl+shift+v" if is_terminal else "ctrl+v"
+        success = self._send_key_wayland(combo)
+        if not success:
+            logger.warning(
+                "Auto-paste failed on Wayland; please paste manually (Ctrl+Shift+V)."
+            )
+
+    def _paste_to_active_window(self):
+        """Detect the focused window and issue the appropriate paste shortcut."""
+        if os.getenv("WAYLAND_DISPLAY"):
+            container = self._get_focused_container_wayland()
+            is_terminal = self._is_terminal_window_wayland(container)
+            self._paste_wayland(is_terminal)
+        else:
+            classes = self._get_active_window_class_x11()
+            is_terminal = self._is_terminal_window_x11(classes)
+            self._paste_x11(is_terminal)
+
+    # ------------------------------------------------------------------
+    # Transcription and sending
+    # ------------------------------------------------------------------
     def transcribe_and_send(self, audio_data):
         try:
+            # ---------- run the requested model ----------
             if self.settings.model_type == "whisper":
                 segments, _ = self.model.transcribe(
                     audio_data,
@@ -300,6 +495,7 @@ class MicrophoneTranscriber:
                 with torch.inference_mode():
                     out = self.model.transcribe([audio_data])
                 transcribed_text = out[0].text if out else ""
+
             elif self.settings.model_type == "canary":
                 lang_parts = self.settings.language.split("-")
                 if len(lang_parts) != 2:
@@ -350,9 +546,7 @@ class MicrophoneTranscriber:
 
                         tr = self.TranscriptionRequest.from_openai(openai_req)
 
-                        tok = self.processor.tokenizer.tokenizer.encode_transcription(
-                            tr
-                        )
+                        tok = self.processor.tokenizer.tokenizer.encode_transcription(tr)
 
                         audio_feats = self.processor.feature_extractor(
                             audio_data,
@@ -378,12 +572,32 @@ class MicrophoneTranscriber:
                     os.unlink(audio_path)
             else:
                 raise ValueError(f"Unknown model type: {self.settings.model_type}")
+
+            # ---------- send the text ----------
             if transcribed_text.strip():
-                for char in transcribed_text:
-                    self.keyboard_controller.press(char)
-                    self.keyboard_controller.release(char)
-                    time.sleep(0.001)
+                if pyperclip is None:
+                    # fallback typing - preserves case / punctuation
+                    for char in transcribed_text:
+                        self.keyboard_controller.press(char)
+                        self.keyboard_controller.release(char)
+                        time.sleep(0.001)
+                else:
+                    original_clip = self._backup_clipboard()
+                    if not self._set_clipboard(transcribed_text):
+                        logger.error("Could not set clipboard - falling back to typing")
+                        for char in transcribed_text:
+                            self.keyboard_controller.press(char)
+                            self.keyboard_controller.release(char)
+                            time.sleep(0.001)
+                    else:
+                        time.sleep(0.01)  # give clipboard time to settle
+                        self._paste_to_active_window()
+                        if original_clip is not None:
+                            time.sleep(0.05)
+                            self._restore_clipboard(original_clip)
+
                 logger.info(f"Transcribed text: {transcribed_text}")
+
         except Exception as e:
             logger.error(f"Transcription error: {e}")
         finally:
@@ -399,6 +613,9 @@ class MicrophoneTranscriber:
                 target=self.transcribe_and_send, args=(audio_data,), daemon=True
             ).start()
 
+    # ------------------------------------------------------------------
+    # Recording control
+    # ------------------------------------------------------------------
     def start_recording(self):
         if not self.is_recording:
             logger.info("Starting recording...")
@@ -436,12 +653,13 @@ class MicrophoneTranscriber:
                 self.last_transcription_end_time = time.time()
                 self.process_next_transcription()
 
+    # ------------------------------------------------------------------
+    # Hotkey handlers
+    # ------------------------------------------------------------------
     def on_press(self, key):
         try:
             current_time = time.time()
-            if self.is_recording or (
-                current_time - self.last_transcription_end_time < 0.1
-            ):
+            if self.is_recording or (current_time - self.last_transcription_end_time < 0.1):
                 return True
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
@@ -454,8 +672,7 @@ class MicrophoneTranscriber:
         try:
             current_time = time.time()
             if self.is_recording and (
-                self.is_transcribing
-                or (current_time - self.last_transcription_end_time < 0.1)
+                self.is_transcribing or (current_time - self.last_transcription_end_time < 0.1)
             ):
                 return True
             if key == self.hotkey_key and self.is_recording:
@@ -465,6 +682,9 @@ class MicrophoneTranscriber:
             pass
         return True
 
+    # ------------------------------------------------------------------
+    # Main loop
+    # ------------------------------------------------------------------
     def run(self):
         self.set_default_audio_source()
         with keyboard.Listener(
@@ -481,6 +701,9 @@ class MicrophoneTranscriber:
                 logger.info("Program terminated by user")
 
 
+# ----------------------------------------------------------------------
+# Main entry point
+# ----------------------------------------------------------------------
 def main():
     while True:
         try:

@@ -36,7 +36,8 @@ dependencies = [
     "cuda-python>=12.3",
     "mistral-common[audio]",
     "transformers==4.55.4",
-    "bitsandbytes>=0.43.1"
+    "bitsandbytes>=0.43.1",
+    "pyperclip"
 
 ]
 
