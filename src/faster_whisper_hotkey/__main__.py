@@ -1,4 +1,4 @@
-"""Entry point for the package."""
+"""Entry point."""
 
 from faster_whisper_hotkey.transcribe import main
 

@@ -1,9 +1,20 @@
-"""
-Main orchestration module — drives the interactive setup and starts MicrophoneTranscriber.
-"""
-
 import logging
 import curses
+import warnings
+
+# Suppress specific SyntaxWarnings from third-party packages
+warnings.filterwarnings(
+    "ignore",
+    message="invalid escape sequence '\\s'",
+    category=SyntaxWarning,
+    module="lhotse.recipes.iwslt22_ta"
+)
+warnings.filterwarnings(
+    "ignore",
+    message="invalid escape sequence '\\('",
+    category=SyntaxWarning,
+    module="pydub.utils"
+)
 
 from .ui import get_initial_choice, curses_menu
 from .config import (

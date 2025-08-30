@@ -22,7 +22,7 @@ keywords = [
     "faster-whisper", "whisper", "parakeet", "canary", "voxtral",
 ]
 
-# -------------- DEPENDENCIES -----------------
+# DEPENDENCIES
 dependencies = [
     "sounddevice",
     "numpy",
@@ -41,14 +41,18 @@ dependencies = [
 
 ]
 
-# -------------- SCRIPTS ----------------------
+# SCRIPTS
 [project.scripts]
 faster-whisper-hotkey = "faster_whisper_hotkey.__main__:main"
 
-# -------------- SETUPTOOLS --------------------
+# SETUPTOOLS
 [tool.setuptools]
 packages = ["faster_whisper_hotkey"]
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 faster_whisper_hotkey = ["*.json"]
+
+# RUFF
+[tool.ruff.lint]
+ignore = ["E402"]
