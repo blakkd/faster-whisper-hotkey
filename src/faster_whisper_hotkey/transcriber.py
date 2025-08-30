@@ -146,8 +146,12 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
-            self.timer = threading.Timer(40, self.stop_recording_and_transcribe)
-            self.timer.start()
+            
+            # Only apply 40-second time limit for Canary model
+            if self.model_wrapper.model_type == "canary":
+                self.timer = threading.Timer(40, self.stop_recording_and_transcribe)
+                self.timer.start()
+            
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
