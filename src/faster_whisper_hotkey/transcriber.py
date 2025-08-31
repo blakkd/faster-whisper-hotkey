@@ -201,12 +201,12 @@ class MicrophoneTranscriber:
         return True
 
     def on_release(self, key):
+        """
+        Release the hotkey to stop recording *even if a transcription is in progress*.
+        This ensures queued audio is added immediately; the text is sent as soon as the
+        transcription finishes.
+        """
         try:
-            current_time = time.time()
-            if self.is_recording and (
-                self.is_transcribing or (current_time - self.last_transcription_end_time < 0.1)
-            ):
-                return True
             if key == self.hotkey_key and self.is_recording:
                 self.stop_recording_and_transcribe()
                 return True
