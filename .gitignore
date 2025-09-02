@@ -2,3 +2,4 @@ build/
 src/faster_whisper_hotkey.egg-info/
 *.txt
 .venv/
+test/
