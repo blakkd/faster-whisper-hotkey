@@ -10,6 +10,7 @@ except Exception:
         "pyperclip not found - falling back to typing method - uppercase chars/symbols might fail in some text fields"
     )
 
+
 def backup_clipboard():
     if pyperclip is None:
         logger.warning("pyperclip unavailable - cannot backup clipboard")
@@ -19,6 +20,7 @@ def backup_clipboard():
     except Exception as e:
         logger.debug(f"Could not read clipboard: {e}")
         return None
+
 
 def set_clipboard(text: str) -> bool:
     if pyperclip is None:
@@ -30,6 +32,7 @@ def set_clipboard(text: str) -> bool:
     except Exception as e:
         logger.error(f"Could not set clipboard: {e}")
         return False
+
 
 def restore_clipboard(original_text: str | None):
     if pyperclip is None:

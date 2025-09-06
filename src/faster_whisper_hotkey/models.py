@@ -17,6 +17,7 @@ from faster_whisper import WhisperModel
 
 logger = logging.getLogger(__name__)
 
+
 class ModelWrapper:
     """
     Encapsulates loading and running different model types (whisper, parakeet, canary, voxtral).
@@ -100,7 +101,9 @@ class ModelWrapper:
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
-    def transcribe(self, audio_data, sample_rate: int = 16000, language: Optional[str] = None) -> str:
+    def transcribe(
+        self, audio_data, sample_rate: int = 16000, language: Optional[str] = None
+    ) -> str:
         """
         Transcribe a numpy array of audio samples and return transcribed text.
         For some models (canary, voxtral) we write to a temp file and call model utilities requiring a file.
@@ -156,14 +159,14 @@ class ModelWrapper:
 
                 if len(audio_data) > max_samples:
                     logger.warning(
-                        f"Audio length ({len(audio_data)/samples_per_second:.2f}s) exceeds Voxtral's recommended input limit ({MAX_DURATION_SECONDS}s). "
+                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral's recommended input limit ({MAX_DURATION_SECONDS}s). "
                         "Processing in chunks."
                     )
                     # Split audio into chunks of max_samples
                     chunks = []
                     for i in range(0, len(audio_data), max_samples):
-                        chunk = audio_data[i:i + max_samples]
-                        if len(chunk) < 1000: # Skip very short chunks (likely noise)
+                        chunk = audio_data[i : i + max_samples]
+                        if len(chunk) < 1000:  # Skip very short chunks (likely noise)
                             continue
                         chunks.append(chunk)
 
@@ -171,7 +174,9 @@ class ModelWrapper:
                     full_text = ""
                     for i, chunk in enumerate(chunks):
                         try:
-                            result = self._transcribe_single_chunk_voxtral(chunk, sample_rate, language)
+                            result = self._transcribe_single_chunk_voxtral(
+                                chunk, sample_rate, language
+                            )
                             if result.strip():
                                 full_text += result + " "
                         except Exception as e:
@@ -182,7 +187,9 @@ class ModelWrapper:
                     return full_text.strip()
                 else:
                     # If audio is within limits, process it directly
-                    return self._transcribe_single_chunk_voxtral(audio_data, sample_rate, language)
+                    return self._transcribe_single_chunk_voxtral(
+                        audio_data, sample_rate, language
+                    )
 
             else:
                 raise ValueError(f"Unknown model type: {mt}")
@@ -191,7 +198,9 @@ class ModelWrapper:
             logger.error(f"Error during model.transcribe: {e}")
             return ""
 
-    def _transcribe_single_chunk_voxtral(self, audio_data, sample_rate: int, language: Optional[str]) -> str:
+    def _transcribe_single_chunk_voxtral(
+        self, audio_data, sample_rate: int, language: Optional[str]
+    ) -> str:
         """
         Internal helper to transcribe a single chunk of audio for Voxtral.
         This handles the file I/O and model call.
@@ -203,7 +212,7 @@ class ModelWrapper:
 
         try:
             # Use the exact approach from test_voxtral.py but adapted for chunked input
-            
+
             # Create a wrapper class to mimic what the processor expects
             class FileWrapper:
                 def __init__(self, file_obj):
@@ -225,7 +234,7 @@ class ModelWrapper:
 
                 # Get tokens from the processor's tokenizer
                 tok = self.processor.tokenizer.tokenizer.encode_transcription(tr)
-                
+
                 # Extract audio features using the processor (this is where it might fail)
                 try:
                     # Ensure we pass the correct parameters to feature extraction
@@ -235,14 +244,14 @@ class ModelWrapper:
                         sampling_rate=sample_rate,
                         return_tensors="pt",
                     ).input_features.to(self.model.device)
-                    
+
                     # Get the tokens correctly (they should be in tok.tokens)
-                    if hasattr(tok, 'tokens') and tok.tokens is not None:
+                    if hasattr(tok, "tokens") and tok.tokens is not None:
                         token_ids = torch.tensor([tok.tokens], device=self.model.device)
                     else:
                         logger.warning("Token IDs might be invalid")
                         return ""
-                        
+
                 except Exception as e:
                     logger.error(f"Feature extraction failed: {e}")
                     raise
@@ -267,4 +276,4 @@ class ModelWrapper:
             try:
                 os.unlink(audio_path)
             except Exception:
-                pass # Ignore cleanup errors
+                pass  # Ignore cleanup errors

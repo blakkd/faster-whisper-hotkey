@@ -3,7 +3,10 @@ from typing import List
 
 # UI helpers using curses
 
-def curses_menu(stdscr, title: str, options: List[str], message: str = "", initial_idx=0):
+
+def curses_menu(
+    stdscr, title: str, options: List[str], message: str = "", initial_idx=0
+):
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
 
@@ -77,6 +80,7 @@ def curses_menu(stdscr, title: str, options: List[str], message: str = "", initi
         if (new_h != h) or (new_w != w):
             h, w = new_h, new_w
         draw_menu()
+
 
 def get_initial_choice(stdscr):
     options = ["Use Last Settings", "Choose New Settings"]

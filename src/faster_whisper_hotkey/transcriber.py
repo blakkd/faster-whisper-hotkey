@@ -18,6 +18,7 @@ accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cuda", "cpu"]
 accepted_device_voxtral = ["cuda"]
 
+
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -95,7 +96,9 @@ class MicrophoneTranscriber:
         try:
             self.is_transcribing = True
             transcribed_text = self.model_wrapper.transcribe(
-                audio_data, sample_rate=self.sample_rate, language=self.settings.language
+                audio_data,
+                sample_rate=self.sample_rate,
+                language=self.settings.language,
             )
 
             # ---------- send the text ----------
@@ -146,12 +149,12 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
-            
+
             # Only apply 40-second time limit for Canary model
             if self.model_wrapper.model_type == "canary":
                 self.timer = threading.Timer(40, self.stop_recording_and_transcribe)
                 self.timer.start()
-            
+
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
@@ -191,7 +194,9 @@ class MicrophoneTranscriber:
     def on_press(self, key):
         try:
             current_time = time.time()
-            if self.is_recording or (current_time - self.last_transcription_end_time < 0.1):
+            if self.is_recording or (
+                current_time - self.last_transcription_end_time < 0.1
+            ):
                 return True
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()

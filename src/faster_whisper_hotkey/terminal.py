@@ -22,6 +22,7 @@ TERMINAL_IDENTIFIERS_X11 = [
 # Wayland terminal identifiers
 TERMINAL_IDENTIFIERS_WAYLAND = TERMINAL_IDENTIFIERS_X11
 
+
 def get_active_window_class_x11() -> List[str]:
     try:
         win_id = subprocess.check_output(["xdotool", "getactivewindow"])
@@ -32,11 +33,13 @@ def get_active_window_class_x11() -> List[str]:
         logger.debug(f"X11 active window detection failed: {e}")
         return []
 
+
 def is_terminal_window_x11(classes: List[str]) -> bool:
     for cls in classes:
         if any(t in cls.lower() for t in TERMINAL_IDENTIFIERS_X11):
             return True
     return False
+
 
 def get_focused_container_wayland() -> Optional[dict]:
     try:
@@ -60,6 +63,7 @@ def get_focused_container_wayland() -> Optional[dict]:
         return None
 
     return find_focused(tree)
+
 
 def is_terminal_window_wayland(container: Optional[dict]) -> bool:
     if not container:

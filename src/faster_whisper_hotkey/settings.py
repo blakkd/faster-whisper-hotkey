@@ -10,6 +10,7 @@ settings_dir = os.path.join(conf_dir, "faster_whisper_hotkey")
 os.makedirs(settings_dir, exist_ok=True)
 SETTINGS_FILE = os.path.join(settings_dir, "transcriber_settings.json")
 
+
 @dataclass
 class Settings:
     device_name: str
@@ -20,12 +21,14 @@ class Settings:
     language: str
     hotkey: str = "pause"
 
+
 def save_settings(settings: dict):
     try:
         with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
+
 
 def load_settings() -> Settings | None:
     try:

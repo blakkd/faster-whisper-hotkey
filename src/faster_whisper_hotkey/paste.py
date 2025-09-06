@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 keyboard_controller = keyboard.Controller()
 
+
 def paste_x11(is_terminal: bool):
     """
     Send the paste shortcut on X11.
@@ -33,6 +34,7 @@ def paste_x11(is_terminal: bool):
         keyboard_controller.release("v")
         keyboard_controller.release(keyboard.Key.ctrl_l)
 
+
 def _send_key_wayland(combo: str) -> bool:
     wtype_path = shutil.which("wtype")
     if not wtype_path:
@@ -45,6 +47,7 @@ def _send_key_wayland(combo: str) -> bool:
         logger.error(f"wtype failed: {e}")
         return False
 
+
 def paste_wayland(is_terminal: bool):
     combo = "ctrl+shift+v" if is_terminal else "ctrl+v"
     success = _send_key_wayland(combo)
@@ -52,6 +55,7 @@ def paste_wayland(is_terminal: bool):
         logger.warning(
             "Auto-paste failed on Wayland; please paste manually (Ctrl+Shift+V)."
         )
+
 
 def paste_to_active_window():
     """
