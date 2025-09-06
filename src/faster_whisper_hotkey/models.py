@@ -93,7 +93,7 @@ class ModelWrapper:
 
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
-                    torch_dtype=compute_dtype,
+                    dtype=compute_dtype,
                     device_map="auto",
                 ).eval()
 
