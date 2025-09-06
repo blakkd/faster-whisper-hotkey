@@ -38,7 +38,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
   - **~20% lower error rate** than whisper-large-v3 despite being **~10x faster!**
   - **CPU**: very slow, not recommended!
-  - **GPU**: ~7s for 30s audio
+  - **GPU**: ~7s for 30s audio on a RTX 3090 in INT8
 
 - **nvidia/canary-1b-flash** (4 languages):
 
