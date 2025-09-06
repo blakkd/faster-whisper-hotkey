@@ -104,6 +104,7 @@ class ModelWrapper:
         """
         Transcribe a numpy array of audio samples and return transcribed text.
         For some models (canary, voxtral) we write to a temp file and call model utilities requiring a file.
+        For Voxtral, handles potential input size limits by chunking.
         """
         mt = self.model_type
         try:
@@ -146,52 +147,42 @@ class ModelWrapper:
                         os.remove(temp_path)
 
             elif mt == "voxtral":
-                # Voxtral requires file-based input + processor usage
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                    sf.write(tmp_audio.name, audio_data, sample_rate)
-                    audio_path = tmp_audio.name
+                # --- Voxtral-specific transcription with chunking ---
+                # Use a default or configurable max duration (in seconds) for processing
+                # Based on documentation and typical behavior, 30s is a safe limit for the encoder.
+                MAX_DURATION_SECONDS = 30
+                samples_per_second = sample_rate
+                max_samples = MAX_DURATION_SECONDS * samples_per_second
 
-                class FileWrapper:
-                    def __init__(self, file_obj):
-                        self.file = file_obj
+                if len(audio_data) > max_samples:
+                    logger.warning(
+                        f"Audio length ({len(audio_data)/samples_per_second:.2f}s) exceeds Voxtral's recommended input limit ({MAX_DURATION_SECONDS}s). "
+                        "Processing in chunks."
+                    )
+                    # Split audio into chunks of max_samples
+                    chunks = []
+                    for i in range(0, len(audio_data), max_samples):
+                        chunk = audio_data[i:i + max_samples]
+                        if len(chunk) < 1000: # Skip very short chunks (likely noise)
+                            continue
+                        chunks.append(chunk)
 
-                try:
-                    with open(audio_path, "rb") as f:
-                        wrapped_file = FileWrapper(f)
+                    # Process each chunk and concatenate results
+                    full_text = ""
+                    for i, chunk in enumerate(chunks):
+                        try:
+                            result = self._transcribe_single_chunk_voxtral(chunk, sample_rate, language)
+                            if result.strip():
+                                full_text += result + " "
+                        except Exception as e:
+                            logger.error(f"Failed to transcribe chunk {i}: {e}")
+                            # Optionally add a placeholder or skip
+                            pass
 
-                        openai_req = {
-                            "model": self.settings.model_name,
-                            "file": wrapped_file,
-                        }
-                        if language and language != "auto":
-                            openai_req["language"] = language
-
-                        tr = self.TranscriptionRequest.from_openai(openai_req)
-
-                        tok = self.processor.tokenizer.tokenizer.encode_transcription(tr)
-
-                        audio_feats = self.processor.feature_extractor(
-                            audio_data,
-                            sampling_rate=sample_rate,
-                            return_tensors="pt",
-                        ).input_features.to(self.model.device)
-
-                        with torch.no_grad():
-                            ids = self.model.generate(
-                                input_features=audio_feats,
-                                input_ids=torch.tensor(
-                                    [tok.tokens], device=self.model.device
-                                ),
-                                max_new_tokens=500,
-                                num_beams=1,
-                            )
-
-                        return self.processor.batch_decode(ids, skip_special_tokens=True)[0]
-                finally:
-                    try:
-                        os.unlink(audio_path)
-                    except Exception:
-                        pass
+                    return full_text.strip()
+                else:
+                    # If audio is within limits, process it directly
+                    return self._transcribe_single_chunk_voxtral(audio_data, sample_rate, language)
 
             else:
                 raise ValueError(f"Unknown model type: {mt}")
@@ -199,3 +190,81 @@ class ModelWrapper:
         except Exception as e:
             logger.error(f"Error during model.transcribe: {e}")
             return ""
+
+    def _transcribe_single_chunk_voxtral(self, audio_data, sample_rate: int, language: Optional[str]) -> str:
+        """
+        Internal helper to transcribe a single chunk of audio for Voxtral.
+        This handles the file I/O and model call.
+        """
+        # Write chunk to temporary file
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
+            sf.write(tmp_audio.name, audio_data, sample_rate)
+            audio_path = tmp_audio.name
+
+        try:
+            # Use the exact approach from test_voxtral.py but adapted for chunked input
+            
+            # Create a wrapper class to mimic what the processor expects
+            class FileWrapper:
+                def __init__(self, file_obj):
+                    self.file = file_obj
+
+            with open(audio_path, "rb") as f:
+                wrapped_file = FileWrapper(f)
+
+                # Prepare request similar to test_voxtral.py
+                openai_req = {
+                    "model": self.settings.model_name,
+                    "file": wrapped_file,
+                }
+                if language and language != "auto":
+                    openai_req["language"] = language
+
+                # This is the key step - create transcription request properly
+                tr = self.TranscriptionRequest.from_openai(openai_req)
+
+                # Get tokens from the processor's tokenizer
+                tok = self.processor.tokenizer.tokenizer.encode_transcription(tr)
+                
+                # Extract audio features using the processor (this is where it might fail)
+                try:
+                    # Ensure we pass the correct parameters to feature extraction
+                    # This mimics the working test code more closely
+                    input_features = self.processor.feature_extractor(
+                        audio_data,
+                        sampling_rate=sample_rate,
+                        return_tensors="pt",
+                    ).input_features.to(self.model.device)
+                    
+                    # Get the tokens correctly (they should be in tok.tokens)
+                    if hasattr(tok, 'tokens') and tok.tokens is not None:
+                        token_ids = torch.tensor([tok.tokens], device=self.model.device)
+                    else:
+                        logger.warning("Token IDs might be invalid")
+                        return ""
+                        
+                except Exception as e:
+                    logger.error(f"Feature extraction failed: {e}")
+                    raise
+
+                # Generate using the model
+                with torch.no_grad():
+                    ids = self.model.generate(
+                        input_features=input_features,
+                        input_ids=token_ids,
+                        max_new_tokens=500,
+                        num_beams=1,
+                    )
+
+                # Decode the result (this is also from test_voxtral.py)
+                decoded = self.processor.batch_decode(ids, skip_special_tokens=True)[0]
+                return decoded
+
+        except Exception as e:
+            logger.error(f"Voxtral transcription error in chunk: {e}")
+            raise
+        finally:
+            try:
+                os.unlink(audio_path)
+            except Exception:
+                pass # Ignore cleanup errors
