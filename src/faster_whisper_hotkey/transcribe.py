@@ -7,13 +7,13 @@ warnings.filterwarnings(
     "ignore",
     message="invalid escape sequence '\\s'",
     category=SyntaxWarning,
-    module="lhotse.recipes.iwslt22_ta"
+    module="lhotse.recipes.iwslt22_ta",
 )
 warnings.filterwarnings(
     "ignore",
     message="invalid escape sequence '\\('",
     category=SyntaxWarning,
-    module="pydub.utils"
+    module="pydub.utils",
 )
 
 from .ui import get_initial_choice, curses_menu
@@ -151,9 +151,7 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    canary_message = (
-                        "Canary can only process up to 40 seconds of audio."
-                    )
+                    canary_message = "Canary can only process up to 40s of audio."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Info", ["Continue"], message=canary_message
@@ -297,6 +295,13 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Voxtral":
+                    voxtral_message = "For Voxtral, consider audio shorter than 30s."
+                    curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Info", ["Continue"], message=voxtral_message
+                        )
+                    )
+
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
