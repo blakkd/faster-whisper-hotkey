@@ -36,9 +36,10 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **mistralai/Voxtral-Mini-3B-2507** (8 languages):
 
-  - **~20% lower error rate** than whisper-large-v3 despite being **~10x faster!**
-  - **CPU**: very slow, not recommended!
-  - **GPU**: ~7s for 30s audio on a RTX 3090 in INT8
+  - **Really accurate, takes into account the entire context**, it even use "quotes" and Uppercases where it should, crazy!
+  - **GPU**:
+    - ~3s for 30s audio on a RTX 3090 in F16 or INT4
+    - ~9s for 30s in INT8, not really recommended, but still usable for shorter audio, as it seems the performances are degrading exponentially, i don't know why!
 
 - **nvidia/canary-1b-flash** (4 languages):
 
@@ -121,9 +122,9 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- Canary is limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope).
-- Voxtral is **excellent** at taking the whole context into account, but because of some limitations, and to keep automatic language recognition working, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than 30s.
-  For now it seems impossible to concile long audio in 1 chunk + automatic language detection. We may need to patch this https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
+- **canary**: limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope).
+- **voxtral**: because of some limitations, and to keep the automatic language recognition capabilities, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than this.
+In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
 
 ## Tricks
 
