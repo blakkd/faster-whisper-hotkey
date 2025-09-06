@@ -295,13 +295,6 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Voxtral":
-                    voxtral_message = "For Voxtral, consider audio shorter than 30s."
-                    curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Info", ["Continue"], message=voxtral_message
-                        )
-                    )
-
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -322,8 +315,7 @@ def main():
                         continue
 
                     info_message_voxtral = (
-                        "Voxtral supports automatic language detection among English, Spanish, French, "
-                        "Portuguese, Hindi, German, Dutch, and Italian."
+                        "For Voxtral, consider audio shorter than 30s."
                     )
                     curses.wrapper(
                         lambda stdscr: curses_menu(
