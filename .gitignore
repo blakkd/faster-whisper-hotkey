@@ -4,3 +4,4 @@ src/faster_whisper_hotkey.egg-info/
 .venv/
 test/
 src/faster_whisper_hotkey/__pycache__/
+dist/
