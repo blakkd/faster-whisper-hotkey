@@ -29,6 +29,7 @@ class ModelWrapper:
         self.model = None
         self.processor = None
         self.TranscriptionRequest = None
+        self._model_ref = None  # Reference to keep model alive
         self._load_model()
 
     def _load_model(self):
@@ -49,11 +50,15 @@ class ModelWrapper:
                 model_name=self.settings.model_name,
                 map_location=self.settings.device,
             ).eval()
+            # Keep a reference to prevent garbage collection
+            self._model_ref = self.model
 
         elif mt == "canary":
             self.model = EncDecMultiTaskModel.from_pretrained(
                 self.settings.model_name, map_location=self.settings.device
             ).eval()
+            # Keep a reference to prevent garbage collection
+            self._model_ref = self.model
 
         elif mt == "voxtral":
             # Voxtral setup (supports quantization options)
