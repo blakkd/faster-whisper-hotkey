@@ -79,7 +79,7 @@ class ModelWrapper:
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     quantization_config=quant_cfg,
-                    device_map="auto",
+                    device_map="cuda",
                 ).eval()
 
             elif self.settings.compute_type == "int4":
@@ -87,7 +87,7 @@ class ModelWrapper:
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     quantization_config=quant_cfg,
-                    device_map="auto",
+                    device_map="cuda",
                 ).eval()
 
             else:
@@ -99,7 +99,7 @@ class ModelWrapper:
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     dtype=compute_dtype,
-                    device_map="auto",
+                    device_map="cuda",
                 ).eval()
 
             self.TranscriptionRequest = TranscriptionRequest
