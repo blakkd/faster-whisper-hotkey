@@ -18,6 +18,9 @@ accepted_compute_types = ["float16", "int8"]
 accepted_devices = ["cuda", "cpu"]
 accepted_device_voxtral = ["cuda"]
 
+# Minimum recording duration to prevent short noise transcriptions
+MIN_RECORDING_DURATION = 1.0  # seconds
+
 
 class MicrophoneTranscriber:
     def __init__(self, settings: Settings):
@@ -40,6 +43,7 @@ class MicrophoneTranscriber:
         self.last_transcription_end_time = 0.0
         self.transcription_queue = []
         self.timer = None
+        self.recording_start_time = 0.0
 
     # ------------------------------------------------------------------
     # Hotkey mapping
@@ -149,6 +153,7 @@ class MicrophoneTranscriber:
             logger.info("Starting recording...")
             self.stop_event.clear()
             self.is_recording = True
+            self.recording_start_time = time.time()
 
             # Only apply 40-second time limit for Canary model
             if self.model_wrapper.model_type == "canary":
@@ -178,10 +183,19 @@ class MicrophoneTranscriber:
                 pass
             if self.buffer_index > 0:
                 audio_data = self.audio_buffer[: self.buffer_index]
-                self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
-                self.buffer_index = 0
-                self.transcription_queue.append(audio_data)
-                self.process_next_transcription()
+                recording_duration = time.time() - self.recording_start_time
+
+                # Skip transcription for recordings shorter than minimum duration
+                if recording_duration >= MIN_RECORDING_DURATION:
+                    self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+                    self.buffer_index = 0
+                    self.transcription_queue.append(audio_data)
+                    self.process_next_transcription()
+                    logger.info(f"Recording duration: {recording_duration:.2f}s - processing transcription")
+                else:
+                    self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+                    self.buffer_index = 0
+                    logger.info(f"Recording duration: {recording_duration:.2f}s - too short, skipping transcription")
             else:
                 self.buffer_index = 0
                 self.is_transcribing = False
