@@ -12,7 +12,6 @@ def get_resource_path(filename: str) -> str:
     return files("faster_whisper_hotkey").joinpath(filename).as_posix()
 
 
-# Load configuration at import time (raises/logs on failure)
 try:
     config_path = get_resource_path("available_models_languages.json")
     with open(config_path, "r", encoding="utf-8") as f:

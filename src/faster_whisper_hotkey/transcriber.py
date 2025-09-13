@@ -179,7 +179,6 @@ class MicrophoneTranscriber:
                 audio_data = self.audio_buffer[: self.buffer_index]
                 recording_duration = time.time() - self.recording_start_time
 
-                # Skip transcription for recordings shorter than minimum duration
                 if recording_duration >= MIN_RECORDING_DURATION:
                     self.audio_buffer = np.zeros(
                         self.max_buffer_length, dtype=np.float32
@@ -239,7 +238,6 @@ class MicrophoneTranscriber:
     # Main loop
     # ------------------------------------------------------------------
     def run(self):
-        # set default audio device (best-effort)
         try:
             self.set_default_audio_source()
         except Exception:

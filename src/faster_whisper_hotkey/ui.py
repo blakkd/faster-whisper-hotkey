@@ -1,8 +1,6 @@
 import curses
 from typing import List
 
-# UI helpers using curses
-
 
 def curses_menu(
     stdscr, title: str, options: List[str], message: str = "", initial_idx=0

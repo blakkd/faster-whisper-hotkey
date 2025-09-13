@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 try:
-    import pyperclip  # type: ignore
+    import pyperclip
 except Exception:
     pyperclip = None
     logger.error(
@@ -39,7 +39,6 @@ def restore_clipboard(original_text: str | None):
         return
     try:
         if original_text is None:
-            # best-effort: do nothing if we don't have a backup
             return
         pyperclip.copy(original_text)
     except Exception as e:

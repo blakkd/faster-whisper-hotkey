@@ -2,7 +2,6 @@ import logging
 import curses
 import warnings
 
-# Suppress specific SyntaxWarnings from third-party packages
 warnings.filterwarnings(
     "ignore",
     message="invalid escape sequence '\\s'",

@@ -29,7 +29,7 @@ class ModelWrapper:
         self.model = None
         self.processor = None
         self.TranscriptionRequest = None
-        self._model_ref = None  # Reference to keep model alive
+        self._model_ref = None
         self._load_model()
 
     def _load_model(self):
@@ -45,23 +45,19 @@ class ModelWrapper:
             )
 
         elif mt == "parakeet":
-            # Parakeet via NeMo ASR
             self.model = ASRModel.from_pretrained(
                 model_name=self.settings.model_name,
                 map_location=self.settings.device,
             ).eval()
-            # Keep a reference to prevent garbage collection
             self._model_ref = self.model
 
         elif mt == "canary":
             self.model = EncDecMultiTaskModel.from_pretrained(
                 self.settings.model_name, map_location=self.settings.device
             ).eval()
-            # Keep a reference to prevent garbage collection
             self._model_ref = self.model
 
         elif mt == "voxtral":
-            # Voxtral setup (supports quantization options)
             from typing import Optional
             from mistral_common.protocol.transcription.request import (
                 TranscriptionRequest as _TR,
@@ -131,7 +127,6 @@ class ModelWrapper:
                 return out[0].text if out else ""
 
             elif mt == "canary":
-                # Canary's transcribe expects a path
                 lang = language or "en-en"
                 lang_parts = lang.split("-")
                 if len(lang_parts) != 2:
@@ -156,7 +151,6 @@ class ModelWrapper:
 
             elif mt == "voxtral":
                 # --- Voxtral-specific transcription with chunking ---
-                # Use a default or configurable max duration (in seconds) for processing
                 # Based on documentation and typical behavior, 30s is a safe limit for the encoder.
                 MAX_DURATION_SECONDS = 30
                 samples_per_second = sample_rate
@@ -167,7 +161,6 @@ class ModelWrapper:
                         f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral's recommended input limit ({MAX_DURATION_SECONDS}s). "
                         "Processing in chunks."
                     )
-                    # Split audio into chunks of max_samples
                     chunks = []
                     for i in range(0, len(audio_data), max_samples):
                         chunk = audio_data[i : i + max_samples]
@@ -216,8 +209,6 @@ class ModelWrapper:
             audio_path = tmp_audio.name
 
         try:
-            # Use the exact approach from test_voxtral.py but adapted for chunked input
-
             # Create a wrapper class to mimic what the processor expects
             class FileWrapper:
                 def __init__(self, file_obj):
@@ -234,16 +225,12 @@ class ModelWrapper:
                 if language and language != "auto":
                     openai_req["language"] = language
 
-                # This is the key step - create transcription request properly
                 tr = self.TranscriptionRequest.from_openai(openai_req)
 
                 # Get tokens from the processor's tokenizer
                 tok = self.processor.tokenizer.tokenizer.encode_transcription(tr)
 
-                # Extract audio features using the processor (this is where it might fail)
                 try:
-                    # Ensure we pass the correct parameters to feature extraction
-                    # This mimics the working test code more closely
                     input_features = self.processor.feature_extractor(
                         audio_data,
                         sampling_rate=sample_rate,
@@ -269,8 +256,6 @@ class ModelWrapper:
                         max_new_tokens=500,
                         num_beams=1,
                     )
-
-                # Decode the result (this is also from test_voxtral.py)
                 decoded = self.processor.batch_decode(ids, skip_special_tokens=True)[0]
                 return decoded
 
@@ -281,4 +266,4 @@ class ModelWrapper:
             try:
                 os.unlink(audio_path)
             except Exception:
-                pass  # Ignore cleanup errors
+                pass
