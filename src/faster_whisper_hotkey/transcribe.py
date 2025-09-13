@@ -92,11 +92,6 @@ def main():
                         available_compute_types = ["float16", "int8"]
                         info_message = ""
 
-                    if english_only:
-                        info_message += (
-                            "\n\nEnglish-only model. Language selection skipped."
-                        )
-
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
@@ -247,7 +242,7 @@ def main():
                         continue
 
                     available_compute_types = ["float16", "int8"]
-                    info_message = "English-only model. Language selection skipped."
+                    info_message = ""
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
