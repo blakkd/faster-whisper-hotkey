@@ -154,12 +154,6 @@ class MicrophoneTranscriber:
             self.stop_event.clear()
             self.is_recording = True
             self.recording_start_time = time.time()
-
-            # Only apply 40-second time limit for Canary model
-            if self.model_wrapper.model_type == "canary":
-                self.timer = threading.Timer(40, self.stop_recording_and_transcribe)
-                self.timer.start()
-
             self.stream = sd.InputStream(
                 callback=self.audio_callback,
                 channels=1,
@@ -187,15 +181,23 @@ class MicrophoneTranscriber:
 
                 # Skip transcription for recordings shorter than minimum duration
                 if recording_duration >= MIN_RECORDING_DURATION:
-                    self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+                    self.audio_buffer = np.zeros(
+                        self.max_buffer_length, dtype=np.float32
+                    )
                     self.buffer_index = 0
                     self.transcription_queue.append(audio_data)
                     self.process_next_transcription()
-                    logger.info(f"Recording duration: {recording_duration:.2f}s - processing transcription")
+                    logger.info(
+                        f"Recording duration: {recording_duration:.2f}s - processing transcription"
+                    )
                 else:
-                    self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
+                    self.audio_buffer = np.zeros(
+                        self.max_buffer_length, dtype=np.float32
+                    )
                     self.buffer_index = 0
-                    logger.info(f"Recording duration: {recording_duration:.2f}s - too short, skipping transcription")
+                    logger.info(
+                        f"Recording duration: {recording_duration:.2f}s - too short, skipping transcription"
+                    )
             else:
                 self.buffer_index = 0
                 self.is_transcribing = False

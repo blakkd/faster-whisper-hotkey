@@ -151,7 +151,7 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Canary":
-                    canary_message = "Canary can only process up to 40s of audio."
+                    canary_message = "For Canary, audio is chunked in 40s segments."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Info", ["Continue"], message=canary_message
@@ -315,7 +315,7 @@ def main():
                         continue
 
                     info_message_voxtral = (
-                        "For Voxtral, consider audio shorter than 30s."
+                        "For Voxtral, audio is chunked in 30s segments."
                     )
                     curses.wrapper(
                         lambda stdscr: curses_menu(
