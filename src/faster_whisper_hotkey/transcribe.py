@@ -232,7 +232,7 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "Parakeet":
-                    model_name = "nvidia/parakeet-tdt-0.6b-v2"
+                    model_name = "nvidia/parakeet-tdt-0.6b-v3"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Compute Device", ["cuda", "cpu"]
@@ -255,7 +255,7 @@ def main():
                     if not compute_type:
                         continue
 
-                    language = "en"
+                    language = ""
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
