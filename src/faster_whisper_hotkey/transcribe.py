@@ -53,16 +53,14 @@ def main():
                     sources = pulse.source_list()
                     source_names = [src.name for src in sources]
                     device_name = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", source_names)
+                        lambda stdscr: curses_menu(stdscr, "Audio Device", source_names)
                     )
                     if not device_name:
                         continue
 
                 model_type_options = ["Whisper", "Parakeet", "Canary", "Voxtral"]
                 model_type = curses.wrapper(
-                    lambda stdscr: curses_menu(
-                        stdscr, "Select Model Type", model_type_options
-                    )
+                    lambda stdscr: curses_menu(stdscr, "Model", model_type_options)
                 )
                 if not model_type:
                     continue
@@ -80,27 +78,29 @@ def main():
                     english_only = model_name in english_only_models_whisper
 
                     device = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", ["cuda", "cpu"])
+                        lambda stdscr: curses_menu(
+                            stdscr, "Compute Device", ["cuda", "cpu"]
+                        )
                     )
                     if not device:
                         continue
 
                     if device == "cpu":
                         available_compute_types = ["int8"]
-                        info_message = (
-                            "float16 is not supported on CPU: only int8 is available"
-                        )
+                        info_message = ""
                     else:
                         available_compute_types = ["float16", "int8"]
                         info_message = ""
 
                     if english_only:
-                        info_message += "\n\nLanguage selection skipped for this English-only model."
+                        info_message += (
+                            "\n\nEnglish-only model. Language selection skipped."
+                        )
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
-                            "",
+                            "Precision",
                             available_compute_types,
                             message=info_message,
                         )
@@ -153,14 +153,14 @@ def main():
                     canary_message = "For Canary, audio is chunked in 40s segments."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Info", ["Continue"], message=canary_message
+                            stdscr, "", ["Continue"], message=canary_message
                         )
                     )
 
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Select Device", ["cuda", "cpu"]
+                            stdscr, "Compute Device", ["cuda", "cpu"]
                         )
                     )
                     if not device:
@@ -171,7 +171,10 @@ def main():
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "", available_compute_types, message=info_message
+                            stdscr,
+                            "Precision",
+                            available_compute_types,
+                            message=info_message,
                         )
                     )
                     if not compute_type:
@@ -180,9 +183,8 @@ def main():
                     source_language = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
-                            "Select Source Language",
+                            "Source Language",
                             canary_source_target_languages,
-                            "Source language",
                         )
                     )
                     if not source_language:
@@ -199,9 +201,8 @@ def main():
                     target_language = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
-                            "Select Target Language",
+                            "Target Language (same as source for transcription)",
                             target_options,
-                            "Target language (pick the same as source for transcription)",
                         )
                     )
                     if not target_language:
@@ -209,9 +210,7 @@ def main():
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Hotkey", hotkey_options
-                        )
+                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
                     )
                     if not selected_hotkey:
                         continue
@@ -241,19 +240,19 @@ def main():
                     model_name = "nvidia/parakeet-tdt-0.6b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Select Device", ["cuda", "cpu"]
+                            stdscr, "Compute Device", ["cuda", "cpu"]
                         )
                     )
                     if not device:
                         continue
 
                     available_compute_types = ["float16", "int8"]
-                    info_message = "Language selection skipped for this English-only model. Select compute type."
+                    info_message = "English-only model. Language selection skipped."
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
-                            "",
+                            "Precision",
                             available_compute_types,
                             message=info_message,
                         )
@@ -265,9 +264,7 @@ def main():
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Hotkey", hotkey_options
-                        )
+                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
                     )
                     if not selected_hotkey:
                         continue
@@ -298,9 +295,9 @@ def main():
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
-                            "Select Device",
+                            "Compute Device",
                             ["cuda"],
-                            message="Only GPU for now.",
+                            message="GPU only",
                         )
                     )
                     if not device:
@@ -308,7 +305,9 @@ def main():
 
                     available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", available_compute_types)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Precision", available_compute_types
+                        )
                     )
                     if not compute_type:
                         continue
@@ -326,9 +325,7 @@ def main():
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Hotkey", hotkey_options
-                        )
+                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
                     )
                     if not selected_hotkey:
                         continue
