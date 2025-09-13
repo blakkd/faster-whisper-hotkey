@@ -158,7 +158,7 @@ def main():
                         )
                     )
 
-                    model_name = "nvidia/canary-1b-flash"
+                    model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "Select Device", ["cuda", "cpu"]
