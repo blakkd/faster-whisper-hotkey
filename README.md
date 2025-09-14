@@ -8,59 +8,44 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
-- (NEW) **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
+- (NEW) **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
+
+  - 25 languages supported
+  - Transcription and translation
+  - No automatic language recognition
+  - Crazy fast even on CPU in F16
+
+- (NEW) **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
+
+  - 25 languages supported
+  - Transcription only
+  - Automatic language recognition
+  - Crazy fast even on CPU in F16
+
+- **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
 
   - English, Spanish, French, Portuguese, Hindi, German, Dutch, Italian
   - Transcription only
-  - GPU only for now
-
-- **[nvidia/canary-1b-flash](https://huggingface.co/nvidia/canary-1b-flash)**:
-
-  - English, French, German, Spanish
-  - Transcription and translation
-
-- **[nvidia/parakeet-tdt-0.6b-v2](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)**: English only
+  - Automatic language recognition
+  - Smart (it even guesses when to put some quotes, etc.) and less error-prone for non English native speakers
+  - GPU only
 
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
 
   - Many languages
   - Transcription only
 
+***What I personally use currently?***
+
+*- parakeet-tdt-0.6b-v3, on CPU, when I need all my VRAM to run my LMs*
+
+*- Voxtral-Mini-3B-2507, on GPU, when I run smaller models and can fit it along them*
+
 ## Features
 
-- **Models downloading**: Missing models are automatically retrieved from Hugging Face.
-- **Zero impact on resources** (apart from RAM/VRAM cause we want the load to stay loaded to be always ready-to-use).
+- **Models downloading**: Missing models are automatically downloaded from Hugging Face.
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-
-## Performances (audio < 30s)
-
-- **mistralai/Voxtral-Mini-3B-2507** (8 languages):
-
-  - **Really accurate, takes into account the entire context**, it even use "quotes" and Uppercases where it should, crazy!
-  - **GPU**:
-    - ~3s for 30s audio on a RTX 3090 in F16 or INT4
-    - ~9s for 30s in INT8, not really recommended, but still usable for shorter audio, as it seems the performances are degrading exponentially, i don't know why!
-
-- **nvidia/canary-1b-flash** (4 languages):
-
-  - **~20% lower error rate** than whisper-large-v3 despite being **~10x faster!**
-  - **CPU**: almost instant transcription, even in F16!
-  - **GPU**: really not necessary
-
-- **nvidia/parakeet-tdt-0.6b-v2** (english only):
-
-  - **~20% lower error rate** than whisper-large-v3 despite being **~20x faster!**
-  - **CPU**: instant transcription, even in F16!
-  - **GPU**: really not necessary
-
-- **Systran/faster-whisper** (multilanguage):
-
-  - **CPU**: time-to-first-word can be longer, but transcribing longer sequences compared to just few words won't lead to significant added delay. For large model, time to first word should still be acceptable without language detection.
-  - **GPU (cuda)**: instant transcription using any models, even with auto language detection.
-    _Personnal note:
-    I feel distilled whisper models are lacking precision for non-native English speakers. I personally don't really like them, finding them a bit "rigid"._
-
-See https://huggingface.co/spaces/hf-audio/open_asr_leaderboard for details.
+- **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
 
 ## Installation
 
@@ -122,21 +107,23 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **canary**: limited to 40s of audio only (because we don't use the batching script provided by Nvidia for now, maybe later, but this may be out of scope).
 - **voxtral**: because of some limitations, and to keep the automatic language recognition capabilities, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than this.
 In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
 
 ## Tricks
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
+- If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
 
 ## Acknowledgements
 
 Many thanks to:
 
 - **the developers of faster-whisper** for providing such an efficient transcription inference engine
-- **NVIDIA** for their awesome parakeet-tdt-0.6b-v2 and canary-1b-flash models
+- **NVIDIA** for their blazing fast parakeet and canary models
+- **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - and to **all the contributors** of the libraries I used
+
 
 Also thanks to [wgabrys88](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) and [MohamedRashadthat](https://huggingface.co/spaces/MohamedRashad/Voxtral) for their huggingface spaces that have been helpful!
 
