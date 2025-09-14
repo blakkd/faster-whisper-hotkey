@@ -246,6 +246,8 @@ def main():
                     if not compute_type:
                         continue
 
+                    language = ""
+
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
                         lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)

@@ -6,6 +6,12 @@ a minimalist push-to-talk style transcription tool built upon **[cutting-edge AS
 
 In the terminal, in a text editor, or even in the text chat of your online video game, anywhere!
 
+## Features
+
+- **Models downloading**: Missing models are automatically downloaded from Hugging Face.
+- **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
+- **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
+
 ## Current models
 
 - (NEW) **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
@@ -35,17 +41,11 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - Many languages
   - Transcription only
 
-***What I personally use currently?***
+**_What I personally use currently?_**
 
-*- parakeet-tdt-0.6b-v3, on CPU, when I need all my VRAM to run my LMs*
+_- parakeet-tdt-0.6b-v3, on CPU, when I need all my VRAM to run my LMs_
 
-*- Voxtral-Mini-3B-2507, on GPU, when I run smaller models and can fit it along them*
-
-## Features
-
-- **Models downloading**: Missing models are automatically downloaded from Hugging Face.
-- **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
+_- Voxtral-Mini-3B-2507, on GPU, when I run smaller models and can fit it along them_
 
 ## Installation
 
@@ -108,7 +108,9 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 ## Limitations
 
 - **voxtral**: because of some limitations, and to keep the automatic language recognition capabilities, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than this.
-In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
+  In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
+
+- Due to window type detection to send appropriate key stroke, unfortunately the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
 ## Tricks
 
@@ -123,7 +125,6 @@ Many thanks to:
 - **NVIDIA** for their blazing fast parakeet and canary models
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - and to **all the contributors** of the libraries I used
-
 
 Also thanks to [wgabrys88](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) and [MohamedRashadthat](https://huggingface.co/spaces/MohamedRashad/Voxtral) for their huggingface spaces that have been helpful!
 
