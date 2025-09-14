@@ -58,7 +58,12 @@ def main():
                     if not device_name:
                         continue
 
-                model_type_options = ["faster-whisper", "parakeet-tdt-0.6b-v3", "canary-1b-v2", "Voxtral-Mini-3B-2507"]
+                model_type_options = [
+                    "faster-whisper",
+                    "parakeet-tdt-0.6b-v3",
+                    "canary-1b-v2",
+                    "Voxtral-Mini-3B-2507",
+                ]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "Model", model_type_options)
                 )
@@ -145,13 +150,6 @@ def main():
                         hotkey=hotkey,
                     )
                 elif model_type == "canary-1b-v2":
-                    canary_message = "For canary-1b-v2, audio is chunked in 40s segments."
-                    curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "", ["Continue"], message=canary_message
-                        )
-                    )
-
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
