@@ -58,14 +58,14 @@ def main():
                     if not device_name:
                         continue
 
-                model_type_options = ["Whisper", "Parakeet", "Canary", "Voxtral"]
+                model_type_options = ["faster-whisper", "parakeet-tdt-0.6b-v3", "canary-1b-v2", "Voxtral-Mini-3B-2507"]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "Model", model_type_options)
                 )
                 if not model_type:
                     continue
 
-                if model_type == "Whisper":
+                if model_type == "faster-whisper":
                     original_models = accepted_models_whisper
                     display_models = [m for m in original_models]
                     selected_model = curses.wrapper(
@@ -144,8 +144,8 @@ def main():
                         language=language,
                         hotkey=hotkey,
                     )
-                elif model_type == "Canary":
-                    canary_message = "For Canary, audio is chunked in 40s segments."
+                elif model_type == "canary-1b-v2":
+                    canary_message = "For canary-1b-v2, audio is chunked in 40s segments."
                     curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr, "", ["Continue"], message=canary_message
@@ -231,7 +231,7 @@ def main():
                         language=f"{source_language}-{target_language}",
                         hotkey=hotkey,
                     )
-                elif model_type == "Parakeet":
+                elif model_type == "parakeet-tdt-0.6b-v3":
                     model_name = "nvidia/parakeet-tdt-0.6b-v3"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -285,7 +285,7 @@ def main():
                         language=language,
                         hotkey=hotkey,
                     )
-                elif model_type == "Voxtral":
+                elif model_type == "Voxtral-Mini-3B-2507":
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -308,7 +308,7 @@ def main():
                         continue
 
                     info_message_voxtral = (
-                        "For Voxtral, audio is chunked in 30s segments."
+                        "For Voxtral-Mini-3B-2507, audio is chunked in 30s segments."
                     )
                     curses.wrapper(
                         lambda stdscr: curses_menu(

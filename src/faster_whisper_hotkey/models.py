@@ -108,7 +108,7 @@ class ModelWrapper:
         """
         Transcribe a numpy array of audio samples and return transcribed text.
         For some models (canary, voxtral) we write to a temp file and call model utilities requiring a file.
-        For Voxtral, handles potential input size limits by chunking.
+        For Voxtral-Mini-3B-2507, handles potential input size limits by chunking.
         """
         mt = self.model_type
         try:
@@ -150,7 +150,7 @@ class ModelWrapper:
                         os.remove(temp_path)
 
             elif mt == "voxtral":
-                # --- Voxtral-specific transcription with chunking ---
+                # --- Voxtral-Mini-3B-2507-specific transcription with chunking ---
                 # Based on documentation and typical behavior, 30s is a safe limit for the encoder.
                 MAX_DURATION_SECONDS = 30
                 samples_per_second = sample_rate
@@ -158,7 +158,7 @@ class ModelWrapper:
 
                 if len(audio_data) > max_samples:
                     logger.warning(
-                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral's recommended input limit ({MAX_DURATION_SECONDS}s). "
+                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral-Mini-3B-2507's recommended input limit ({MAX_DURATION_SECONDS}s). "
                         "Processing in chunks."
                     )
                     chunks = []
@@ -200,7 +200,7 @@ class ModelWrapper:
         self, audio_data, sample_rate: int, language: Optional[str]
     ) -> str:
         """
-        Internal helper to transcribe a single chunk of audio for Voxtral.
+        Internal helper to transcribe a single chunk of audio for Voxtral-Mini-3B-2507.
         This handles the file I/O and model call.
         """
         # Write chunk to temporary file
@@ -260,7 +260,7 @@ class ModelWrapper:
                 return decoded
 
         except Exception as e:
-            logger.error(f"Voxtral transcription error in chunk: {e}")
+            logger.error(f"Voxtral-Mini-3B-2507 transcription error in chunk: {e}")
             raise
         finally:
             try:
