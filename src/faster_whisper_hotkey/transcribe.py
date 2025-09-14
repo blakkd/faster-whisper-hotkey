@@ -92,17 +92,14 @@ def main():
 
                     if device == "cpu":
                         available_compute_types = ["int8"]
-                        info_message = ""
                     else:
                         available_compute_types = ["float16", "int8"]
-                        info_message = ""
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
                             "Precision",
                             available_compute_types,
-                            message=info_message,
                         )
                     )
                     if not compute_type:
@@ -160,14 +157,12 @@ def main():
                         continue
 
                     available_compute_types = ["float16", "int8"]
-                    info_message = ""
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
                             "Precision",
                             available_compute_types,
-                            message=info_message,
                         )
                     )
                     if not compute_type:
@@ -240,20 +235,16 @@ def main():
                         continue
 
                     available_compute_types = ["float16", "int8"]
-                    info_message = ""
 
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
                             "Precision",
                             available_compute_types,
-                            message=info_message,
                         )
                     )
                     if not compute_type:
                         continue
-
-                    language = ""
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
@@ -306,7 +297,7 @@ def main():
                         continue
 
                     info_message_voxtral = (
-                        "For Voxtral-Mini-3B-2507, audio is chunked in 30s segments."
+                        "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid chunking inconsistencies."
                     )
                     curses.wrapper(
                         lambda stdscr: curses_menu(
