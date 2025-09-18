@@ -1,3 +1,4 @@
+# src/faster_whisper_hotkey/transcribe.py
 import logging
 import curses
 import warnings
@@ -49,15 +50,23 @@ def main():
                     initial_choice = "Choose New Settings"
 
             if initial_choice == "Choose New Settings":
+                # ------------------------------------------------------------------
+                # 1️⃣  Audio source selection
+                # ------------------------------------------------------------------
                 with pulsectl.Pulse() as pulse:
                     sources = pulse.source_list()
                     source_names = [src.name for src in sources]
                     device_name = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Audio Device", source_names)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Audio Device", source_names
+                        )
                     )
                     if not device_name:
                         continue
 
+                # ------------------------------------------------------------------
+                # 2️⃣  Model type
+                # ------------------------------------------------------------------
                 model_type_options = [
                     "faster-whisper",
                     "parakeet-tdt-0.6b-v3",
@@ -70,6 +79,9 @@ def main():
                 if not model_type:
                     continue
 
+                # ------------------------------------------------------------------
+                # 3️⃣  Model‑specific configuration
+                # ------------------------------------------------------------------
                 if model_type == "faster-whisper":
                     original_models = accepted_models_whisper
                     display_models = [m for m in original_models]
@@ -90,11 +102,9 @@ def main():
                     if not device:
                         continue
 
-                    if device == "cpu":
-                        available_compute_types = ["int8"]
-                    else:
-                        available_compute_types = ["float16", "int8"]
-
+                    available_compute_types = (
+                        ["int8"] if device == "cpu" else ["float16", "int8"]
+                    )
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
                             stdscr,
@@ -105,16 +115,15 @@ def main():
                     if not compute_type:
                         continue
 
-                    if english_only:
-                        language = "en"
-                    else:
-                        language = curses.wrapper(
+                    language = (
+                        "en" if english_only else curses.wrapper(
                             lambda stdscr: curses_menu(
                                 stdscr, "", accepted_languages_whisper
                             )
                         )
-                        if not language:
-                            continue
+                    )
+                    if not language:
+                        continue
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
@@ -146,7 +155,11 @@ def main():
                         language=language,
                         hotkey=hotkey,
                     )
+
                 elif model_type == "canary-1b-v2":
+                    # ------------------------------------------------------------------
+                    # 4️⃣  Canary (nvidia/canary-1b-v2) – no quantisation support
+                    # ------------------------------------------------------------------
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -154,18 +167,6 @@ def main():
                         )
                     )
                     if not device:
-                        continue
-
-                    available_compute_types = ["float16", "int8"]
-
-                    compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Precision",
-                            available_compute_types,
-                        )
-                    )
-                    if not compute_type:
                         continue
 
                     source_language = curses.wrapper(
@@ -178,12 +179,11 @@ def main():
                     if not source_language:
                         continue
 
-                    allowed_pairs = canary_allowed_language_pairs
-                    allowed_targets = set()
-                    for pair in allowed_pairs:
-                        src, tgt = pair.split("-")
-                        if src == source_language:
-                            allowed_targets.add(tgt)
+                    # Build allowed target languages based on the selected source
+                    allowed_targets = {
+                        tgt for src, tgt in (p.split("-") for p in canary_allowed_language_pairs)
+                        if src == source_language
+                    }
                     target_options = sorted(allowed_targets)
 
                     target_language = curses.wrapper(
@@ -203,6 +203,9 @@ def main():
                     if not selected_hotkey:
                         continue
                     hotkey = selected_hotkey.lower()
+
+                    # Explicit compute_type to keep compatibility with older Settings
+                    compute_type = "float16"
 
                     save_settings(
                         {
@@ -224,7 +227,11 @@ def main():
                         language=f"{source_language}-{target_language}",
                         hotkey=hotkey,
                     )
+
                 elif model_type == "parakeet-tdt-0.6b-v3":
+                    # ------------------------------------------------------------------
+                    # 5️⃣  Parakeet (nvidia/parakeet-tdt-0.6b-v3) – no quantisation support
+                    # ------------------------------------------------------------------
                     model_name = "nvidia/parakeet-tdt-0.6b-v3"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -234,19 +241,7 @@ def main():
                     if not device:
                         continue
 
-                    available_compute_types = ["float16", "int8"]
-
-                    compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Precision",
-                            available_compute_types,
-                        )
-                    )
-                    if not compute_type:
-                        continue
-
-                    language = ""
+                    language = ""  # Parakeet does not require a language flag
 
                     hotkey_options = ["Pause", "F4", "F8", "INSERT"]
                     selected_hotkey = curses.wrapper(
@@ -255,6 +250,9 @@ def main():
                     if not selected_hotkey:
                         continue
                     hotkey = selected_hotkey.lower()
+
+                    # Explicit compute_type to keep compatibility with older Settings
+                    compute_type = "float16"
 
                     save_settings(
                         {
@@ -276,14 +274,15 @@ def main():
                         language=language,
                         hotkey=hotkey,
                     )
+
                 elif model_type == "Voxtral-Mini-3B-2507":
+                    # ------------------------------------------------------------------
+                    # 6️⃣  Voxtral (mistralai/Voxtral-Mini-3B-2507) – GPU only
+                    # ------------------------------------------------------------------
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr,
-                            "Compute Device",
-                            ["cuda"],
-                            message="GPU only",
+                            stdscr, "Compute Device", ["cuda"], message="GPU only"
                         )
                     )
                     if not device:
@@ -291,15 +290,15 @@ def main():
 
                     available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Precision", available_compute_types
-                        )
+                        lambda stdscr: curses_menu(stdscr, "Precision", available_compute_types)
                     )
                     if not compute_type:
                         continue
 
+                    # Inform users about the <30s limit for Voxtral
                     info_message_voxtral = (
-                        "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid chunking inconsistencies."
+                        "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid "
+                        "chunking inconsistencies."
                     )
                     curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -338,6 +337,9 @@ def main():
                         hotkey=hotkey,
                     )
 
+            # ----------------------------------------------------------------------
+            # 7️⃣  Launch the transcriber
+            # ----------------------------------------------------------------------
             transcriber = MicrophoneTranscriber(settings)
             try:
                 transcriber.run()
