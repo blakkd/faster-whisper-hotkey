@@ -1,16 +1,16 @@
-import time
-import threading
 import logging
-import numpy as np
-import sounddevice as sd
+import threading
+import time
 
+import numpy as np
+import pulsectl
+import sounddevice as sd
 from pynput import keyboard
 
-from .settings import Settings
+from .clipboard import backup_clipboard, restore_clipboard, set_clipboard
 from .models import ModelWrapper
-from .clipboard import backup_clipboard, set_clipboard, restore_clipboard
 from .paste import paste_to_active_window
-import pulsectl
+from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -243,9 +243,16 @@ class MicrophoneTranscriber:
         except Exception:
             pass
 
-        with keyboard.Listener(
-            on_press=self.on_press, on_release=self.on_release
-        ) as listener:
+        # Define wrapper functions to satisfy type checker
+        def _on_press(key):
+            self.on_press(key)
+            return None
+
+        def _on_release(key):
+            self.on_release(key)
+            return None
+
+        with keyboard.Listener(on_press=_on_press, on_release=_on_release) as listener:
             logger.info(
                 f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
             )

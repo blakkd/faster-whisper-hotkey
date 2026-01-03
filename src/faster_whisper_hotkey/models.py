@@ -1,19 +1,17 @@
+import logging
 import os
 import tempfile
-import logging
-import torch
-import soundfile as sf
-
 from typing import Optional
 
+import soundfile as sf
+import torch
+from faster_whisper import WhisperModel
+from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 from transformers import (
-    VoxtralForConditionalGeneration,
     AutoProcessor,
     BitsAndBytesConfig,
+    VoxtralForConditionalGeneration,
 )
-
-from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
-from faster_whisper import WhisperModel
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +57,7 @@ class ModelWrapper:
 
         elif mt == "voxtral":
             from typing import Optional
+
             from mistral_common.protocol.transcription.request import (
                 TranscriptionRequest as _TR,
             )

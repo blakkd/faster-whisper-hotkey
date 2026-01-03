@@ -1,7 +1,7 @@
 import json
+import logging
 import re
 import subprocess
-import logging
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)

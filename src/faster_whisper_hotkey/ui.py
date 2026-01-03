@@ -28,7 +28,7 @@ def curses_menu(
         # ----- message handling ------------------------------------------------
         message_lines = message.split("\n") if message else []
         space_for_message = len(message_lines)
-        space_for_options = h - 2          # reserve two lines for borders/scroll bar
+        space_for_options = h - 2  # reserve two lines for borders/scroll bar
 
         # If the terminal can't even fit the message + one option, warn the user
         if space_for_options - space_for_message <= 0:

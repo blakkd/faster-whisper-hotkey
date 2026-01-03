@@ -1,6 +1,6 @@
 # src/faster_whisper_hotkey/transcribe.py
-import logging
 import curses
+import logging
 import warnings
 
 warnings.filterwarnings(
@@ -16,18 +16,18 @@ warnings.filterwarnings(
     module="pydub.utils",
 )
 
-from .ui import get_initial_choice, curses_menu
-from .config import (
-    accepted_models_whisper,
-    accepted_languages_whisper,
-    english_only_models_whisper,
-    canary_source_target_languages,
-    canary_allowed_language_pairs,
-)
-from .settings import save_settings, load_settings, Settings
-from .transcriber import MicrophoneTranscriber
-
 import pulsectl
+
+from .config import (
+    accepted_languages_whisper,
+    accepted_models_whisper,
+    canary_allowed_language_pairs,
+    canary_source_target_languages,
+    english_only_models_whisper,
+)
+from .settings import Settings, load_settings, save_settings
+from .transcriber import MicrophoneTranscriber
+from .ui import curses_menu, get_initial_choice
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -57,9 +57,7 @@ def main():
                     sources = pulse.source_list()
                     source_names = [src.name for src in sources]
                     device_name = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Audio Device", source_names
-                        )
+                        lambda stdscr: curses_menu(stdscr, "Audio Device", source_names)
                     )
                     if not device_name:
                         continue
@@ -116,7 +114,9 @@ def main():
                         continue
 
                     language = (
-                        "en" if english_only else curses.wrapper(
+                        "en"
+                        if english_only
+                        else curses.wrapper(
                             lambda stdscr: curses_menu(
                                 stdscr, "", accepted_languages_whisper
                             )
@@ -181,7 +181,10 @@ def main():
 
                     # Build allowed target languages based on the selected source
                     allowed_targets = {
-                        tgt for src, tgt in (p.split("-") for p in canary_allowed_language_pairs)
+                        tgt
+                        for src, tgt in (
+                            p.split("-") for p in canary_allowed_language_pairs
+                        )
                         if src == source_language
                     }
                     target_options = sorted(allowed_targets)
@@ -290,7 +293,9 @@ def main():
 
                     available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Precision", available_compute_types)
+                        lambda stdscr: curses_menu(
+                            stdscr, "Precision", available_compute_types
+                        )
                     )
                     if not compute_type:
                         continue

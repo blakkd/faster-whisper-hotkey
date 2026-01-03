@@ -1,7 +1,7 @@
-import time
+import logging
 import shutil
 import subprocess
-import logging
+import time
 
 from pynput import keyboard
 
