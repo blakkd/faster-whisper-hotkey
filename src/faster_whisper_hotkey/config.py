@@ -9,7 +9,7 @@ def get_resource_path(filename: str) -> str:
     """
     Return a filesystem path to a packaged resource inside this package.
     """
-    return files("faster_whisper_hotkey").joinpath(filename).as_posix()
+    return str(files("faster_whisper_hotkey").joinpath(filename))
 
 
 try:
