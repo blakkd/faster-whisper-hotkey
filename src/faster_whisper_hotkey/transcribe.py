@@ -34,6 +34,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def main():
+    settings: Settings | None = None
     while True:
         try:
             initial_choice = curses.wrapper(get_initial_choice)
@@ -345,6 +346,9 @@ def main():
             # ----------------------------------------------------------------------
             # 7️⃣  Launch the transcriber
             # ----------------------------------------------------------------------
+            assert settings is not None, (
+                "Settings must be defined before launching the transcriber."
+            )
             transcriber = MicrophoneTranscriber(settings)
             try:
                 transcriber.run()
