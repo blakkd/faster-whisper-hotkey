@@ -110,7 +110,7 @@ class ModelWrapper:
             self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                 repo_id,
                 trust_remote_code=True,
-                torch_dtype=torch.float32,
+                dtype=torch.float32,
                 device_map=device_map,
             ).eval()
 
