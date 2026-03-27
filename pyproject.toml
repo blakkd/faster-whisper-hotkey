@@ -20,6 +20,7 @@ keywords = [
     "keyboard", "recognition", "voice", "typing", "speech",
     "shortcut", "speech-to-text", "hotkey", "stt", "asr",
     "faster-whisper", "whisper", "parakeet", "canary", "voxtral",
+    "cohere",
 ]
 
 # DEPENDENCIES
@@ -34,10 +35,13 @@ dependencies = [
     "requests",
     "importlib_resources",
     "mistral-common[audio]>=1.8.4",
-    "transformers>=4.56",
+    "transformers>=4.56,<5.3,!=5.0.*,!=5.1.*",
     "bitsandbytes>=0.43.1",
-    "pyperclip"
-
+    "pyperclip",
+    "soundfile",
+    "librosa",
+    "sentencepiece",
+    "protobuf",
 ]
 
 # SCRIPTS

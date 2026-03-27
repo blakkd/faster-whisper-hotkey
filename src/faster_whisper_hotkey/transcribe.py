@@ -71,6 +71,7 @@ def main():
                     "parakeet-tdt-0.6b-v3",
                     "canary-1b-v2",
                     "Voxtral-Mini-3B-2507",
+                    "cohere-transcribe-03-2026",
                 ]
                 model_type = curses.wrapper(
                     lambda stdscr: curses_menu(stdscr, "Model", model_type_options)
@@ -343,8 +344,76 @@ def main():
                         hotkey=hotkey,
                     )
 
+                elif model_type == "cohere-transcribe-03-2026":
+                    # ------------------------------------------------------------------
+                    # 7️⃣  Cohere Transcribe (CohereLabs/cohere-transcribe-03-2026)
+                    # ------------------------------------------------------------------
+                    model_name = "CohereLabs/cohere-transcribe-03-2026"
+                    device = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Compute Device", ["cuda", "cpu"]
+                        )
+                    )
+                    if not device:
+                        continue
+
+                    cohere_languages = [
+                        "en",
+                        "de",
+                        "fr",
+                        "it",
+                        "es",
+                        "pt",
+                        "el",
+                        "nl",
+                        "pl",
+                        "ar",
+                        "vi",
+                        "zh",
+                        "ja",
+                        "ko",
+                    ]
+                    language = curses.wrapper(
+                        lambda stdscr: curses_menu(
+                            stdscr, "Language (no auto-detection)", cohere_languages
+                        )
+                    )
+                    if not language:
+                        continue
+
+                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
+                    selected_hotkey = curses.wrapper(
+                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
+                    )
+                    if not selected_hotkey:
+                        continue
+                    hotkey = selected_hotkey.lower()
+
+                    compute_type = "float16"
+
+                    save_settings(
+                        {
+                            "device_name": device_name,
+                            "model_type": "cohere",
+                            "model_name": model_name,
+                            "compute_type": compute_type,
+                            "device": device,
+                            "language": language,
+                            "hotkey": hotkey,
+                        }
+                    )
+                    settings = Settings(
+                        device_name=device_name,
+                        model_type="cohere",
+                        model_name=model_name,
+                        compute_type=compute_type,
+                        device=device,
+                        language=language,
+                        hotkey=hotkey,
+                    )
+
             # ----------------------------------------------------------------------
-            # 7️⃣  Launch the transcriber
+            # 8️⃣  Launch the transcriber
             # ----------------------------------------------------------------------
             assert settings is not None, (
                 "Settings must be defined before launching the transcriber."

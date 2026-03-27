@@ -8,6 +8,7 @@ import torch
 from faster_whisper import WhisperModel
 from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 from transformers import (
+    AutoModelForSpeechSeq2Seq,
     AutoProcessor,
     BitsAndBytesConfig,
     VoxtralForConditionalGeneration,
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class ModelWrapper:
     """
-    Encapsulates loading and running different model types (whisper, parakeet, canary, voxtral).
+    Encapsulates loading and running different model types (whisper, parakeet, canary, voxtral, cohere).
     """
 
     def __init__(self, settings):
@@ -98,6 +99,21 @@ class ModelWrapper:
                 ).eval()
 
             self.TranscriptionRequest = TranscriptionRequest
+
+        elif mt == "cohere":
+            repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
+
+            self.processor = AutoProcessor.from_pretrained(
+                repo_id, trust_remote_code=True
+            )
+            self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                repo_id,
+                trust_remote_code=True,
+                torch_dtype=torch.float32,
+                device_map=device_map,
+            ).eval()
+
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
@@ -187,6 +203,17 @@ class ModelWrapper:
                     return self._transcribe_single_chunk_voxtral(
                         audio_data, sample_rate, language
                     )
+
+            elif mt == "cohere":
+                lang = language or "en"
+                texts = self.model.transcribe(
+                    processor=self.processor,
+                    audio_arrays=[audio_data],
+                    sample_rates=[sample_rate],
+                    language=lang,
+                    batch_size=8,
+                )
+                return texts[0] if texts else ""
 
             else:
                 raise ValueError(f"Unknown model type: {mt}")
