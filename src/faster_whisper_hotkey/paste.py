@@ -52,9 +52,8 @@ def paste_wayland(is_terminal: bool):
     combo = "ctrl+shift+v" if is_terminal else "ctrl+v"
     success = _send_key_wayland(combo)
     if not success:
-        logger.warning(
-            "Auto-paste failed on Wayland; please paste manually (Ctrl+Shift+V)."
-        )
+        logger.warning("Falling back to X11 for paste...")
+        paste_x11(is_terminal)
 
 
 def paste_to_active_window():
