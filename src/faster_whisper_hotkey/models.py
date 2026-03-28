@@ -1,6 +1,8 @@
+import logging
 import os
 
-# Suppress NeMo/OneLogger warnings at module load time using file descriptor redirection
+
+# Suppress OneLogger/NeMo initialization warnings at import time
 _devnull_fd = os.open(os.devnull, os.O_WRONLY)
 _stdout_fd = os.dup(1)
 _stderr_fd = os.dup(2)
@@ -8,22 +10,15 @@ os.dup2(_devnull_fd, 1)
 os.dup2(_devnull_fd, 2)
 
 try:
-    import logging
+    logging.getLogger().setLevel(logging.ERROR)
+
     import tempfile
 
     import soundfile as sf
     import torch
     from faster_whisper import WhisperModel
 
-    logging.getLogger().setLevel(logging.ERROR)
-
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
-    from transformers import (
-        AutoModelForSpeechSeq2Seq,
-        AutoProcessor,
-        BitsAndBytesConfig,
-        VoxtralForConditionalGeneration,
-    )
 finally:
     os.dup2(_stdout_fd, 1)
     os.dup2(_stderr_fd, 2)
@@ -31,10 +26,33 @@ finally:
     os.close(_stdout_fd)
     os.close(_stderr_fd)
 
-# Optional types import (already available in Python 3.9+)
-from typing import Optional
+from transformers import (
+    AutoModelForSpeechSeq2Seq,
+    AutoProcessor,
+    BitsAndBytesConfig,
+    VoxtralForConditionalGeneration,
+)
+
+
+def _setup_logging():
+    """Suppress non-essential warnings from NeMo, Lhotse, and other libraries during inference."""
+    try:
+        from nemo.utils import logging as nemologging
+
+        nemologging.set_verbosity(nemologging.ERROR)
+    except ImportError:
+        pass
+
+    for logger_name in ["lhotse", "transformers", "torchaudio"]:
+        logging.getLogger(logger_name).setLevel(logging.ERROR)
+
+
+_setup_logging()
 
 logger = logging.getLogger(__name__)
+
+# Optional types import (already available in Python 3.9+)
+from typing import Optional
 
 
 class ModelWrapper:
