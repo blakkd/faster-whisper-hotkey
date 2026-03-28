@@ -126,8 +126,79 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 
 ## Testing
 
-No test suite exists. Manual testing flow:
-1. Run `python -m faster_whisper_hotkey`
-2. Configure model settings via curses menu
-3. Press hotkey, speak, release
-4. Verify text appears in focused application
+### Test Suite Overview
+Pytest-based test suite with **97 tests** across 6 test files:
+
+| Test File | Tests | Target Module | Description |
+|-----------|-------|---------------|-------------|
+| `tests/test_settings.py` | 9 | `settings.py` | Settings dataclass, save/load JSON |
+| `tests/test_config.py` | 18 | `config.py` | Model/language config constants, JSON loading |
+| `tests/test_clipboard.py` | 14 | `clipboard.py` | Clipboard backup/restore with pyperclip mocking |
+| `tests/test_terminal.py` | 20 | `terminal.py` | X11/Wayland window detection |
+| `tests/test_paste.py` | 12 | `paste.py` | Paste shortcuts, terminal vs GUI routing |
+| `tests/test_models.py` | 24 | `models.py` | ModelWrapper initialization and transcription |
+
+### Running Tests
+```bash
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_models.py -v
+
+# Run with coverage (install pytest-cov first)
+python -m pytest tests/ --cov=src/faster_whisper_hotkey --cov-report=term-missing
+```
+
+### Test Configuration
+Configuration stored in `pytest.ini` at project root. Uses unittest.mock for all external dependencies.
+
+### Testing Patterns
+
+#### Mocking External Dependencies
+```python
+from unittest.mock import MagicMock, patch
+
+@patch("faster_whisper_hotkey.models.WhisperModel")
+def test_whisper_transcription(mock_whisper):
+    mock_model = MagicMock()
+    mock_segment = MagicMock(text="hello world")
+    mock_model.transcribe.return_value = ([mock_segment], None)
+    mock_whisper.return_value = mock_model
+    # ... assertions
+```
+
+#### Mocking Subprocess Calls
+```python
+@patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+def test_x11_window_detection(mock_check_output):
+    mock_check_output.return_value = b'_NET_ACTIVE_WINDOW 8675309'
+    # ... assertions
+```
+
+#### Mocking Environment Variables
+```python
+import os
+@patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-0"})
+def test_wayland_paste():
+    # ... test Wayland path
+```
+
+### CI Integration
+Tests are designed for CI/CD pipelines. All external dependencies (OS APIs, ML models, audio devices) are mocked.
+
+### Known Test Limitations
+- UI (`ui.py`) excluded from automation due to curses complexity
+- Actual STT model inference not tested (all mocked via MagicMock)
+- Audio capture paths in `transcriber.py` not yet covered
+
+### Mock Guidelines
+1. **ML Models**: Always mock `WhisperModel`, `ASRModel`, `VoxtralForConditionalGeneration` via `@patch("faster_whisper_hotkey.models...")`
+2. **Subprocess**: Use `@patch("subprocess.check_output")` or `@patch("subprocess.run")`
+3. **Environment**: Use `@patch.dict(os.environ, {...})` for environment-dependent paths (X11 vs Wayland)
+4. **Temp Files**: Mock `tempfile.NamedTemporaryFile` context manager with `__enter__` returning mock with `.name` attribute
+
+### Test Troubleshooting
+- If tests import real modules: verify patch targets use `"faster_whisper_hotkey.models..."`, not `"models..."`
+- For Voxtral tests: use `patch.object(wrapper, "_transcribe_single_chunk_voxtral")` instead of full mock chain
+- Pyperclip not installed? Tests still pass—clipboard.py has graceful fallback checks

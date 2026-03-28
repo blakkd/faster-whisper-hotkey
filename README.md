@@ -20,6 +20,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - Transcription only
   - No automatic language recognition
   - Runs well on CPU
+  - Quite smart, deals well with hesitation and stutters
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
@@ -50,9 +51,9 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 **_What I personally use currently?_**
 
-_- parakeet-tdt-0.6b-v3, on CPU, when I need all my VRAM to run my LMs_
+_- Almost always cohere-transcribe-03-2026, on CPU, when I need all my VRAM to run my LMs (in replacement of parakeet-tdt-0.6b-v3 which is less smart)_
 
-_- Voxtral-Mini-3B-2507, on GPU, when I run smaller models and can fit it along them_
+_- Sometimes Voxtral-Mini-3B-2507, on GPU, when I run smaller LMs and can fit it along them_
 
 ## Installation
 
