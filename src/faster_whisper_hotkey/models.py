@@ -47,10 +47,18 @@ def _setup_logging():
         "lhotse",
         "transformers",
         "torchaudio",
-        "hydra.utils",
         "omegaconf",
     ]:
         logging.getLogger(logger_name).setLevel(logging.ERROR)
+
+    # Hydra utils logs ERROR during safe_instantiate validation for functions like get_nemo_transformer
+    # This is expected behavior - set to CRITICAL to suppress these false positives
+    hydra_utils_logger = logging.getLogger("hydra.utils")
+    hydra_utils_logger.setLevel(logging.CRITICAL)
+    hydra_utils_logger.propagate = False
+    # Remove all handlers and add a NullHandler to ensure complete suppression
+    hydra_utils_logger.handlers.clear()
+    hydra_utils_logger.addHandler(logging.NullHandler())
 
 
 _setup_logging()
