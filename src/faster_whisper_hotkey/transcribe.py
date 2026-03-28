@@ -165,7 +165,7 @@ def main():
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda", "cpu"]
+                            stdscr, "Compute Device", ["cuda"]
                         )
                     )
                     if not device:

@@ -1,18 +1,39 @@
-import logging
 import os
-import tempfile
-from typing import Optional
+import sys
 
-import soundfile as sf
-import torch
-from faster_whisper import WhisperModel
-from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
-from transformers import (
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    BitsAndBytesConfig,
-    VoxtralForConditionalGeneration,
-)
+# Suppress NeMo/OneLogger warnings at module load time using file descriptor redirection
+_devnull_fd = os.open(os.devnull, os.O_WRONLY)
+_stdout_fd = os.dup(1)
+_stderr_fd = os.dup(2)
+os.dup2(_devnull_fd, 1)
+os.dup2(_devnull_fd, 2)
+
+try:
+    import logging
+    import tempfile
+
+    import soundfile as sf
+    import torch
+    from faster_whisper import WhisperModel
+
+    logging.getLogger().setLevel(logging.ERROR)
+
+    from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
+    from transformers import (
+        AutoModelForSpeechSeq2Seq,
+        AutoProcessor,
+        BitsAndBytesConfig,
+        VoxtralForConditionalGeneration,
+    )
+finally:
+    os.dup2(_stdout_fd, 1)
+    os.dup2(_stderr_fd, 2)
+    os.close(_devnull_fd)
+    os.close(_stdout_fd)
+    os.close(_stderr_fd)
+
+# Optional types import (already available in Python 3.9+)
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
