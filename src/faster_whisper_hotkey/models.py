@@ -43,7 +43,13 @@ def _setup_logging():
     except ImportError:
         pass
 
-    for logger_name in ["lhotse", "transformers", "torchaudio"]:
+    for logger_name in [
+        "lhotse",
+        "transformers",
+        "torchaudio",
+        "hydra.utils",
+        "omegaconf",
+    ]:
         logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 
