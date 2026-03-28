@@ -1,4 +1,5 @@
 import logging
+import signal
 import threading
 import time
 
@@ -34,6 +35,7 @@ class MicrophoneTranscriber:
         self.model_wrapper = ModelWrapper(self.settings)
 
         self.stop_event = threading.Event()
+        self.exit_flag = False
         self.is_recording = False
         self.device_name = self.settings.device_name
         self.keyboard_controller = keyboard.Controller()
@@ -252,13 +254,26 @@ class MicrophoneTranscriber:
             self.on_release(key)
             return None
 
-        with keyboard.Listener(on_press=_on_press, on_release=_on_release) as listener:
-            logger.info(
-                f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
-            )
-            try:
-                listener.join()
-            except KeyboardInterrupt:
-                if self.is_recording:
-                    self.stop_recording_and_transcribe()
-                logger.info("Program terminated by user")
+        listener = keyboard.Listener(on_press=_on_press, on_release=_on_release)
+        listener.start()
+
+        logger.info(
+            f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
+        )
+
+        def sigint_handler(signum, frame):
+            self.exit_flag = True
+
+        signal.signal(signal.SIGINT, sigint_handler)
+
+        while not self.exit_flag:
+            if not listener.is_alive():
+                break
+            time.sleep(0.1)
+
+        listener.stop()
+
+        if self.is_recording:
+            self.stop_recording_and_transcribe()
+
+        logger.info("Program terminated by user")

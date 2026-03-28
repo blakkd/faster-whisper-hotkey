@@ -176,7 +176,7 @@ class ModelWrapper:
 
             elif mt == "parakeet":
                 with torch.inference_mode():
-                    out = self.model.transcribe([audio_data])
+                    out = list(self.model.transcribe([audio_data]))
                 return out[0].text if out else ""
 
             elif mt == "canary":
