@@ -1,5 +1,7 @@
+import contextlib
 import logging
 import os
+import sys
 
 
 # Suppress OneLogger/NeMo initialization warnings at import time
@@ -48,8 +50,16 @@ def _setup_logging():
         "transformers",
         "torchaudio",
         "omegaconf",
+        "nemo.collections.common.data.lhotse.dataloader",
+        "nemo.collections.common.data.lhotse.cutset",
+        "nemo.collections.asr.models.enc_dec_multitask_asr_models",
+        "nemo.collections.asr.parts.utils.manipulate_feats_utils",
     ]:
-        logging.getLogger(logger_name).setLevel(logging.ERROR)
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging.CRITICAL)
+        logger.propagate = False
+        logger.handlers.clear()
+        logger.addHandler(logging.NullHandler())
 
     # Hydra utils logs ERROR during safe_instantiate validation for functions like get_nemo_transformer
     # This is expected behavior - set to CRITICAL to suppress these false positives
@@ -60,8 +70,30 @@ def _setup_logging():
     hydra_utils_logger.handlers.clear()
     hydra_utils_logger.addHandler(logging.NullHandler())
 
+    # Silence root logger for NeMo/Lhotse related messages
+    logging.getLogger("root").setLevel(logging.CRITICAL)
+
 
 _setup_logging()
+
+
+@contextlib.contextmanager
+def suppress_output():
+    """Context manager to temporarily suppress stdout and stderr."""
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    old_stdout = os.dup(1)
+    old_stderr = os.dup(2)
+    try:
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        yield
+    finally:
+        os.dup2(old_stdout, 1)
+        os.dup2(old_stderr, 2)
+        os.close(devnull)
+        os.close(old_stdout)
+        os.close(old_stderr)
+
 
 logger = logging.getLogger(__name__)
 
@@ -206,11 +238,12 @@ class ModelWrapper:
                     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                         temp_path = f.name
                     sf.write(temp_path, audio_data, sample_rate)
-                    out = self.model.transcribe(
-                        audio=[temp_path],
-                        source_lang=source_lang,
-                        target_lang=target_lang,
-                    )
+                    with suppress_output():
+                        out = self.model.transcribe(
+                            audio=[temp_path],
+                            source_lang=source_lang,
+                            target_lang=target_lang,
+                        )
                     return out[0].text.strip() if out and len(out) > 0 else ""
                 finally:
                     if temp_path and os.path.exists(temp_path):
