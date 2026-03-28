@@ -19,6 +19,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - 15 languages supported (en, de, fr, it, es, pt, el, nl, pl, ar, vi, zh, ja, ko)
   - Transcription only
   - No automatic language recognition
+  - Runs well on CPU
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
