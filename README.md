@@ -14,14 +14,20 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
-- (NEW) **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
+- (NEW) **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
+
+  - 15 languages supported (en, de, fr, it, es, pt, el, nl, pl, ar, vi, zh, ja, ko)
+  - Transcription only
+  - No automatic language recognition
+
+- **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
   - 25 languages supported
   - Transcription and translation
   - No automatic language recognition
   - Crazy fast even on CPU in F16
 
-- (NEW) **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
+- **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
 
   - 25 languages supported
   - Transcription only
@@ -124,6 +130,7 @@ Many thanks to:
 - **the developers of faster-whisper** for providing such an efficient transcription inference engine
 - **NVIDIA** for their blazing fast parakeet and canary models
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
+- **Cohere** for their cohere-transcribe-03-2026 model
 - and to **all the contributors** of the libraries I used
 
 Also thanks to [wgabrys88](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) and [MohamedRashadthat](https://huggingface.co/spaces/MohamedRashad/Voxtral) for their huggingface spaces that have been helpful!
