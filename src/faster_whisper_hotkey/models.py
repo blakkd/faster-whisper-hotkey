@@ -1,5 +1,4 @@
 import os
-import sys
 
 # Suppress NeMo/OneLogger warnings at module load time using file descriptor redirection
 _devnull_fd = os.open(os.devnull, os.O_WRONLY)

@@ -160,12 +160,15 @@ def main():
 
                 elif model_type == "canary-1b-v2":
                     # ------------------------------------------------------------------
-                    # 4️⃣  Canary (nvidia/canary-1b-v2) – no quantisation support
+                    # 4️⃣  Canary (nvidia/canary-1b-v2) – no quantisation support, CUDA only
                     # ------------------------------------------------------------------
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda"]
+                            stdscr,
+                            "Compute Device",
+                            ["cuda"],
+                            message="CUDA only (CPU inference not supported)",
                         )
                     )
                     if not device:
@@ -282,12 +285,15 @@ def main():
 
                 elif model_type == "Voxtral-Mini-3B-2507":
                     # ------------------------------------------------------------------
-                    # 6️⃣  Voxtral (mistralai/Voxtral-Mini-3B-2507) – GPU only
+                    # 6️⃣  Voxtral (mistralai/Voxtral-Mini-3B-2507) – CUDA only
                     # ------------------------------------------------------------------
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda"], message="GPU only"
+                            stdscr,
+                            "Compute Device",
+                            ["cuda"],
+                            message="CUDA only (CPU inference not supported)",
                         )
                     )
                     if not device:
