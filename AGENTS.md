@@ -35,8 +35,8 @@ Push-to-talk transcription tool for Linux. Press and hold a hotkey to record spe
 ### 2. NVIDIA Parakeet (`model_type="parakeet"`)
 - **Model**: `nvidia/parakeet-tdt-0.6b-v3`
 - **Device**: cuda or cpu
-- **Language**: Language-agnostic (none required)
-- **Precision**: float16 only
+- **Language**: Language-agnostic (auto-detection, no explicit language required)
+- **Precision**: Uses `compute_type="float16"` in settings (placeholder; NeMo doesn't use it for precision control)
 
 ### 3. NVIDIA Canary (`model_type="canary"`)
 - **Model**: `nvidia/canary-1b-v2`
@@ -57,6 +57,7 @@ Push-to-talk transcription tool for Linux. Press and hold a hotkey to record spe
 - **Device**: cuda or cpu
 - **Language**: Explicit selection required (no auto-detection)
 - **Supported**: en, de, fr, it, es, pt, el, nl, pl, ar, vi, zh, ja, ko
+- **Note**: Loads with `dtype=torch.float32` internally despite `compute_type="float16"` in settings
 
 ## Key Constants
 
@@ -64,8 +65,8 @@ Push-to-talk transcription tool for Linux. Press and hold a hotkey to record spe
 |----------|-------|----------|
 | `MIN_RECORDING_DURATION` | 1.0s | `transcriber.py:23` |
 | Sample Rate | 16000 Hz | `transcriber.py:29` |
-| Buffer Max | 10 minutes | `transcriber.py:28` |
-| Block Size | 4000 samples | `transcriber.py:173` |
+| Buffer Max | 10 minutes (~960,000 samples) | `transcriber.py:30` |
+| Block Size | 4000 samples | `transcriber.py:163` |
 
 ## Hotkeys
 
@@ -109,13 +110,15 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 3. Implement transcription in `models.py::transcribe()`
 
 ### Change default hotkey
-- Modify defaults in `settings.py:40`
+- Modify dataclass default in `settings.py:22`: `hotkey: str = "pause"`
+- Also update fallback in `settings.py:37`: `data.setdefault("hotkey", "pause")`
 
 ### Adjust audio chunking limit (Voxtral)
-- Edit `MAX_DURATION_SECONDS = 30` in `models.py:256`
+- Edit `MAX_DURATION_SECONDS = 30` in `models.py:255`
 
 ### Support new terminal emulator  
-- Add identifier to `TERMINAL_IDENTIFIERS_X11/WAYLAND` in `terminal.py:9-23`
+- Add identifier to `TERMINAL_IDENTIFIERS_X11` in `terminal.py:10-20`
+- WAYLAND uses same list (`terminal.py:23`)
 
 ## Debugging Tips
 
@@ -127,16 +130,18 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 ## Testing
 
 ### Test Suite Overview
-Pytest-based test suite with **97 tests** across 6 test files:
+Pytest-based test suite with **142 tests** across 8 test files:
 
 | Test File | Tests | Target Module | Description |
 |-----------|-------|---------------|-------------|
 | `tests/test_settings.py` | 9 | `settings.py` | Settings dataclass, save/load JSON |
-| `tests/test_config.py` | 18 | `config.py` | Model/language config constants, JSON loading |
+| `tests/test_config.py` | 22 | `config.py` | Model/language config constants, JSON loading |
 | `tests/test_clipboard.py` | 14 | `clipboard.py` | Clipboard backup/restore with pyperclip mocking |
-| `tests/test_terminal.py` | 20 | `terminal.py` | X11/Wayland window detection |
-| `tests/test_paste.py` | 12 | `paste.py` | Paste shortcuts, terminal vs GUI routing |
-| `tests/test_models.py` | 24 | `models.py` | ModelWrapper initialization and transcription |
+| `tests/test_terminal.py` | 24 | `terminal.py` | X11/Wayland window detection |
+| `tests/test_paste.py` | 11 | `paste.py` | Paste shortcuts, terminal vs GUI routing |
+| `tests/test_models.py` | 17 | `models.py` | ModelWrapper initialization and transcription |
+| `tests/test_models_extended.py` | 23 | `models.py` | Extended edge cases for all model types, chunking, error handling |
+| `tests/test_config_extended.py` | 22 | `config.py` | Extended tests for model/language configuration |
 
 ### Running Tests
 ```bash
