@@ -20,6 +20,9 @@ class Settings:
     device: str
     language: str
     hotkey: str = "pause"
+    llm_correction_enabled: bool = False
+    llm_endpoint: str = ""
+    llm_model_name: str = ""
 
 
 def save_settings(settings: dict):
@@ -37,6 +40,9 @@ def load_settings() -> Settings | None:
             data.setdefault("hotkey", "pause")
             data.setdefault("model_type", "whisper")
             data.setdefault("model_name", "large-v3")
+            data.setdefault("llm_correction_enabled", False)
+            data.setdefault("llm_endpoint", "")
+            data.setdefault("llm_model_name", "")
             return Settings(**data)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         logger.warning(f"Failed to load settings: {e}")

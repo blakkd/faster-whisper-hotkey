@@ -1,5 +1,5 @@
 import curses
-from typing import List
+from typing import List, Optional
 
 
 def curses_menu(
@@ -126,3 +126,56 @@ def get_initial_choice(stdscr):
     """
     options = ["Use Last Settings", "Choose New Settings"]
     return curses_menu(stdscr, "", options)
+
+
+def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
+    """
+    Prompt the user for text input using curses.
+    Returns the entered text, or None if ESC is pressed.
+    """
+    stdscr.clear()
+    h, w = stdscr.getmaxyx()
+
+    y_prompt = (h - 3) // 2
+    y_input = y_prompt + 1
+
+    stdscr.addstr(y_prompt, 0, prompt[: w - 1])
+    stdscr.addstr(y_input, 0, " " * min(w - 1, 50))
+
+    current_text = default
+    cursor_pos = len(current_text)
+
+    curses.curs_set(1)
+    stdscr.refresh()
+
+    while True:
+        key = stdscr.getch()
+
+        if key == 27:  # ESC
+            curses.curs_set(0)
+            return None
+        elif key in [curses.KEY_ENTER, 10, 13]:
+            curses.curs_set(0)
+            return current_text
+        elif key == curses.KEY_BACKSPACE or key == 127:
+            if cursor_pos > 0:
+                current_text = (
+                    current_text[: cursor_pos - 1] + current_text[cursor_pos:]
+                )
+                cursor_pos -= 1
+        elif key == curses.KEY_LEFT and cursor_pos > 0:
+            cursor_pos -= 1
+        elif key == curses.KEY_RIGHT and cursor_pos < len(current_text):
+            cursor_pos += 1
+        elif 32 <= key <= 126:
+            current_text = (
+                current_text[:cursor_pos] + chr(key) + current_text[cursor_pos:]
+            )
+            cursor_pos += 1
+
+        stdscr.move(y_input, 0)
+        display_text = current_text[: w - 1]
+        stdscr.addstr(y_input, 0, " " * (w - 1))
+        stdscr.addstr(y_input, 0, display_text)
+        stdscr.move(y_input, min(cursor_pos, w - 1))
+        stdscr.refresh()

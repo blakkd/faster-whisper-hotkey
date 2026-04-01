@@ -16,6 +16,7 @@ Push-to-talk transcription tool for Linux. Press and hold a hotkey to record spe
 | `transcribe.py` | Main flow: curses UI wizard → settings → launches transcriber |
 | `transcriber.py` | `MicrophoneTranscriber` class: audio capture, hotkey handling, transcription queue |
 | `models.py` | `ModelWrapper`: unified interface for 5 STT backends |
+| `llm_corrector.py` | `LLMCorrector`: HTTP requests to OpenAI-compatible endpoints for text correction |
 | `config.py` | Loads available models/languages from JSON |
 | `settings.py` | Settings persistence at `~/.config/faster_whisper_hotkey/transcriber_settings.json` |
 | `clipboard.py` | Clipboard backup/restore using `pyperclip` |
@@ -89,7 +90,10 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
   "compute_type": str,      # float16|int8|int4 (model-dependent)
   "device": str,            # cuda|cpu
   "language": str,          # ISO lang code or "source-target" for canary
-  "hotkey": str             # pause|f4|f8|insert (lowercase)
+  "hotkey": str,            # pause|f4|f8|insert (lowercase)
+  "llm_correction_enabled": bool,  # Enable/disable LLM correction
+  "llm_endpoint": str,      # OpenAI-compatible endpoint URL
+  "llm_model_name": str     # Model name for LLM correction
 }
 ```
 
@@ -100,6 +104,7 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 - **Whisper**: `faster-whisper`, `torch`
 - **NVIDIA models**: `nemo_toolkit[asr]`
 - **Transformers**: `transformers`, `mistral-common[audio]`, `bitsandbytes` (quantization)
+- **LLM correction**: `requests` (HTTP client for OpenAI-compatible endpoints)
 - **Audio processing**: `librosa`, `soundfile`, `numpy`
 
 ## Common Tasks

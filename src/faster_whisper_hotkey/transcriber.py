@@ -9,6 +9,7 @@ import sounddevice as sd
 from pynput import keyboard
 
 from .clipboard import backup_clipboard, restore_clipboard, set_clipboard
+from .llm_corrector import LLMCorrector
 from .models import ModelWrapper
 from .paste import paste_to_active_window
 from .settings import Settings
@@ -33,6 +34,14 @@ class MicrophoneTranscriber:
 
         # Load the requested model wrapper
         self.model_wrapper = ModelWrapper(self.settings)
+
+        # Initialize LLM corrector if enabled
+        self.llm_corrector = None
+        if getattr(settings, "llm_correction_enabled", False):
+            endpoint = getattr(settings, "llm_endpoint", "")
+            model_name = getattr(settings, "llm_model_name", "")
+            if endpoint and model_name:
+                self.llm_corrector = LLMCorrector(endpoint, model_name)
 
         self.stop_event = threading.Event()
         self.exit_flag = False
@@ -106,6 +115,10 @@ class MicrophoneTranscriber:
                 sample_rate=self.sample_rate,
                 language=self.settings.language,
             )
+
+            # Apply LLM correction if enabled
+            if self.llm_corrector and transcribed_text.strip():
+                transcribed_text = self.llm_corrector.correct(transcribed_text)
 
             # ---------- send the text ----------
             if transcribed_text.strip():
