@@ -30,8 +30,36 @@ from .ui import get_text_input
 from .transcriber import MicrophoneTranscriber
 from .ui import curses_menu, get_initial_choice
 
+import os
+
+
+def _setup_logging():
+    """Configure logging based on DEBUG environment variable."""
+    is_debug = os.environ.get("FASTER_WHISPER_HOTKEY_DEBUG", "0") == "1"
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+
+    if is_debug:
+        # Full logging with module paths (default behavior)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+        root_logger.addHandler(handler)
+        root_logger.setLevel(logging.INFO)
+    else:
+        # Simplified logging without module paths
+        class SimpleFormatter(logging.Formatter):
+            def format(self, record):
+                return f"{record.levelname}:{record.getMessage()}"
+
+        handler = logging.StreamHandler()
+        handler.setFormatter(SimpleFormatter())
+        root_logger.addHandler(handler)
+        root_logger.setLevel(logging.INFO)
+
+
+_setup_logging()
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 def main():
