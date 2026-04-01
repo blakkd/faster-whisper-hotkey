@@ -1,7 +1,6 @@
 import contextlib
 import logging
 import os
-import sys
 
 
 # Suppress OneLogger/NeMo initialization warnings at import time
