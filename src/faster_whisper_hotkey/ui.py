@@ -136,14 +136,19 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
     stdscr.clear()
     h, w = stdscr.getmaxyx()
 
-    y_prompt = (h - 3) // 2
-    y_input = y_prompt + 1
+    y_prompt = (h - 1) // 2
 
     stdscr.addstr(y_prompt, 0, prompt[: w - 1])
-    stdscr.addstr(y_input, 0, " " * min(w - 1, 50))
 
     current_text = default
     cursor_pos = len(current_text)
+
+    prompt_len = min(len(prompt), w - 1)
+
+    display_text = current_text[: w - prompt_len - 1]
+    stdscr.addstr(y_prompt, prompt_len, " " * (w - prompt_len - 1))
+    stdscr.addstr(y_prompt, prompt_len, display_text)
+    stdscr.move(y_prompt, min(prompt_len + cursor_pos, w - 1))
 
     curses.curs_set(1)
     stdscr.refresh()
@@ -173,9 +178,8 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
             )
             cursor_pos += 1
 
-        stdscr.move(y_input, 0)
-        display_text = current_text[: w - 1]
-        stdscr.addstr(y_input, 0, " " * (w - 1))
-        stdscr.addstr(y_input, 0, display_text)
-        stdscr.move(y_input, min(cursor_pos, w - 1))
+        display_text = current_text[: w - prompt_len - 1]
+        stdscr.addstr(y_prompt, prompt_len, " " * (w - prompt_len - 1))
+        stdscr.addstr(y_prompt, prompt_len, display_text)
+        stdscr.move(y_prompt, min(prompt_len + cursor_pos, w - 1))
         stdscr.refresh()

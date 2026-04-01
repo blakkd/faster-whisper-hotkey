@@ -159,7 +159,7 @@ def main():
                         llm_endpoint = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM endpoint URL (e.g., http://localhost:8678/v1):",
+                                "Endpoint URL: ",
                                 "http://localhost:8678/v1",
                             )
                         )
@@ -169,7 +169,7 @@ def main():
                         llm_model_name = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM model name:",
+                                "Model name: ",
                                 "",
                             )
                         )
@@ -276,7 +276,7 @@ def main():
                         llm_endpoint = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM endpoint URL (e.g., http://localhost:8678/v1):",
+                                "Endpoint URL: ",
                                 "http://localhost:8678/v1",
                             )
                         )
@@ -286,7 +286,7 @@ def main():
                         llm_model_name = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM model name:",
+                                "Model name: ",
                                 "",
                             )
                         )
@@ -362,7 +362,7 @@ def main():
                         llm_endpoint = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM endpoint URL (e.g., http://localhost:8678/v1):",
+                                "Endpoint URL: ",
                                 "http://localhost:8678/v1",
                             )
                         )
@@ -372,7 +372,7 @@ def main():
                         llm_model_name = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM model name:",
+                                "Model name: ",
                                 "",
                             )
                         )
@@ -468,7 +468,7 @@ def main():
                         llm_endpoint = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM endpoint URL (e.g., http://localhost:8678/v1):",
+                                "Endpoint URL: ",
                                 "http://localhost:8678/v1",
                             )
                         )
@@ -478,7 +478,7 @@ def main():
                         llm_model_name = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM model name:",
+                                "Model name: ",
                                 "",
                             )
                         )
@@ -575,7 +575,7 @@ def main():
                         llm_endpoint = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM endpoint URL (e.g., http://localhost:8678/v1):",
+                                "Endpoint URL: ",
                                 "http://localhost:8678/v1",
                             )
                         )
@@ -585,7 +585,7 @@ def main():
                         llm_model_name = curses.wrapper(
                             lambda stdscr: get_text_input(
                                 stdscr,
-                                "LLM model name:",
+                                "Model name: ",
                                 "",
                             )
                         )
