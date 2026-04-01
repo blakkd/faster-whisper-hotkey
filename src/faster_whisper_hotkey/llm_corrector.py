@@ -25,8 +25,9 @@ class LLMCorrector:
 
         prompt = (
             "Please correct any errors in the following speech-to-text transcription. "
-            "Fix spelling mistakes, punctuation, and improve grammar while preserving "
-            "the original meaning exactly. Output only the corrected text, nothing else.\n\n"
+            "Repair broken segments, ensure proper grammar and clear formulation, "
+            "and preserve or infer the original meaning. Your answer should contain "
+            "only the corrected text, nothing else.\n\n"
             f"Transcription:\n{text}"
         )
 
@@ -36,8 +37,9 @@ class LLMCorrector:
                 {"role": "system", "content": "You are a transcription proofreader."},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.1,
+            "temperature": 0.6,
             "max_tokens": 1024,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
 
         try:
