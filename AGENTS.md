@@ -6,8 +6,10 @@ Push-to-talk transcription tool for Linux. Press and hold a hotkey to record spe
 ## Architecture
 
 ### Entry Points
-- `__main__.py` (line 3): Calls `transcribe.main()`
-- CLI command: `faster-whisper-hotkey`
+- `__main__.py`: Parses CLI args, calls `transcribe.main()`
+- CLI commands:
+  - `faster-whisper-hotkey` - Normal mode (simplified logs)
+  - `faster-whisper-hotkey --debug` - Debug mode (full module paths in logs)
 
 ### Core Modules
 
@@ -127,7 +129,9 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 
 ## Debugging Tips
 
-- Set logging level: `logging.basicConfig(level=logging.DEBUG)` before other imports
+- **Debug mode**: Run with `--debug` flag for full module paths in log output
+- Default mode uses simplified logs (e.g., `INFO:Recording...`)
+- Debug mode shows module names (e.g., `INFO:faster_whisper_hotkey.transcriber:...`)
 - Voxtral/NeMo warnings suppressed via `_setup_logging()` in `models.py:39`
 - Audio device issues: Use `arecord -l` to list PulseAudio sources
 - CUDA errors: Verify model supports requested precision/device
@@ -135,7 +139,7 @@ Configurable via UI; options: `pause`, `f4`, `f8`, `insert`. Press to start reco
 ## Testing
 
 ### Test Suite Overview
-Pytest-based test suite with **142 tests** across 8 test files:
+Pytest-based test suite with **189 tests** across 8 test files:
 
 | Test File | Tests | Target Module | Description |
 |-----------|-------|---------------|-------------|
