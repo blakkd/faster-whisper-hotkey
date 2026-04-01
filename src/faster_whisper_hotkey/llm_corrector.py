@@ -45,7 +45,7 @@ class LLMCorrector:
         try:
             headers = {"Content-Type": "application/json"}
             response = requests.post(
-                self.endpoint, json=payload, headers=headers, timeout=30
+                self.endpoint, json=payload, headers=headers, timeout=120
             )
             response.raise_for_status()
 
