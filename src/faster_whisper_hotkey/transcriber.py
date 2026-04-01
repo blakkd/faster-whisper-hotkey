@@ -116,6 +116,12 @@ class MicrophoneTranscriber:
                 language=self.settings.language,
             )
 
+            raw_transcription = transcribed_text
+
+            # Log the raw transcription first
+            if raw_transcription.strip():
+                logger.info(f'Transcribed text: "{raw_transcription}"')
+
             # Apply LLM correction if enabled
             if self.llm_corrector and transcribed_text.strip():
                 transcribed_text = self.llm_corrector.correct(transcribed_text)
@@ -142,8 +148,6 @@ class MicrophoneTranscriber:
                         if original_clip is not None:
                             time.sleep(0.05)
                             restore_clipboard(original_clip)
-
-                logger.info(f"Transcribed text: {transcribed_text}")
 
         except Exception as e:
             logger.error(f"Transcription error: {e}")

@@ -55,8 +55,10 @@ class LLMCorrector:
             )
 
             if content:
-                logger.info(f'LLM corrected: "{text}" -> "{content.strip()}"')
-                return content.strip()
+                corrected = content.strip()
+                if corrected != text:
+                    logger.info(f'LLM corrected: "{corrected}"')
+                return corrected
 
         except Exception as e:
             logger.warning(f"LLM correction failed: {e}. Using original text.")
