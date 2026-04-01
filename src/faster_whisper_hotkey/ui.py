@@ -136,25 +136,39 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
     stdscr.clear()
     h, w = stdscr.getmaxyx()
 
-    y_prompt = (h - 1) // 2
+    # Ensure dimensions are valid
+    h = max(1, h)
+    w = max(1, w)
+    y_prompt = max(0, min((h - 1) // 2, h - 1))
 
-    stdscr.addstr(y_prompt, 0, prompt[: w - 1])
+    avail_width = max(1, w - 2)
+    prompt_to_show = prompt[:avail_width]
+    prompt_len = len(prompt_to_show)
+
+    stdscr.addstr(y_prompt, 0, prompt_to_show)
 
     current_text = default
     cursor_pos = len(current_text)
 
-    prompt_len = min(len(prompt), w - 1)
+    display_width = max(0, w - prompt_len - 1)
+    display_text = current_text[:display_width]
+    if display_width > 0:
+        stdscr.addstr(y_prompt, prompt_len, " " * display_width)
+        stdscr.addstr(y_prompt, prompt_len, display_text)
 
-    display_text = current_text[: w - prompt_len - 1]
-    stdscr.addstr(y_prompt, prompt_len, " " * (w - prompt_len - 1))
-    stdscr.addstr(y_prompt, prompt_len, display_text)
-    stdscr.move(y_prompt, min(prompt_len + cursor_pos, w - 1))
+    safe_cursor = min(cursor_pos, max(0, display_width))
+    final_col = max(0, min(prompt_len + safe_cursor, w - 1))
+    final_row = max(0, min(y_prompt, h - 1))
+    stdscr.move(final_row, final_col)
 
     curses.curs_set(1)
     stdscr.refresh()
 
     while True:
         key = stdscr.getch()
+
+        # Re-read dimensions in case terminal was resized
+        h, w = stdscr.getmaxyx()
 
         if key == 27:  # ESC
             curses.curs_set(0)
@@ -178,8 +192,21 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
             )
             cursor_pos += 1
 
-        display_text = current_text[: w - prompt_len - 1]
-        stdscr.addstr(y_prompt, prompt_len, " " * (w - prompt_len - 1))
-        stdscr.addstr(y_prompt, prompt_len, display_text)
-        stdscr.move(y_prompt, min(prompt_len + cursor_pos, w - 1))
+        # Update prompt display for new width
+        avail_width = max(1, w - 2)
+        prompt_to_show = prompt[:avail_width]
+        prompt_len = len(prompt_to_show)
+        stdscr.addstr(y_prompt, 0, prompt_to_show)
+
+        display_width = max(0, w - prompt_len - 1)
+        display_text = current_text[:display_width]
+        if display_width > 0:
+            stdscr.addstr(y_prompt, prompt_len, " " * display_width)
+            stdscr.addstr(y_prompt, prompt_len, display_text)
+
+        # Ensure cursor position is valid for current window size
+        safe_cursor = min(cursor_pos, max(0, display_width))
+        final_col = max(0, min(prompt_len + safe_cursor, w - 1))
+        final_row = max(0, min(y_prompt, h - 1))
+        stdscr.move(final_row, final_col)
         stdscr.refresh()
