@@ -169,7 +169,7 @@ class MicrophoneTranscriber:
     # ------------------------------------------------------------------
     def start_recording(self):
         if not self.is_recording:
-            logger.info("Starting recording...")
+            logger.info("Recording...")
             self.stop_event.clear()
             self.is_recording = True
             self.recording_start_time = time.time()
@@ -186,7 +186,6 @@ class MicrophoneTranscriber:
         if hasattr(self, "timer") and self.timer:
             self.timer.cancel()
         if self.is_recording:
-            logger.info("Stopping recording and starting transcription...")
             self.stop_event.set()
             self.is_recording = False
             try:
@@ -205,9 +204,8 @@ class MicrophoneTranscriber:
                     self.buffer_index = 0
                     self.transcription_queue.append(audio_data)
                     self.process_next_transcription()
-                    logger.info(
-                        f"Recording duration: {recording_duration:.2f}s - processing transcription"
-                    )
+                    logger.info(f"Recording duration: {recording_duration:.2f}s")
+                    logger.info("Processing transcription...")
                 else:
                     self.audio_buffer = np.zeros(
                         self.max_buffer_length, dtype=np.float32

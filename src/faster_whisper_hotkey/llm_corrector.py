@@ -57,7 +57,7 @@ class LLMCorrector:
             if content:
                 corrected = content.strip()
                 if corrected != text:
-                    logger.info(f'LLM corrected: "{corrected}"')
+                    logger.info(f'LLM corrected text: "{corrected}"')
                 return corrected
 
         except Exception as e:
