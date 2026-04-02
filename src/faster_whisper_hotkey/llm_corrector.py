@@ -23,7 +23,7 @@ class LLMCorrector:
             return text
 
         user_prompt = (
-            "Please review the following speech-to-text transcription and correct it as necessary. If errors exist, repair fragmented segments and ensure proper grammar and clarity. Inferring the context may help guide your revision. If the transcription is already correct, return it unchanged. Output only the proofread version, without additional commentary.\n\n"
+            "Please review the following speech-to-text transcription and correct it as necessary. If errors exist, repair fragmented segments and ensure proper grammar and clarity. Convert numbers and symbols written as words into their standard numerical and symbolic forms. Inferring the context may help guide your revision. If the transcription is already correct, return it unchanged. Your answer should contain only the revised text, without any additional commentary.\n\n"
             f"Transcription:\n{text}"
         )
 
