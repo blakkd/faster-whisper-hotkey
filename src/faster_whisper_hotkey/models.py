@@ -11,8 +11,6 @@ os.dup2(_devnull_fd, 1)
 os.dup2(_devnull_fd, 2)
 
 try:
-    logging.getLogger().setLevel(logging.ERROR)
-
     import tempfile
 
     import soundfile as sf
@@ -33,47 +31,6 @@ from transformers import (
     BitsAndBytesConfig,
     VoxtralForConditionalGeneration,
 )
-
-
-def _setup_logging():
-    """Suppress non-essential warnings from NeMo, Lhotse, and other libraries during inference."""
-    try:
-        from nemo.utils import logging as nemologging
-
-        nemologging.set_verbosity(nemologging.ERROR)
-    except ImportError:
-        pass
-
-    for logger_name in [
-        "lhotse",
-        "transformers",
-        "torchaudio",
-        "omegaconf",
-        "nemo.collections.common.data.lhotse.dataloader",
-        "nemo.collections.common.data.lhotse.cutset",
-        "nemo.collections.asr.models.enc_dec_multitask_asr_models",
-        "nemo.collections.asr.parts.utils.manipulate_feats_utils",
-    ]:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.CRITICAL)
-        logger.propagate = False
-        logger.handlers.clear()
-        logger.addHandler(logging.NullHandler())
-
-    # Hydra utils logs ERROR during safe_instantiate validation for functions like get_nemo_transformer
-    # This is expected behavior - set to CRITICAL to suppress these false positives
-    hydra_utils_logger = logging.getLogger("hydra.utils")
-    hydra_utils_logger.setLevel(logging.CRITICAL)
-    hydra_utils_logger.propagate = False
-    # Remove all handlers and add a NullHandler to ensure complete suppression
-    hydra_utils_logger.handlers.clear()
-    hydra_utils_logger.addHandler(logging.NullHandler())
-
-    # Silence root logger for NeMo/Lhotse related messages
-    logging.getLogger("root").setLevel(logging.CRITICAL)
-
-
-_setup_logging()
 
 
 @contextlib.contextmanager
@@ -140,8 +97,6 @@ class ModelWrapper:
             self._model_ref = self.model
 
         elif mt == "voxtral":
-            from typing import Optional
-
             from mistral_common.protocol.transcription.request import (
                 TranscriptionRequest as _TR,
             )

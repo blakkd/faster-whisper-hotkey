@@ -59,8 +59,69 @@ def _setup_logging():
 
 
 _setup_logging()
-
 logger = logging.getLogger(__name__)
+
+HOTKEY_OPTIONS = ["Pause", "F4", "F8", "INSERT"]
+
+
+def _get_hotkey() -> str | None:
+    """Select hotkey from available options."""
+    selected = curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Hotkey", HOTKEY_OPTIONS)
+    )
+    return selected.lower() if selected else None
+
+
+def _setup_llm_correction() -> tuple[bool, str, str] | None:
+    """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None."""
+    enabled = curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Enable LLM correction?", ["Yes", "No"])
+    )
+    if not enabled:
+        return None
+
+    if enabled == "Yes":
+        endpoint = curses.wrapper(
+            lambda stdscr: get_text_input(
+                stdscr, "Endpoint URL: ", "http://localhost:8678/v1"
+            )
+        )
+        if not endpoint:
+            return None
+
+        model_name = curses.wrapper(
+            lambda stdscr: get_text_input(stdscr, "Model name: ", "")
+        )
+        return True, endpoint, model_name or "default"
+
+    return False, "", ""
+
+
+def _create_settings_dict(
+    device_name: str,
+    model_type: str,
+    model_name: str,
+    compute_type: str,
+    device: str,
+    language: str,
+    hotkey: str,
+    llm_correction_enabled: bool,
+    llm_endpoint: str,
+    llm_model_name: str,
+) -> dict:
+    """Create settings dictionary."""
+    return {
+        "device_name": device_name,
+        "model_type": model_type,
+        "model_name": model_name,
+        "compute_type": compute_type,
+        "device": device,
+        "language": language,
+        "hotkey": hotkey,
+        "llm_correction_enabled": llm_correction_enabled,
+        "llm_endpoint": llm_endpoint,
+        "llm_model_name": llm_model_name,
+    }
 
 
 def main():
@@ -115,19 +176,16 @@ def main():
                     continue
 
                 # ------------------------------------------------------------------
-                # 3️⃣  Model‑specific configuration
+                # 3️⃣  Model-specific configuration
                 # ------------------------------------------------------------------
                 if model_type == "faster-whisper":
-                    original_models = accepted_models_whisper
-                    display_models = [m for m in original_models]
                     selected_model = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", display_models)
+                        lambda stdscr: curses_menu(stdscr, "", accepted_models_whisper)
                     )
                     if not selected_model:
                         continue
 
-                    model_name = selected_model
-                    english_only = model_name in english_only_models_whisper
+                    english_only = selected_model in english_only_models_whisper
 
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -142,9 +200,7 @@ def main():
                     )
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr,
-                            "Precision",
-                            available_compute_types,
+                            stdscr, "Precision", available_compute_types
                         )
                     )
                     if not compute_type:
@@ -162,67 +218,19 @@ def main():
                     if not language:
                         continue
 
-                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Select Hotkey", hotkey_options
-                        )
-                    )
-                    if not selected_hotkey:
-                        continue
-                    hotkey = selected_hotkey.lower()
-
-                    llm_enabled = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Enable LLM correction?", ["Yes", "No"]
-                        )
-                    )
-                    if not llm_enabled:
+                    hotkey = _get_hotkey()
+                    if not hotkey:
                         continue
 
-                    llm_correction_enabled = llm_enabled == "Yes"
-                    llm_endpoint = ""
-                    llm_model_name = ""
+                    llm_result = _setup_llm_correction()
+                    if llm_result is None:
+                        continue
+                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
 
-                    if llm_correction_enabled:
-                        llm_endpoint = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Endpoint URL: ",
-                                "http://localhost:8678/v1",
-                            )
-                        )
-                        if not llm_endpoint:
-                            continue
-
-                        llm_model_name = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Model name: ",
-                                "",
-                            )
-                        )
-                        if not llm_model_name:
-                            llm_model_name = "default"
-
-                    save_settings(
-                        {
-                            "device_name": device_name,
-                            "model_type": "whisper",
-                            "model_name": model_name,
-                            "compute_type": compute_type,
-                            "device": device,
-                            "language": language,
-                            "hotkey": hotkey,
-                            "llm_correction_enabled": llm_correction_enabled,
-                            "llm_endpoint": llm_endpoint,
-                            "llm_model_name": llm_model_name,
-                        }
-                    )
-                    settings = Settings(
+                    settings_dict = _create_settings_dict(
                         device_name=device_name,
                         model_type="whisper",
-                        model_name=model_name,
+                        model_name=selected_model,
                         compute_type=compute_type,
                         device=device,
                         language=language,
@@ -231,11 +239,10 @@ def main():
                         llm_endpoint=llm_endpoint,
                         llm_model_name=llm_model_name,
                     )
+                    save_settings(settings_dict)
+                    settings = Settings(**settings_dict)
 
                 elif model_type == "canary-1b-v2":
-                    # ------------------------------------------------------------------
-                    # 4️⃣  Canary (nvidia/canary-1b-v2) – no quantisation support, CUDA only
-                    # ------------------------------------------------------------------
                     model_name = "nvidia/canary-1b-v2"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -250,15 +257,12 @@ def main():
 
                     source_language = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr,
-                            "Source Language",
-                            canary_source_target_languages,
+                            stdscr, "Source Language", canary_source_target_languages
                         )
                     )
                     if not source_language:
                         continue
 
-                    # Build allowed target languages based on the selected source
                     allowed_targets = {
                         tgt
                         for src, tgt in (
@@ -278,69 +282,20 @@ def main():
                     if not target_language:
                         continue
 
-                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
-                    )
-                    if not selected_hotkey:
-                        continue
-                    hotkey = selected_hotkey.lower()
-
-                    # Explicit compute_type to keep compatibility with older Settings
-                    compute_type = "float16"
-
-                    llm_enabled = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Enable LLM correction?", ["Yes", "No"]
-                        )
-                    )
-                    if not llm_enabled:
+                    hotkey = _get_hotkey()
+                    if not hotkey:
                         continue
 
-                    llm_correction_enabled = llm_enabled == "Yes"
-                    llm_endpoint = ""
-                    llm_model_name = ""
+                    llm_result = _setup_llm_correction()
+                    if llm_result is None:
+                        continue
+                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
 
-                    if llm_correction_enabled:
-                        llm_endpoint = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Endpoint URL: ",
-                                "http://localhost:8678/v1",
-                            )
-                        )
-                        if not llm_endpoint:
-                            continue
-
-                        llm_model_name = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Model name: ",
-                                "",
-                            )
-                        )
-                        if not llm_model_name:
-                            llm_model_name = "default"
-
-                    save_settings(
-                        {
-                            "device_name": device_name,
-                            "model_type": "canary",
-                            "model_name": model_name,
-                            "compute_type": compute_type,
-                            "device": device,
-                            "language": f"{source_language}-{target_language}",
-                            "hotkey": hotkey,
-                            "llm_correction_enabled": llm_correction_enabled,
-                            "llm_endpoint": llm_endpoint,
-                            "llm_model_name": llm_model_name,
-                        }
-                    )
-                    settings = Settings(
+                    settings_dict = _create_settings_dict(
                         device_name=device_name,
                         model_type="canary",
                         model_name=model_name,
-                        compute_type=compute_type,
+                        compute_type="float16",
                         device=device,
                         language=f"{source_language}-{target_language}",
                         hotkey=hotkey,
@@ -348,11 +303,10 @@ def main():
                         llm_endpoint=llm_endpoint,
                         llm_model_name=llm_model_name,
                     )
+                    save_settings(settings_dict)
+                    settings = Settings(**settings_dict)
 
                 elif model_type == "parakeet-tdt-0.6b-v3":
-                    # ------------------------------------------------------------------
-                    # 5️⃣  Parakeet (nvidia/parakeet-tdt-0.6b-v3) – no quantisation support
-                    # ------------------------------------------------------------------
                     model_name = "nvidia/parakeet-tdt-0.6b-v3"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -362,83 +316,31 @@ def main():
                     if not device:
                         continue
 
-                    language = ""  # Parakeet does not require a language flag
-
-                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
-                    )
-                    if not selected_hotkey:
-                        continue
-                    hotkey = selected_hotkey.lower()
-
-                    # Explicit compute_type to keep compatibility with older Settings
-                    compute_type = "float16"
-
-                    llm_enabled = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Enable LLM correction?", ["Yes", "No"]
-                        )
-                    )
-                    if not llm_enabled:
+                    hotkey = _get_hotkey()
+                    if not hotkey:
                         continue
 
-                    llm_correction_enabled = llm_enabled == "Yes"
-                    llm_endpoint = ""
-                    llm_model_name = ""
+                    llm_result = _setup_llm_correction()
+                    if llm_result is None:
+                        continue
+                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
 
-                    if llm_correction_enabled:
-                        llm_endpoint = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Endpoint URL: ",
-                                "http://localhost:8678/v1",
-                            )
-                        )
-                        if not llm_endpoint:
-                            continue
-
-                        llm_model_name = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Model name: ",
-                                "",
-                            )
-                        )
-                        if not llm_model_name:
-                            llm_model_name = "default"
-
-                    save_settings(
-                        {
-                            "device_name": device_name,
-                            "model_type": "parakeet",
-                            "model_name": model_name,
-                            "compute_type": compute_type,
-                            "device": device,
-                            "language": language,
-                            "hotkey": hotkey,
-                            "llm_correction_enabled": llm_correction_enabled,
-                            "llm_endpoint": llm_endpoint,
-                            "llm_model_name": llm_model_name,
-                        }
-                    )
-                    settings = Settings(
+                    settings_dict = _create_settings_dict(
                         device_name=device_name,
                         model_type="parakeet",
                         model_name=model_name,
-                        compute_type=compute_type,
+                        compute_type="float16",
                         device=device,
-                        language=language,
+                        language="",
                         hotkey=hotkey,
                         llm_correction_enabled=llm_correction_enabled,
                         llm_endpoint=llm_endpoint,
                         llm_model_name=llm_model_name,
                     )
+                    save_settings(settings_dict)
+                    settings = Settings(**settings_dict)
 
                 elif model_type == "Voxtral-Mini-3B-2507":
-                    # ------------------------------------------------------------------
-                    # 6️⃣  Voxtral (mistralai/Voxtral-Mini-3B-2507) – CUDA only
-                    # ------------------------------------------------------------------
                     model_name = "mistralai/Voxtral-Mini-3B-2507"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -451,16 +353,14 @@ def main():
                     if not device:
                         continue
 
-                    available_compute_types = ["float16", "int8", "int4"]
                     compute_type = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Precision", available_compute_types
+                            stdscr, "Precision", ["float16", "int8", "int4"]
                         )
                     )
                     if not compute_type:
                         continue
 
-                    # Inform users about the <30s limit for Voxtral
                     info_message_voxtral = (
                         "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid "
                         "chunking inconsistencies."
@@ -471,80 +371,31 @@ def main():
                         )
                     )
 
-                    language = "auto"
-
-                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
-                    )
-                    if not selected_hotkey:
-                        continue
-                    hotkey = selected_hotkey.lower()
-
-                    llm_enabled = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Enable LLM correction?", ["Yes", "No"]
-                        )
-                    )
-                    if not llm_enabled:
+                    hotkey = _get_hotkey()
+                    if not hotkey:
                         continue
 
-                    llm_correction_enabled = llm_enabled == "Yes"
-                    llm_endpoint = ""
-                    llm_model_name = ""
+                    llm_result = _setup_llm_correction()
+                    if llm_result is None:
+                        continue
+                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
 
-                    if llm_correction_enabled:
-                        llm_endpoint = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Endpoint URL: ",
-                                "http://localhost:8678/v1",
-                            )
-                        )
-                        if not llm_endpoint:
-                            continue
-
-                        llm_model_name = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Model name: ",
-                                "",
-                            )
-                        )
-                        if not llm_model_name:
-                            llm_model_name = "default"
-
-                    save_settings(
-                        {
-                            "device_name": device_name,
-                            "model_type": "voxtral",
-                            "model_name": model_name,
-                            "compute_type": compute_type,
-                            "device": device,
-                            "language": language,
-                            "hotkey": hotkey,
-                            "llm_correction_enabled": llm_correction_enabled,
-                            "llm_endpoint": llm_endpoint,
-                            "llm_model_name": llm_model_name,
-                        }
-                    )
-                    settings = Settings(
+                    settings_dict = _create_settings_dict(
                         device_name=device_name,
                         model_type="voxtral",
                         model_name=model_name,
                         compute_type=compute_type,
                         device=device,
-                        language=language,
+                        language="auto",
                         hotkey=hotkey,
                         llm_correction_enabled=llm_correction_enabled,
                         llm_endpoint=llm_endpoint,
                         llm_model_name=llm_model_name,
                     )
+                    save_settings(settings_dict)
+                    settings = Settings(**settings_dict)
 
                 elif model_type == "cohere-transcribe-03-2026":
-                    # ------------------------------------------------------------------
-                    # 7️⃣  Cohere Transcribe (CohereLabs/cohere-transcribe-03-2026)
-                    # ------------------------------------------------------------------
                     model_name = "CohereLabs/cohere-transcribe-03-2026"
                     device = curses.wrapper(
                         lambda stdscr: curses_menu(
@@ -564,68 +415,20 @@ def main():
                     if not language:
                         continue
 
-                    hotkey_options = ["Pause", "F4", "F8", "INSERT"]
-                    selected_hotkey = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "Hotkey", hotkey_options)
-                    )
-                    if not selected_hotkey:
-                        continue
-                    hotkey = selected_hotkey.lower()
-
-                    compute_type = "float16"
-
-                    llm_enabled = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Enable LLM correction?", ["Yes", "No"]
-                        )
-                    )
-                    if not llm_enabled:
+                    hotkey = _get_hotkey()
+                    if not hotkey:
                         continue
 
-                    llm_correction_enabled = llm_enabled == "Yes"
-                    llm_endpoint = ""
-                    llm_model_name = ""
+                    llm_result = _setup_llm_correction()
+                    if llm_result is None:
+                        continue
+                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
 
-                    if llm_correction_enabled:
-                        llm_endpoint = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Endpoint URL: ",
-                                "http://localhost:8678/v1",
-                            )
-                        )
-                        if not llm_endpoint:
-                            continue
-
-                        llm_model_name = curses.wrapper(
-                            lambda stdscr: get_text_input(
-                                stdscr,
-                                "Model name: ",
-                                "",
-                            )
-                        )
-                        if not llm_model_name:
-                            llm_model_name = "default"
-
-                    save_settings(
-                        {
-                            "device_name": device_name,
-                            "model_type": "cohere",
-                            "model_name": model_name,
-                            "compute_type": compute_type,
-                            "device": device,
-                            "language": language,
-                            "hotkey": hotkey,
-                            "llm_correction_enabled": llm_correction_enabled,
-                            "llm_endpoint": llm_endpoint,
-                            "llm_model_name": llm_model_name,
-                        }
-                    )
-                    settings = Settings(
+                    settings_dict = _create_settings_dict(
                         device_name=device_name,
                         model_type="cohere",
                         model_name=model_name,
-                        compute_type=compute_type,
+                        compute_type="float16",
                         device=device,
                         language=language,
                         hotkey=hotkey,
@@ -633,6 +436,8 @@ def main():
                         llm_endpoint=llm_endpoint,
                         llm_model_name=llm_model_name,
                     )
+                    save_settings(settings_dict)
+                    settings = Settings(**settings_dict)
 
             # ----------------------------------------------------------------------
             # 8️⃣  Launch the transcriber
