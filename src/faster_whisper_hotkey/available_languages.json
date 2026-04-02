@@ -230,5 +230,21 @@
     "uk-uk",
     "uk-en",
     "en-uk"
+  ],
+  "accepted_languages_cohere": [
+    "en",
+    "de",
+    "fr",
+    "it",
+    "es",
+    "pt",
+    "el",
+    "nl",
+    "pl",
+    "ar",
+    "vi",
+    "zh",
+    "ja",
+    "ko"
   ]
 }

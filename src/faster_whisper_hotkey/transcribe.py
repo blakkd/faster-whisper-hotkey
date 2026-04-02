@@ -19,6 +19,7 @@ warnings.filterwarnings(
 import pulsectl
 
 from .config import (
+    accepted_languages_cohere,
     accepted_languages_whisper,
     accepted_models_whisper,
     canary_allowed_language_pairs,
@@ -553,25 +554,11 @@ def main():
                     if not device:
                         continue
 
-                    cohere_languages = [
-                        "en",
-                        "de",
-                        "fr",
-                        "it",
-                        "es",
-                        "pt",
-                        "el",
-                        "nl",
-                        "pl",
-                        "ar",
-                        "vi",
-                        "zh",
-                        "ja",
-                        "ko",
-                    ]
                     language = curses.wrapper(
                         lambda stdscr: curses_menu(
-                            stdscr, "Language (no auto-detection)", cohere_languages
+                            stdscr,
+                            "Language (no auto-detection)",
+                            accepted_languages_cohere,
                         )
                     )
                     if not language:

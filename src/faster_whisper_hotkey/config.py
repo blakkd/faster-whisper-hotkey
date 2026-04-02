@@ -13,20 +13,17 @@ def get_resource_path(filename: str) -> str:
 
 
 try:
-    config_path = get_resource_path("available_models_languages.json")
+    config_path = get_resource_path("available_languages.json")
     with open(config_path, "r", encoding="utf-8") as f:
         _CONFIG = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError) as e:
-    logger.error(
-        f"Configuration error while loading available_models_languages.json: {e}"
-    )
+    logger.error(f"Configuration error while loading available_languages.json: {e}")
     raise
 
 accepted_models_whisper = _CONFIG.get("accepted_models_whisper", [])
 accepted_languages_whisper = _CONFIG.get("accepted_languages_whisper", [])
 english_only_models_whisper = set(_CONFIG.get("english_only_models_whisper", []))
 
-canary_source_target_languages = _CONFIG.get(
-    "canary_source_target_languages", ["en", "fr", "de", "es"]
-)
-canary_allowed_language_pairs = _CONFIG.get("canary_allowed_language_pairs", [])
+canary_source_target_languages = _CONFIG["canary_source_target_languages"]
+canary_allowed_language_pairs = _CONFIG["canary_allowed_language_pairs"]
+accepted_languages_cohere = _CONFIG["accepted_languages_cohere"]
