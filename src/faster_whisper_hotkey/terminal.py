@@ -6,8 +6,8 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
-# X11 terminal identifiers
-TERMINAL_IDENTIFIERS_X11 = [
+# Terminal identifiers (shared by X11 and Wayland)
+TERMINAL_IDENTIFIERS = [
     "terminal",
     "term",
     "konsole",
@@ -18,9 +18,6 @@ TERMINAL_IDENTIFIERS_X11 = [
     "alacritty",
     "terminator",
 ]
-
-# Wayland terminal identifiers
-TERMINAL_IDENTIFIERS_WAYLAND = TERMINAL_IDENTIFIERS_X11
 
 
 def get_active_window_class_x11() -> List[str]:
@@ -36,7 +33,7 @@ def get_active_window_class_x11() -> List[str]:
 
 def is_terminal_window_x11(classes: List[str]) -> bool:
     for cls in classes:
-        if any(t in cls.lower() for t in TERMINAL_IDENTIFIERS_X11):
+        if any(t in cls.lower() for t in TERMINAL_IDENTIFIERS):
             return True
     return False
 
@@ -69,4 +66,4 @@ def is_terminal_window_wayland(container: Optional[dict]) -> bool:
     if not container:
         return False
     name = (container.get("app_id", "") + container.get("name", "")).lower()
-    return any(t in name for t in TERMINAL_IDENTIFIERS_WAYLAND)
+    return any(t in name for t in TERMINAL_IDENTIFIERS)

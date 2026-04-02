@@ -72,29 +72,187 @@ def _get_hotkey() -> str | None:
     return selected.lower() if selected else None
 
 
-def _setup_llm_correction() -> tuple[bool, str, str] | None:
+def _get_device_choice(cuda_only: bool = False) -> str | None:
+    """Get compute device from user. If cuda_only, only offer CUDA."""
+    options = ["cuda"] if cuda_only else ["cuda", "cpu"]
+    message = "CUDA only (CPU inference not supported)" if cuda_only else ""
+    return curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Compute Device", options, message=message)
+    )
+
+
+def _configure_llm_correction() -> tuple[bool, str, str] | None:
     """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None."""
     enabled = curses.wrapper(
         lambda stdscr: curses_menu(stdscr, "Enable LLM correction?", ["Yes", "No"])
     )
-    if not enabled:
+    if enabled != "Yes":
         return None
 
-    if enabled == "Yes":
-        endpoint = curses.wrapper(
-            lambda stdscr: get_text_input(
-                stdscr, "Endpoint URL: ", "http://localhost:8678/v1"
-            )
+    endpoint = curses.wrapper(
+        lambda stdscr: get_text_input(
+            stdscr, "Endpoint URL: ", "http://localhost:8678/v1"
         )
-        if not endpoint:
-            return None
+    )
+    if not endpoint:
+        return None
 
-        model_name = curses.wrapper(
-            lambda stdscr: get_text_input(stdscr, "Model name: ", "")
+    model_name = curses.wrapper(
+        lambda stdscr: get_text_input(stdscr, "Model name: ", "")
+    )
+    return True, endpoint, model_name or "default"
+
+
+def _configure_whisper() -> dict | None:
+    """Configure faster-whisper model settings."""
+    selected_model = curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Whisper Model", accepted_models_whisper)
+    )
+    if not selected_model:
+        return None
+
+    english_only = selected_model in english_only_models_whisper
+    device = _get_device_choice(cuda_only=False)
+    if not device:
+        return None
+
+    available_compute_types = (
+        ["int8"] if device == "cpu" else ["float16", "int8"]
+    )
+    compute_type = curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Precision", available_compute_types)
+    )
+    if not compute_type:
+        return None
+
+    language = (
+        "en"
+        if english_only
+        else curses.wrapper(
+            lambda stdscr: curses_menu(stdscr, "Language", accepted_languages_whisper)
         )
-        return True, endpoint, model_name or "default"
+    )
+    if not language:
+        return None
 
-    return False, "", ""
+    return {
+        "model_name": selected_model,
+        "compute_type": compute_type,
+        "device": device,
+        "language": language,
+    }
+
+
+def _configure_canary() -> dict | None:
+    """Configure Canary model settings."""
+    model_name = "nvidia/canary-1b-v2"
+    device = _get_device_choice(cuda_only=True)
+    if not device:
+        return None
+
+    source_language = curses.wrapper(
+        lambda stdscr: curses_menu(
+            stdscr, "Source Language", canary_source_target_languages
+        )
+    )
+    if not source_language:
+        return None
+
+    allowed_targets = {
+        tgt
+        for src, tgt in (p.split("-") for p in canary_allowed_language_pairs)
+        if src == source_language
+    }
+    target_options = sorted(allowed_targets)
+
+    target_language = curses.wrapper(
+        lambda stdscr: curses_menu(
+            stdscr, "Target Language (same as source for transcription)",
+            target_options,
+        )
+    )
+    if not target_language:
+        return None
+
+    return {
+        "model_name": model_name,
+        "compute_type": "float16",
+        "device": device,
+        "language": f"{source_language}-{target_language}",
+    }
+
+
+def _configure_parakeet() -> dict | None:
+    """Configure Parakeet model settings."""
+    model_name = "nvidia/parakeet-tdt-0.6b-v3"
+    device = _get_device_choice(cuda_only=False)
+    if not device:
+        return None
+
+    return {
+        "model_name": model_name,
+        "compute_type": "float16",
+        "device": device,
+        "language": "",
+    }
+
+
+def _configure_voxtral() -> dict | None:
+    """Configure Voxtral model settings."""
+    model_name = "mistralai/Voxtral-Mini-3B-2507"
+    device = _get_device_choice(cuda_only=True)
+    if not device:
+        return None
+
+    compute_type = curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Precision", ["float16", "int8", "int4"])
+    )
+    if not compute_type:
+        return None
+
+    info_message = (
+        "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid "
+        "chunking inconsistencies."
+    )
+    curses.wrapper(
+        lambda stdscr: curses_menu(stdscr, "Info", ["Continue"], message=info_message)
+    )
+
+    return {
+        "model_name": model_name,
+        "compute_type": compute_type,
+        "device": device,
+        "language": "auto",
+    }
+
+
+def _configure_cohere() -> dict | None:
+    """Configure Cohere model settings."""
+    model_name = "CohereLabs/cohere-transcribe-03-2026"
+    device = _get_device_choice(cuda_only=False)
+    if not device:
+        return None
+
+    language = curses.wrapper(
+        lambda stdscr: curses_menu(
+            stdscr, "Language (no auto-detection)", accepted_languages_cohere
+        )
+    )
+    if not language:
+        return None
+
+    return {
+        "model_name": model_name,
+        "compute_type": "float16",
+        "device": device,
+        "language": language,
+    }
+
+
+def _save_and_create_settings(settings_dict: dict) -> Settings:
+    """Save settings and create Settings object."""
+    save_settings(settings_dict)
+    return Settings(**settings_dict)
 
 
 def _create_settings_dict(
@@ -105,11 +263,10 @@ def _create_settings_dict(
     device: str,
     language: str,
     hotkey: str,
-    llm_correction_enabled: bool,
-    llm_endpoint: str,
-    llm_model_name: str,
+    llm_result: tuple[bool, str, str],
 ) -> dict:
     """Create settings dictionary."""
+    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
     return {
         "device_name": device_name,
         "model_type": model_type,
@@ -178,266 +335,49 @@ def main():
                 # ------------------------------------------------------------------
                 # 3️⃣  Model-specific configuration
                 # ------------------------------------------------------------------
+                internal_model_type = None
+                model_config = None
+
                 if model_type == "faster-whisper":
-                    selected_model = curses.wrapper(
-                        lambda stdscr: curses_menu(stdscr, "", accepted_models_whisper)
-                    )
-                    if not selected_model:
-                        continue
-
-                    english_only = selected_model in english_only_models_whisper
-
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda", "cpu"]
-                        )
-                    )
-                    if not device:
-                        continue
-
-                    available_compute_types = (
-                        ["int8"] if device == "cpu" else ["float16", "int8"]
-                    )
-                    compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Precision", available_compute_types
-                        )
-                    )
-                    if not compute_type:
-                        continue
-
-                    language = (
-                        "en"
-                        if english_only
-                        else curses.wrapper(
-                            lambda stdscr: curses_menu(
-                                stdscr, "", accepted_languages_whisper
-                            )
-                        )
-                    )
-                    if not language:
-                        continue
-
-                    hotkey = _get_hotkey()
-                    if not hotkey:
-                        continue
-
-                    llm_result = _setup_llm_correction()
-                    if llm_result is None:
-                        continue
-                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
-
-                    settings_dict = _create_settings_dict(
-                        device_name=device_name,
-                        model_type="whisper",
-                        model_name=selected_model,
-                        compute_type=compute_type,
-                        device=device,
-                        language=language,
-                        hotkey=hotkey,
-                        llm_correction_enabled=llm_correction_enabled,
-                        llm_endpoint=llm_endpoint,
-                        llm_model_name=llm_model_name,
-                    )
-                    save_settings(settings_dict)
-                    settings = Settings(**settings_dict)
+                    internal_model_type = "whisper"
+                    model_config = _configure_whisper()
 
                 elif model_type == "canary-1b-v2":
-                    model_name = "nvidia/canary-1b-v2"
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Compute Device",
-                            ["cuda"],
-                            message="CUDA only (CPU inference not supported)",
-                        )
-                    )
-                    if not device:
-                        continue
-
-                    source_language = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Source Language", canary_source_target_languages
-                        )
-                    )
-                    if not source_language:
-                        continue
-
-                    allowed_targets = {
-                        tgt
-                        for src, tgt in (
-                            p.split("-") for p in canary_allowed_language_pairs
-                        )
-                        if src == source_language
-                    }
-                    target_options = sorted(allowed_targets)
-
-                    target_language = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Target Language (same as source for transcription)",
-                            target_options,
-                        )
-                    )
-                    if not target_language:
-                        continue
-
-                    hotkey = _get_hotkey()
-                    if not hotkey:
-                        continue
-
-                    llm_result = _setup_llm_correction()
-                    if llm_result is None:
-                        continue
-                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
-
-                    settings_dict = _create_settings_dict(
-                        device_name=device_name,
-                        model_type="canary",
-                        model_name=model_name,
-                        compute_type="float16",
-                        device=device,
-                        language=f"{source_language}-{target_language}",
-                        hotkey=hotkey,
-                        llm_correction_enabled=llm_correction_enabled,
-                        llm_endpoint=llm_endpoint,
-                        llm_model_name=llm_model_name,
-                    )
-                    save_settings(settings_dict)
-                    settings = Settings(**settings_dict)
+                    internal_model_type = "canary"
+                    model_config = _configure_canary()
 
                 elif model_type == "parakeet-tdt-0.6b-v3":
-                    model_name = "nvidia/parakeet-tdt-0.6b-v3"
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda", "cpu"]
-                        )
-                    )
-                    if not device:
-                        continue
-
-                    hotkey = _get_hotkey()
-                    if not hotkey:
-                        continue
-
-                    llm_result = _setup_llm_correction()
-                    if llm_result is None:
-                        continue
-                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
-
-                    settings_dict = _create_settings_dict(
-                        device_name=device_name,
-                        model_type="parakeet",
-                        model_name=model_name,
-                        compute_type="float16",
-                        device=device,
-                        language="",
-                        hotkey=hotkey,
-                        llm_correction_enabled=llm_correction_enabled,
-                        llm_endpoint=llm_endpoint,
-                        llm_model_name=llm_model_name,
-                    )
-                    save_settings(settings_dict)
-                    settings = Settings(**settings_dict)
+                    internal_model_type = "parakeet"
+                    model_config = _configure_parakeet()
 
                 elif model_type == "Voxtral-Mini-3B-2507":
-                    model_name = "mistralai/Voxtral-Mini-3B-2507"
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Compute Device",
-                            ["cuda"],
-                            message="CUDA only (CPU inference not supported)",
-                        )
-                    )
-                    if not device:
-                        continue
-
-                    compute_type = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Precision", ["float16", "int8", "int4"]
-                        )
-                    )
-                    if not compute_type:
-                        continue
-
-                    info_message_voxtral = (
-                        "For Voxtral-Mini-3B-2507, keep the audio <30s to avoid "
-                        "chunking inconsistencies."
-                    )
-                    curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Info", ["Continue"], message=info_message_voxtral
-                        )
-                    )
-
-                    hotkey = _get_hotkey()
-                    if not hotkey:
-                        continue
-
-                    llm_result = _setup_llm_correction()
-                    if llm_result is None:
-                        continue
-                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
-
-                    settings_dict = _create_settings_dict(
-                        device_name=device_name,
-                        model_type="voxtral",
-                        model_name=model_name,
-                        compute_type=compute_type,
-                        device=device,
-                        language="auto",
-                        hotkey=hotkey,
-                        llm_correction_enabled=llm_correction_enabled,
-                        llm_endpoint=llm_endpoint,
-                        llm_model_name=llm_model_name,
-                    )
-                    save_settings(settings_dict)
-                    settings = Settings(**settings_dict)
+                    internal_model_type = "voxtral"
+                    model_config = _configure_voxtral()
 
                 elif model_type == "cohere-transcribe-03-2026":
-                    model_name = "CohereLabs/cohere-transcribe-03-2026"
-                    device = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr, "Compute Device", ["cuda", "cpu"]
-                        )
-                    )
-                    if not device:
-                        continue
+                    internal_model_type = "cohere"
+                    model_config = _configure_cohere()
 
-                    language = curses.wrapper(
-                        lambda stdscr: curses_menu(
-                            stdscr,
-                            "Language (no auto-detection)",
-                            accepted_languages_cohere,
-                        )
-                    )
-                    if not language:
-                        continue
+                if model_config is None:
+                    continue
 
-                    hotkey = _get_hotkey()
-                    if not hotkey:
-                        continue
+                hotkey = _get_hotkey()
+                if not hotkey:
+                    continue
 
-                    llm_result = _setup_llm_correction()
-                    if llm_result is None:
-                        continue
-                    llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
+                llm_result = _configure_llm_correction()
+                if llm_result is None:
+                    continue
 
-                    settings_dict = _create_settings_dict(
+                settings = _save_and_create_settings(
+                    _create_settings_dict(
                         device_name=device_name,
-                        model_type="cohere",
-                        model_name=model_name,
-                        compute_type="float16",
-                        device=device,
-                        language=language,
+                        model_type=internal_model_type,
+                        **model_config,
                         hotkey=hotkey,
-                        llm_correction_enabled=llm_correction_enabled,
-                        llm_endpoint=llm_endpoint,
-                        llm_model_name=llm_model_name,
+                        llm_result=llm_result,
                     )
-                    save_settings(settings_dict)
-                    settings = Settings(**settings_dict)
+                )
 
             # ----------------------------------------------------------------------
             # 8️⃣  Launch the transcriber

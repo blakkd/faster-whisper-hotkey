@@ -16,10 +16,6 @@ from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
-accepted_compute_types = ["float16", "int8"]
-accepted_devices = ["cuda", "cpu"]
-accepted_device_voxtral = ["cuda"]
-
 # Minimum recording duration to prevent short noise transcriptions
 MIN_RECORDING_DURATION = 1.0  # seconds
 
@@ -84,18 +80,29 @@ class MicrophoneTranscriber:
             logger.debug(f"Failed to set default source: {e}")
 
     # ------------------------------------------------------------------
+    # Audio processing utilities
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _normalize_audio(audio_data: np.ndarray) -> np.ndarray:
+        """Normalize audio data to [-1, 1] range."""
+        max_val = np.abs(audio_data).max()
+        return audio_data / max_val if not np.isclose(max_val, 0) else audio_data
+
+    @staticmethod
+    def _to_mono(audio_data: np.ndarray) -> np.ndarray:
+        """Convert stereo audio to mono by averaging channels."""
+        if audio_data.ndim > 1 and audio_data.shape[1] == 2:
+            return np.mean(audio_data, axis=1).astype(np.float32)
+        return audio_data.flatten().astype(np.float32)
+
+    # ------------------------------------------------------------------
     # Audio callback
     # ------------------------------------------------------------------
     def audio_callback(self, indata, frames, time_, status):
         if status:
             logger.warning(f"Status: {status}")
-        audio_data = (
-            np.mean(indata, axis=1)
-            if indata.ndim > 1 and indata.shape[1] == 2
-            else indata.flatten()
-        ).astype(np.float32)
-        if not np.isclose(audio_data.max(), 0):
-            audio_data /= np.abs(audio_data).max()
+        audio_data = self._to_mono(indata)
+        audio_data = self._normalize_audio(audio_data)
 
         new_index = self.buffer_index + len(audio_data)
         if new_index > self.max_buffer_length:
@@ -103,6 +110,29 @@ class MicrophoneTranscriber:
             new_index = self.max_buffer_length
         self.audio_buffer[self.buffer_index : new_index] = audio_data
         self.buffer_index = new_index
+
+    # ------------------------------------------------------------------
+    # Clipboard handling
+    # ------------------------------------------------------------------
+    def _send_via_clipboard(self, text: str) -> bool:
+        """Send text via clipboard with automatic fallback to typing."""
+        original_clip = backup_clipboard()
+        if not set_clipboard(text):
+            logger.error("Could not set clipboard - falling back to typing")
+            return False
+        time.sleep(0.01)  # give clipboard time to settle
+        paste_to_active_window()
+        if original_clip is not None:
+            time.sleep(0.05)
+            restore_clipboard(original_clip)
+        return True
+
+    def _type_text(self, text: str):
+        """Fallback: type text character by character."""
+        for char in text:
+            self.keyboard_controller.press(char)
+            self.keyboard_controller.release(char)
+            time.sleep(0.001)
 
     # ------------------------------------------------------------------
     # Transcription and sending
@@ -116,11 +146,9 @@ class MicrophoneTranscriber:
                 language=self.settings.language,
             )
 
-            raw_transcription = transcribed_text
-
-            # Log the raw transcription first
-            if raw_transcription.strip():
-                logger.info(f'Transcribed text: "{raw_transcription}"')
+            # Log the raw transcription
+            if transcribed_text.strip():
+                logger.info(f'Transcribed text: "{transcribed_text}"')
             else:
                 logger.info("No speech detected")
 
@@ -128,28 +156,12 @@ class MicrophoneTranscriber:
             if self.llm_corrector and transcribed_text.strip():
                 transcribed_text = self.llm_corrector.correct(transcribed_text)
 
-            # ---------- send the text ----------
+            # Send the text via clipboard or fallback to typing
             if transcribed_text.strip():
-                if not set_clipboard:
-                    # fallback typing - preserves case / punctuation
-                    for char in transcribed_text:
-                        self.keyboard_controller.press(char)
-                        self.keyboard_controller.release(char)
-                        time.sleep(0.001)
+                if callable(set_clipboard) and self._send_via_clipboard(transcribed_text):
+                    pass  # Successfully sent via clipboard
                 else:
-                    original_clip = backup_clipboard()
-                    if not set_clipboard(transcribed_text):
-                        logger.error("Could not set clipboard - falling back to typing")
-                        for char in transcribed_text:
-                            self.keyboard_controller.press(char)
-                            self.keyboard_controller.release(char)
-                            time.sleep(0.001)
-                    else:
-                        time.sleep(0.01)  # give clipboard time to settle
-                        paste_to_active_window()
-                        if original_clip is not None:
-                            time.sleep(0.05)
-                            restore_clipboard(original_clip)
+                    self._type_text(transcribed_text)
 
         except Exception as e:
             logger.error(f"Transcription error: {e}")

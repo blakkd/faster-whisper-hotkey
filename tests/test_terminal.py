@@ -3,8 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from faster_whisper_hotkey.terminal import (
-    TERMINAL_IDENTIFIERS_WAYLAND,
-    TERMINAL_IDENTIFIERS_X11,
+    TERMINAL_IDENTIFIERS,
     get_active_window_class_x11,
     get_focused_container_wayland,
     is_terminal_window_wayland,
@@ -13,19 +12,16 @@ from faster_whisper_hotkey.terminal import (
 
 
 class TestTerminalIdentifiers:
-    def test_x11_identifiers_is_list(self):
-        assert isinstance(TERMINAL_IDENTIFIERS_X11, list)
-
-    def test_wayland_identifiers_is_list(self):
-        assert isinstance(TERMINAL_IDENTIFIERS_WAYLAND, list)
+    def test_identifiers_is_list(self):
+        assert isinstance(TERMINAL_IDENTIFIERS, list)
 
     def test_identifiers_not_empty(self):
-        assert len(TERMINAL_IDENTIFIERS_X11) > 0
+        assert len(TERMINAL_IDENTIFIERS) > 0
 
     def test_common_terminals_present(self):
         common = ["kitty", "alacritty", "xterm"]
         for terminal in common:
-            assert terminal in TERMINAL_IDENTIFIERS_X11
+            assert terminal in TERMINAL_IDENTIFIERS
 
 
 class TestIsActiveTerminalWindowX11:

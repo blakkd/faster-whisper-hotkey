@@ -3,36 +3,6 @@ import logging
 import os
 
 
-# Suppress OneLogger/NeMo initialization warnings at import time
-_devnull_fd = os.open(os.devnull, os.O_WRONLY)
-_stdout_fd = os.dup(1)
-_stderr_fd = os.dup(2)
-os.dup2(_devnull_fd, 1)
-os.dup2(_devnull_fd, 2)
-
-try:
-    import tempfile
-
-    import soundfile as sf
-    import torch
-    from faster_whisper import WhisperModel
-
-    from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
-finally:
-    os.dup2(_stdout_fd, 1)
-    os.dup2(_stderr_fd, 2)
-    os.close(_devnull_fd)
-    os.close(_stdout_fd)
-    os.close(_stderr_fd)
-
-from transformers import (
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    BitsAndBytesConfig,
-    VoxtralForConditionalGeneration,
-)
-
-
 @contextlib.contextmanager
 def suppress_output():
     """Context manager to temporarily suppress stdout and stderr."""
@@ -49,6 +19,24 @@ def suppress_output():
         os.close(devnull)
         os.close(old_stdout)
         os.close(old_stderr)
+
+
+# Suppress OneLogger/NeMo initialization warnings at import time
+with suppress_output():
+    import tempfile
+
+    import soundfile as sf
+    import torch
+    from faster_whisper import WhisperModel
+
+    from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
+
+from transformers import (
+    AutoModelForSpeechSeq2Seq,
+    AutoProcessor,
+    BitsAndBytesConfig,
+    VoxtralForConditionalGeneration,
+)
 
 
 logger = logging.getLogger(__name__)
