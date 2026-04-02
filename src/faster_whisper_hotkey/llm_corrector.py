@@ -59,6 +59,8 @@ class LLMCorrector:
                         corrected = corrected[:-1]
                 if corrected != text:
                     logger.info(f'LLM corrected text: "{corrected}"')
+                else:
+                    logger.info("LLM correction: no changes needed")
                 return corrected
 
         except Exception as e:
