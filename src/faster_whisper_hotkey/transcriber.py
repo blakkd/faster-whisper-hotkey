@@ -121,6 +121,8 @@ class MicrophoneTranscriber:
             # Log the raw transcription first
             if raw_transcription.strip():
                 logger.info(f'Transcribed text: "{raw_transcription}"')
+            else:
+                logger.info("No speech detected")
 
             # Apply LLM correction if enabled
             if self.llm_corrector and transcribed_text.strip():
