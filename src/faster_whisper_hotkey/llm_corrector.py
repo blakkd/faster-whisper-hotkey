@@ -22,19 +22,15 @@ class LLMCorrector:
         if not text.strip():
             return text
 
-        prompt = (
-            "Please correct any errors in the following speech-to-text transcription. "
-            "Repair broken segments, ensure proper grammar and clear formulation, "
-            "and preserve or infer the original meaning. Your answer should contain "
-            "only the corrected text, nothing else.\n\n"
+        user_prompt = (
+            "Please review the following speech-to-text transcription and correct it as necessary. If errors exist, repair fragmented segments and ensure proper grammar and clarity. Inferring the context may help guide your revision. If the transcription is already correct, return it unchanged. Output only the proofread version, without additional commentary.\n\n"
             f"Transcription:\n{text}"
         )
 
         payload = {
             "model": self.model_name,
             "messages": [
-                {"role": "system", "content": "You are a transcription proofreader."},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": user_prompt},
             ],
             "temperature": 0.6,
             "max_tokens": 1024,
