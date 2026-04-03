@@ -82,12 +82,14 @@ def _get_device_choice(cuda_only: bool = False) -> str | None:
 
 
 def _configure_llm_correction() -> tuple[bool, str, str] | None:
-    """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None."""
+    """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None if aborted."""
     enabled = curses.wrapper(
         lambda stdscr: curses_menu(stdscr, "Enable LLM correction?", ["Yes", "No"])
     )
-    if enabled != "Yes":
+    if enabled is None:
         return None
+    if enabled == "No":
+        return (False, "", "")
 
     endpoint = curses.wrapper(
         lambda stdscr: get_text_input(
