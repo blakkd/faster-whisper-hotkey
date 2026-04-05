@@ -819,8 +819,7 @@ def _screen_llm_enable(stdscr, config: ConfigData):
     config.llm_correction_enabled = selected == "Yes"
 
     if not config.llm_correction_enabled:
-        config.llm_endpoint = ""
-        config.llm_model_name = ""
+        # Don't clear endpoint/model - preserve previously saved values
         return _final_save(stdscr, config)
 
     return (ConfigStep.LLM_ENDPOINT, config)
