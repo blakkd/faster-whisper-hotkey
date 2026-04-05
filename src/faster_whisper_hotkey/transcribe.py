@@ -95,7 +95,7 @@ def _configure_llm_correction(
     if enabled == "No":
         return (False, "", "")
 
-    default_endpoint = "http://localhost:8678/v1"
+    default_endpoint = "http://localhost:8080/v1"
     if last_settings and last_settings.llm_endpoint:
         default_endpoint = last_settings.llm_endpoint
 
