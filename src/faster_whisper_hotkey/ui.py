@@ -1,5 +1,5 @@
 import curses
-from typing import List, Optional, Literal, Any
+from typing import List, Optional
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -534,7 +534,6 @@ def _screen_whisper_precision(stdscr, config: ConfigData):
     config.compute_type = selected
 
     # Check if model is English-only
-    from .config import english_only_models_whisper
 
     if config.model_name in english_only_models_whisper:
         config.language = "en"
