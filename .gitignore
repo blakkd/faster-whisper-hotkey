@@ -2,7 +2,6 @@ build/
 src/faster_whisper_hotkey.egg-info/
 *.txt
 .venv/
-test/
 src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
