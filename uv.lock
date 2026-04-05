@@ -1302,7 +1302,7 @@ wheels = [
 
 [[package]]
 name = "faster-whisper-hotkey"
-version = "0.4.6"
+version = "0.4.7"
 source = { editable = "." }
 dependencies = [
     { name = "bitsandbytes" },

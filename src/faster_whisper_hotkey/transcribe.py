@@ -83,7 +83,7 @@ def _get_device_choice(cuda_only: bool = False) -> str | None:
 
 def _configure_llm_correction(
     last_settings: Settings | None = None,
-) -> tuple[bool, str, str] | None:
+) -> tuple[bool, str, str | None] | None:
     """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None if aborted."""
     enabled = curses.wrapper(
         lambda stdscr: curses_menu(
@@ -112,7 +112,7 @@ def _configure_llm_correction(
     model_name = curses.wrapper(
         lambda stdscr: get_text_input(stdscr, "Model name: ", default_model)
     )
-    return True, endpoint, model_name or "default"
+    return True, endpoint, model_name
 
 
 def _configure_whisper() -> dict | None:
@@ -268,13 +268,13 @@ def _save_and_create_settings(settings_dict: dict) -> Settings:
 
 def _create_settings_dict(
     device_name: str,
-    model_type: str,
+    model_type: str | None,
     model_name: str,
     compute_type: str,
     device: str,
     language: str,
     hotkey: str,
-    llm_result: tuple[bool, str, str],
+    llm_result: tuple[bool, str, str | None],
 ) -> dict:
     """Create settings dictionary."""
     llm_correction_enabled, llm_endpoint, llm_model_name = llm_result
