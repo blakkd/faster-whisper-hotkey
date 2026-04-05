@@ -44,6 +44,8 @@ def load_settings() -> Settings | None:
             data.setdefault("llm_endpoint", "")
             data.setdefault("llm_model_name", "")
             return Settings(**data)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        logger.warning(f"Failed to load settings: {e}")
+    except FileNotFoundError:
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Corrupted settings file: {e}")
         return None
