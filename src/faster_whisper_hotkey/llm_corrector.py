@@ -23,7 +23,22 @@ class LLMCorrector:
             return text
 
         user_prompt = (
-            "Please review the following speech-to-text transcription and correct it as necessary. If errors exist, repair fragmented segments and ensure proper grammar and clarity. Convert numbers and symbols written as words into their standard numerical and symbolic forms. Inferring the context may help guide your revision. If the transcription is already correct, return it unchanged. Your answer should contain only the revised text, without any additional commentary.\n\n"
+            "Task: Professional cleanup and normalization of a speech-to-text (STT) transcription.\n\n"
+            "Requirements:\n"
+            "1. Structural Repair: Resolve transcription artifacts such as disjointed phrasing, "
+            "incorrectly placed pauses, and run-on sentences. Reconstruct fragmented segments "
+            "into grammatically correct, fluid sentences while preserving the original meaning.\n"
+            "2. Holistic Normalization: Convert all spelled-out numbers, symbols, and technical "
+            "notations into their standard written forms. This includes, but is not limited to:\n"
+            "   - Quantitative/Financial: 'five percent' → '5%', 'twelve dollars and fifty cents' → '$12.50'.\n"
+            "   - Temporal: 'October fifth twenty twenty four' → 'October 5, 2024', 'two thirty PM' → '2:30 PM'.\n"
+            "   - Technical/Scientific: 'H two O' → 'H2O', 'carbon dioxide' → 'CO2', 'ten kilograms' → '10kg'.\n"
+            "   - Symbols: 'press at blue sky web dot x, y, z.' → 'press@blueskyweb.xyz', 'hash tag' → '#'.\n"
+            "3. Contextual Correction: Use the surrounding subject matter to correct homophones "
+            "or misheard technical terms (e.g., correcting 'cell' to 'sell' or vice versa based on context).\n"
+            "4. Fidelity: If the transcription is already correct, return it unchanged.\n\n"
+            "Constraint: Output ONLY the revised text. Do not include any introductory remarks, "
+            "explanations, or meta-commentary.\n\n"
             f"Transcription:\n{text}"
         )
 
