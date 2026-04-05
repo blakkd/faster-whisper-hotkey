@@ -81,7 +81,9 @@ def _get_device_choice(cuda_only: bool = False) -> str | None:
     )
 
 
-def _configure_llm_correction() -> tuple[bool, str, str] | None:
+def _configure_llm_correction(
+    last_settings: Settings | None = None,
+) -> tuple[bool, str, str] | None:
     """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None if aborted."""
     enabled = curses.wrapper(
         lambda stdscr: curses_menu(stdscr, "Enable LLM correction?", ["Yes", "No"])
@@ -91,16 +93,22 @@ def _configure_llm_correction() -> tuple[bool, str, str] | None:
     if enabled == "No":
         return (False, "", "")
 
+    default_endpoint = "http://localhost:8678/v1"
+    if last_settings and last_settings.llm_endpoint:
+        default_endpoint = last_settings.llm_endpoint
+
     endpoint = curses.wrapper(
-        lambda stdscr: get_text_input(
-            stdscr, "Endpoint URL: ", "http://localhost:8678/v1"
-        )
+        lambda stdscr: get_text_input(stdscr, "Endpoint URL: ", default_endpoint)
     )
     if not endpoint:
         return None
 
+    default_model = ""
+    if last_settings and last_settings.llm_model_name:
+        default_model = last_settings.llm_model_name
+
     model_name = curses.wrapper(
-        lambda stdscr: get_text_input(stdscr, "Model name: ", "")
+        lambda stdscr: get_text_input(stdscr, "Model name: ", default_model)
     )
     return True, endpoint, model_name or "default"
 
@@ -118,9 +126,7 @@ def _configure_whisper() -> dict | None:
     if not device:
         return None
 
-    available_compute_types = (
-        ["int8"] if device == "cpu" else ["float16", "int8"]
-    )
+    available_compute_types = ["int8"] if device == "cpu" else ["float16", "int8"]
     compute_type = curses.wrapper(
         lambda stdscr: curses_menu(stdscr, "Precision", available_compute_types)
     )
@@ -169,7 +175,8 @@ def _configure_canary() -> dict | None:
 
     target_language = curses.wrapper(
         lambda stdscr: curses_menu(
-            stdscr, "Target Language (same as source for transcription)",
+            stdscr,
+            "Target Language (same as source for transcription)",
             target_options,
         )
     )
@@ -367,7 +374,12 @@ def main():
                 if not hotkey:
                     continue
 
-                llm_result = _configure_llm_correction()
+                # Get last settings for defaults (if any)
+                last_settings = (
+                    load_settings() if initial_choice == "Choose New Settings" else None
+                )
+
+                llm_result = _configure_llm_correction(last_settings)
                 if llm_result is None:
                     continue
 
