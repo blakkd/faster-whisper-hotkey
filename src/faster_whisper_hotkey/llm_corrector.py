@@ -47,7 +47,7 @@ class LLMCorrector:
             "messages": [
                 {"role": "user", "content": user_prompt},
             ],
-            "temperature": 0.6,
+            "temperature": 0.3,
             "max_tokens": 1024,
             "chat_template_kwargs": {"enable_thinking": False},
         }
