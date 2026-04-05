@@ -456,8 +456,7 @@ class TestLLMCorrectorLogging:
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         corrector.correct(text)
 
-        mock_logger.debug.assert_called_once_with("LLM correction: no changes needed")
-        mock_logger.info.assert_not_called()
+        mock_logger.info.assert_called_once_with("LLM correction: no correction needed")
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
     @patch("faster_whisper_hotkey.llm_corrector.logger")

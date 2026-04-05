@@ -76,7 +76,7 @@ class LLMCorrector:
                     logger.info(f'LLM corrected text: "{corrected}"')
                     return corrected
 
-                logger.info("LLM correction: No correction needed")
+                logger.info("LLM correction: no correction needed")
                 return corrected
 
         except Exception as e:
