@@ -1,8 +1,8 @@
 build/
 src/faster_whisper_hotkey.egg-info/
-*.txt
 .venv/
 src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
 .swival/
+TODO

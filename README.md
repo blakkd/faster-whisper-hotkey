@@ -8,11 +8,13 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Features
 
-- **Models downloading**: Missing models are automatically downloaded from Hugging Face.
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
+- **LLM correction** *(experimental)*: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
+
+*To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text?error-rate-by-dataset=aa-agenttalk#aa-wer-aa-agenttalk-dataset) which is particularly relevant for our use case.*
 
 - (NEW) **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
 
@@ -21,10 +23,6 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - No automatic language recognition
   - Runs well on CPU
   - Quite smart, deals well with hesitation and stutters
-
-### _Experimental: LLM Correction_
-
-Optionally correct transcribed text via any OpenAI-compatible API endpoint. Works best with models that have strong language understanding (tiny models not recommended).
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
@@ -55,7 +53,7 @@ Optionally correct transcribed text via any OpenAI-compatible API endpoint. Work
 
 **_What I personally use currently?_**
 
-_- Almost always cohere-transcribe-03-2026, on CPU, when I need all my VRAM to run my LMs (in replacement of parakeet-tdt-0.6b-v3 which is less smart)_
+_- Almost always cohere-transcribe-03-2026, on CPU, when I need all my VRAM to run my LMs_
 
 _- Sometimes Voxtral-Mini-3B-2507, on GPU, when I run smaller LMs and can fit it along them_
 
