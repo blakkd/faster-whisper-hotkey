@@ -22,6 +22,10 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - Runs well on CPU
   - Quite smart, deals well with hesitation and stutters
 
+### _Experimental: LLM Correction_
+
+Optionally correct transcribed text via any OpenAI-compatible API endpoint. Works best with models that have strong language understanding (tiny models not recommended).
+
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
   - 25 languages supported

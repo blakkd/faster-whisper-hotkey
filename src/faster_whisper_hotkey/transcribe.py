@@ -86,7 +86,9 @@ def _configure_llm_correction(
 ) -> tuple[bool, str, str] | None:
     """Configure LLM correction settings. Returns (enabled, endpoint, model_name) or None if aborted."""
     enabled = curses.wrapper(
-        lambda stdscr: curses_menu(stdscr, "Enable LLM correction?", ["Yes", "No"])
+        lambda stdscr: curses_menu(
+            stdscr, "Enable LLM correction?", ["Yes", "No"], initial_idx=1
+        )
     )
     if enabled is None:
         return None
