@@ -177,7 +177,7 @@ class ModelWrapper:
                     device_map=device_map,
                 ).eval()
 
-        elif mt == "granite_ar":
+        elif mt == "granite":
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
 
@@ -198,7 +198,7 @@ class ModelWrapper:
                     torch_dtype=torch.float32,
                 ).eval()
 
-        elif mt == "granite":
+        elif mt == "granite-nar":
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
 
@@ -326,8 +326,7 @@ class ModelWrapper:
                     batch_size=8,
                 )
                 return texts[0] if texts else ""
-
-            elif mt == "granite_ar":
+            elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
                 user_prompt = (
@@ -354,7 +353,7 @@ class ModelWrapper:
                 )
                 return output_text[0] if output_text else ""
 
-            elif mt == "granite":
+            elif mt == "granite-nar":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
                 inputs = self.processor([waveform], device=device)

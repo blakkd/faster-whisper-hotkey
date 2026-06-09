@@ -156,14 +156,14 @@ class TestModelWrapperInitialization:
         mock_auto_model.from_pretrained.return_value = mock_model
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
         )
 
         wrapper = ModelWrapper(settings)
 
-        assert wrapper.model_type == "granite"
+        assert wrapper.model_type == "granite-nar"
         call_kwargs = mock_auto_model.from_pretrained.call_args[1]
         assert call_kwargs["attn_implementation"] == "flash_attention_2"
         assert call_kwargs["torch_dtype"] == torch.bfloat16
@@ -183,14 +183,14 @@ class TestModelWrapperInitialization:
         mock_auto_model.from_pretrained.return_value = mock_model
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cpu",
         )
 
         wrapper = ModelWrapper(settings)
 
-        assert wrapper.model_type == "granite"
+        assert wrapper.model_type == "granite-nar"
         call_kwargs = mock_auto_model.from_pretrained.call_args[1]
         assert call_kwargs["attn_implementation"] == "sdpa"
         assert call_kwargs["torch_dtype"] == torch.float32
@@ -483,7 +483,7 @@ class TestModelWrapperTranscribe:
         mock_processor_instance.batch_decode.return_value = ["granite transcription"]
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
             language="en",
@@ -527,7 +527,7 @@ class TestModelWrapperTranscribe:
         mock_processor_instance.batch_decode.return_value = []
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cpu",
         )

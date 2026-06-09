@@ -66,7 +66,8 @@
 | **canary-1b-v2** | canary | CPU (F16) | 25 langs, transcription + translation possible |
 | **Voxtral-Mini-3B-2507** | voxtral | GPU only | English + 7 langs, smart formatting, max 30s chunks |
 | **faster-whisper** | whisper | CPU/GPU | Many langs, translation when source ≠ target |
-| **ibm-granite/granite-speech-4.1-2b-nar** | granite | CPU/GPU | 9 langs (en/de/es/fr/it/ja/ko/pt/zh), `trust_remote_code=True`, requires `transformers>=5.5.3` + `torchaudio` |
+| **ibm-granite/granite-speech-4.1-2b-nar** | granite-nar | CPU/GPU | 9 langs (en/de/es/fr/it/ja/ko/pt/zh), `trust_remote_code=True`, fast, no punctuation, requires `transformers>=5.5.3` + `torchaudio` |
+| **ibm-granite/granite-speech-4.1-2b** | granite | CPU/GPU | 9 langs (en/de/es/fr/it/ja/ko/pt/zh), autoregressive, with punctuation, requires `transformers>=5.5.3` + `torchaudio` |
 
 ### Important: Model Loading in `models.py`
 
@@ -79,7 +80,10 @@ Each model type has specific initialization logic. When adding a new backend:
 
 **⚠️ Critical**: The model wrapper uses `suppress_output()` context manager to hide OneLogger/NeMo initialization spam at import time. Keep this!
 
-**Granite-specific**: Uses `AutoModel` (not `AutoModelForSpeechSeq2Seq`) with `trust_remote_code=True`. GPU path uses `flash_attention_2` + `bfloat16`; CPU uses `sdpa` + `float32`. Inference calls `model.transcribe(**inputs)` with `processor.batch_decode(output.preds)`. Requires `transformers>=5.5.3` (enforced by `_check_transformers_version()` helper).
+**Granite-specific**: Two variants:
+- **granite-nar** (non-autoregressive): Uses `AutoModel` with `trust_remote_code=True`. GPU: `flash_attention_2` + `bfloat16`; CPU: `sdpa` + `float32`. Inference calls `model.transcribe(**inputs)` with `processor.batch_decode(output.preds)`. Fast, no punctuation.
+- **granite** (autoregressive): Uses `AutoModelForSpeechSeq2Seq` (no `trust_remote_code`). GPU: `bfloat16`; CPU: `float32`. Uses chat template with `model.generate()`. Has punctuation.
+Both require `transformers>=5.5.3` (enforced by `_check_transformers_version()` helper).
 
 ---
 
@@ -92,9 +96,9 @@ Each model type has specific initialization logic. When adding a new backend:
 
 ### Setting Fields (Settings dataclass)
 - `device_name`: PulseAudio input device name
-- `model_type`: whisper/parakeet/canary/voxtral/cohere/granite
+- `model_type`: whisper/parakeet/canary/voxtral/cohere/granite/granite-nar
 - `model_name`: Hugging Face model identifier
-- `compute_type`: int8/float16/int4 (model-dependent)
+- `compute_type`: int8/float16/int4/bfloat16/float32 (model-dependent)
 - `device`: cpu/cuda
 - `language`: Language code or "auto"
 - `hotkey`: pause/f4/f8/insert

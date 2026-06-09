@@ -56,7 +56,7 @@ class TestGraniteInitEdgeCases:
         mock_auto_model.from_pretrained.return_value = mock_model
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
         )
@@ -83,7 +83,7 @@ class TestGraniteInitEdgeCases:
         tf_lib.__version__ = "4.0.0"
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
         )
@@ -747,7 +747,7 @@ class TestGraniteTranscription:
         mock_processor_instance.batch_decode.return_value = ["transcribed text"]
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
             language="en",
@@ -790,7 +790,7 @@ class TestGraniteTranscription:
         mock_processor_instance.batch_decode.return_value = []
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cpu",
         )
@@ -826,7 +826,7 @@ class TestGraniteTranscription:
         mock_torch.no_grad.return_value = mock_ctx
 
         settings = MockSettings(
-            model_type="granite",
+            model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cuda",
         )
