@@ -36,13 +36,15 @@ dependencies = [
     "requests",
     "importlib_resources",
     "mistral-common[audio]>=1.8.4",
-    "transformers>=4.56",
+    "transformers>=5.5.3",
     "bitsandbytes>=0.43.1",
     "pyperclip",
     "soundfile",
     "librosa",
     "sentencepiece",
     "protobuf",
+    "onnx>=1.18",
+    "accelerate"
 ]
 
 # SCRIPTS

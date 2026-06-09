@@ -27,6 +27,8 @@ class ConfigStep(Enum):
     COHERE_LANGUAGE = auto()
     GRANITE_DEVICE = auto()
     GRANITE_LANGUAGE = auto()
+    GRANITE_AR_DEVICE = auto()
+    GRANITE_AR_LANGUAGE = auto()
     HOTKEY = auto()
     LLM_ENABLE = auto()
     LLM_ENDPOINT = auto()
@@ -339,6 +341,10 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_granite_device(stdscr, config)
     elif current_step == ConfigStep.GRANITE_LANGUAGE:
         return _screen_granite_language(stdscr, config)
+    elif current_step == ConfigStep.GRANITE_AR_DEVICE:
+        return _screen_granite_ar_device(stdscr, config)
+    elif current_step == ConfigStep.GRANITE_AR_LANGUAGE:
+        return _screen_granite_ar_language(stdscr, config)
 
     # Common final steps
     elif current_step == ConfigStep.HOTKEY:
@@ -424,7 +430,8 @@ def _screen_model_type(stdscr, config: ConfigData):
         "canary-1b-v2",
         "Voxtral-Mini-3B-2507",
         "cohere-transcribe-03-2026",
-        "granite-speech-4.1-2b-nar",
+        "granite-speech-4.1-2b-nar (fast, no punctuation)",
+        "granite-speech-4.1-2b (autoregressive, with punctuation)",
     ]
 
     initial_idx = 0
@@ -435,6 +442,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "voxtral": 3,
         "cohere": 4,
         "granite": 5,
+        "granite_ar": 6,
     }
     if config.model_type and config.model_type in type_mapping:
         initial_idx = type_mapping[config.model_type]
@@ -451,7 +459,8 @@ def _screen_model_type(stdscr, config: ConfigData):
         "canary-1b-v2": "canary",
         "Voxtral-Mini-3B-2507": "voxtral",
         "cohere-transcribe-03-2026": "cohere",
-        "granite-speech-4.1-2b-nar": "granite",
+        "granite-speech-4.1-2b-nar (fast, no punctuation)": "granite",
+        "granite-speech-4.1-2b (autoregressive, with punctuation)": "granite_ar",
     }
 
     config.model_type = type_map[selected]
@@ -469,6 +478,9 @@ def _screen_model_type(stdscr, config: ConfigData):
         return (ConfigStep.COHERE_DEVICE, config)
     elif config.model_type == "granite":
         return (ConfigStep.GRANITE_DEVICE, config)
+    elif config.model_type == "granite_ar":
+        config.model_name = "ibm-granite/granite-speech-4.1-2b"
+        return (ConfigStep.GRANITE_AR_DEVICE, config)
 
     return _back_to_initial(config)
 
@@ -834,6 +846,52 @@ def _screen_granite_language(stdscr, config: ConfigData):
 
     config.model_name = "ibm-granite/granite-speech-4.1-2b-nar"
     config.compute_type = "float32"
+    config.language = selected
+
+    return (ConfigStep.HOTKEY, config)
+
+
+def _screen_granite_ar_device(stdscr, config: ConfigData):
+    """Select compute device for Granite AR."""
+    options = ["cuda", "cpu"]
+
+    initial_idx = 0
+    if config.device == "cpu":
+        initial_idx = 1
+
+    selected = curses_menu(
+        stdscr,
+        "Compute Device",
+        options,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.device = selected
+    return (ConfigStep.GRANITE_AR_LANGUAGE, config)
+
+
+def _screen_granite_ar_language(stdscr, config: ConfigData):
+    """Select language for Granite AR."""
+    from .config import accepted_languages_granite
+
+    initial_idx = 0
+    if config.language and config.language in accepted_languages_granite:
+        initial_idx = accepted_languages_granite.index(config.language)
+
+    selected = curses_menu(
+        stdscr,
+        "Language",
+        accepted_languages_granite,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = "bfloat16"
     config.language = selected
 
     return (ConfigStep.HOTKEY, config)

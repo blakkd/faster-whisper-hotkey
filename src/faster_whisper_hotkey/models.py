@@ -177,6 +177,27 @@ class ModelWrapper:
                     device_map=device_map,
                 ).eval()
 
+        elif mt == "granite_ar":
+            repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
+
+            _check_transformers_version()
+
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+
+            if device == "cuda":
+                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                    repo_id,
+                    device_map=device_map,
+                    torch_dtype=torch.bfloat16,
+                ).eval()
+            else:
+                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                    repo_id,
+                    device_map=device_map,
+                    torch_dtype=torch.float32,
+                ).eval()
+
         elif mt == "granite":
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
@@ -305,6 +326,33 @@ class ModelWrapper:
                     batch_size=8,
                 )
                 return texts[0] if texts else ""
+
+            elif mt == "granite_ar":
+                device = self.settings.device
+                waveform = torch.from_numpy(audio_data).to(device)
+                user_prompt = (
+                    "<|audio|>transcribe the speech with proper punctuation "
+                    "and capitalization."
+                )
+                chat = [{"role": "user", "content": user_prompt}]
+                prompt = self.processor.tokenizer.apply_chat_template(
+                    chat, tokenize=False, add_generation_prompt=True
+                )
+                model_inputs = self.processor(
+                    prompt, waveform, device=device, return_tensors="pt"
+                ).to(device)
+                model_outputs = self.model.generate(
+                    **model_inputs,
+                    max_new_tokens=400,
+                    do_sample=False,
+                    num_beams=1,
+                )
+                num_input_tokens = model_inputs["input_ids"].shape[-1]
+                new_tokens = model_outputs[0, num_input_tokens:].unsqueeze(0)
+                output_text = self.processor.tokenizer.batch_decode(
+                    new_tokens, add_special_tokens=False, skip_special_tokens=True
+                )
+                return output_text[0] if output_text else ""
 
             elif mt == "granite":
                 device = self.settings.device
