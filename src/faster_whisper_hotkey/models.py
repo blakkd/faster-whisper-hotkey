@@ -32,6 +32,7 @@ with suppress_output():
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 
 from transformers import (
+    AutoConfig,
     AutoModel,
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
@@ -147,12 +148,34 @@ class ModelWrapper:
             self.processor = AutoProcessor.from_pretrained(
                 repo_id, trust_remote_code=True
             )
-            self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                repo_id,
-                trust_remote_code=True,
-                dtype=torch.float32,
-                device_map=device_map,
-            ).eval()
+
+            # Workaround: some transformers versions have a bug where
+            # _keys_to_ignore_on_load_unexpected is a list instead of a set,
+            # causing "TypeError: unsupported operand type(s) for |: 'list' and 'set'"
+            # during _adjust_missing_and_unexpected_keys. Patch the model class
+            # before from_pretrained to ensure it's a set.
+            try:
+                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                    repo_id,
+                    trust_remote_code=True,
+                    dtype=torch.float32,
+                    device_map=device_map,
+                ).eval()
+            except TypeError:
+                config = AutoConfig.from_pretrained(
+                    repo_id, trust_remote_code=True
+                )
+                model_class = AutoModelForSpeechSeq2Seq._model_mapping[type(config)]
+                if hasattr(model_class, "_keys_to_ignore_on_load_unexpected"):
+                    model_class._keys_to_ignore_on_load_unexpected = set(
+                        model_class._keys_to_ignore_on_load_unexpected
+                    )
+                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                    repo_id,
+                    trust_remote_code=True,
+                    dtype=torch.float32,
+                    device_map=device_map,
+                ).eval()
 
         elif mt == "granite":
             repo_id = self.settings.model_name
