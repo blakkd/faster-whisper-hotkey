@@ -32,6 +32,7 @@ with suppress_output():
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 
 from transformers import (
+    AutoModel,
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
     BitsAndBytesConfig,
@@ -43,6 +44,19 @@ logger = logging.getLogger(__name__)
 
 # Optional types import (already available in Python 3.9+)
 from typing import Optional
+
+
+def _check_transformers_version():
+    """Check that transformers version is compatible with granite model."""
+    import transformers as tf_lib
+    from packaging import version as pkg_version
+
+    if pkg_version.parse(tf_lib.__version__) < pkg_version.parse("5.5.3"):
+        raise ImportError(
+            f"Granite model requires transformers>=5.5.3, "
+            f"but {tf_lib.__version__} is installed. "
+            f"Upgrade with: pip install 'transformers>=5.5.3'"
+        )
 
 
 class ModelWrapper:
@@ -139,6 +153,33 @@ class ModelWrapper:
                 dtype=torch.float32,
                 device_map=device_map,
             ).eval()
+
+        elif mt == "granite":
+            repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
+
+            _check_transformers_version()
+
+            self.processor = AutoProcessor.from_pretrained(
+                repo_id, trust_remote_code=True
+            )
+
+            if device == "cuda":
+                self.model = AutoModel.from_pretrained(
+                    repo_id,
+                    trust_remote_code=True,
+                    attn_implementation="flash_attention_2",
+                    device_map=device_map,
+                    torch_dtype=torch.bfloat16,
+                ).eval()
+            else:
+                self.model = AutoModel.from_pretrained(
+                    repo_id,
+                    trust_remote_code=True,
+                    attn_implementation="sdpa",
+                    device_map=device_map,
+                    torch_dtype=torch.float32,
+                ).eval()
 
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
@@ -241,6 +282,17 @@ class ModelWrapper:
                     batch_size=8,
                 )
                 return texts[0] if texts else ""
+
+            elif mt == "granite":
+                device = self.settings.device
+                waveform = torch.from_numpy(audio_data).to(device)
+                inputs = self.processor([waveform], device=device)
+                with torch.no_grad():
+                    output = self.model.transcribe(**inputs)
+                transcriptions = self.processor.batch_decode(
+                    output.preds, skip_special_tokens=True
+                )
+                return transcriptions[0] if transcriptions else ""
 
             else:
                 raise ValueError(f"Unknown model type: {mt}")

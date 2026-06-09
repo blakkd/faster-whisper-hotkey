@@ -27,3 +27,4 @@ english_only_models_whisper = set(_CONFIG.get("english_only_models_whisper", [])
 canary_source_target_languages = _CONFIG["canary_source_target_languages"]
 canary_allowed_language_pairs = _CONFIG["canary_allowed_language_pairs"]
 accepted_languages_cohere = _CONFIG["accepted_languages_cohere"]
+accepted_languages_granite = _CONFIG["accepted_languages_granite"]

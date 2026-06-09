@@ -19,6 +19,82 @@ class MockSettings:
         self.language = language
 
 
+class TestGraniteInitEdgeCases:
+    """Test Granite model initialization edge cases."""
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_uppercase_model_type(
+        self, mock_check, mock_auto_model, mock_processor
+    ):
+        """Test that uppercase model type is normalized to lowercase."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="GRANITE",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cuda",
+        )
+
+        wrapper = ModelWrapper(settings)
+        assert wrapper.model_type == "granite"
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_trust_remote_code(
+        self, mock_check, mock_auto_model, mock_processor
+    ):
+        """Test that Granite loads with trust_remote_code=True."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cuda",
+        )
+
+        ModelWrapper(settings)
+
+        call_kwargs = mock_auto_model.from_pretrained.call_args[1]
+        assert call_kwargs["trust_remote_code"] is True
+
+        proc_call_kwargs = mock_processor.from_pretrained.call_args[1]
+        assert proc_call_kwargs["trust_remote_code"] is True
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    def test_init_granite_old_transformers_version(
+        self, mock_auto_model, mock_processor
+    ):
+        """Test that Granite raises ImportError for old transformers version."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        import transformers as tf_lib
+
+        original_version = tf_lib.__version__
+        tf_lib.__version__ = "4.0.0"
+
+        settings = MockSettings(
+            model_type="granite",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cuda",
+        )
+
+        try:
+            with pytest.raises(ImportError, match="requires transformers>=5.5.3"):
+                ModelWrapper(settings)
+        finally:
+            tf_lib.__version__ = original_version
+
+
 class TestModelWrapperInitEdgeCases:
     """Test ModelWrapper initialization edge cases."""
 
@@ -634,3 +710,128 @@ class TestCohereTranscription:
         # Check that language was defaulted
         call_kwargs = mock_model.transcribe.call_args[1]
         assert call_kwargs["language"] == "en"
+
+
+class TestGraniteTranscription:
+    """Extended Granite transcription tests."""
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    @patch("faster_whisper_hotkey.models.torch")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_granite_transcription_with_language(
+        self, mock_check, mock_torch, mock_auto_model, mock_processor
+    ):
+        """Test Granite transcription passes audio correctly."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
+            mock_model
+        )
+
+        mock_processor_instance = MagicMock()
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        mock_tensor = MagicMock()
+        mock_torch.from_numpy.return_value = mock_tensor
+        mock_tensor.to.return_value = mock_tensor
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__.return_value = mock_ctx
+        mock_ctx.__exit__.return_value = None
+        mock_torch.no_grad.return_value = mock_ctx
+
+        mock_output = MagicMock()
+        mock_output.preds = [1, 2, 3]
+        mock_model.transcribe.return_value = mock_output
+        mock_processor_instance.batch_decode.return_value = ["transcribed text"]
+
+        settings = MockSettings(
+            model_type="granite",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cuda",
+            language="en",
+        )
+        wrapper = ModelWrapper(settings)
+        sample_audio = np.random.randn(16000).astype(np.float32)
+        result = wrapper.transcribe(sample_audio, 16000)
+
+        assert result == "transcribed text"
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    @patch("faster_whisper_hotkey.models.torch")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_granite_empty_transcription(
+        self, mock_check, mock_torch, mock_auto_model, mock_processor
+    ):
+        """Test Granite with empty batch_decode result."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
+            mock_model
+        )
+
+        mock_processor_instance = MagicMock()
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        mock_tensor = MagicMock()
+        mock_torch.from_numpy.return_value = mock_tensor
+        mock_tensor.to.return_value = mock_tensor
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__.return_value = mock_ctx
+        mock_ctx.__exit__.return_value = None
+        mock_torch.no_grad.return_value = mock_ctx
+
+        mock_output = MagicMock()
+        mock_output.preds = []
+        mock_model.transcribe.return_value = mock_output
+        mock_processor_instance.batch_decode.return_value = []
+
+        settings = MockSettings(
+            model_type="granite",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cpu",
+        )
+        wrapper = ModelWrapper(settings)
+        sample_audio = np.random.randn(16000).astype(np.float32)
+        result = wrapper.transcribe(sample_audio, 16000)
+
+        assert result == ""
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModel")
+    @patch("faster_whisper_hotkey.models.torch")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_granite_transcription_error_handling(
+        self, mock_check, mock_torch, mock_auto_model, mock_processor
+    ):
+        """Test Granite handles transcription errors gracefully."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.transcribe.side_effect = RuntimeError("Granite error")
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
+            mock_model
+        )
+        mock_processor.from_pretrained.return_value = MagicMock()
+
+        mock_tensor = MagicMock()
+        mock_torch.from_numpy.return_value = mock_tensor
+        mock_tensor.to.return_value = mock_tensor
+        mock_ctx = MagicMock()
+        mock_ctx.__enter__.return_value = mock_ctx
+        mock_ctx.__exit__.return_value = None
+        mock_torch.no_grad.return_value = mock_ctx
+
+        settings = MockSettings(
+            model_type="granite",
+            model_name="ibm-granite/granite-speech-4.1-2b-nar",
+            device="cuda",
+        )
+        wrapper = ModelWrapper(settings)
+        sample_audio = np.random.randn(16000).astype(np.float32)
+        result = wrapper.transcribe(sample_audio, 16000)
+
+        assert result == ""

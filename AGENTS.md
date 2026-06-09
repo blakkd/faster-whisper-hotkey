@@ -4,7 +4,7 @@
 
 ### Key Value Proposition
 - **Speed**: Near-instant transcription even on CPU with smaller models
-- **Flexibility**: Multiple model backends (faster-whisper, parakeet, canary, voxtral, cohere)
+- **Flexibility**: Multiple model backends (faster-whisper, parakeet, canary, voxtral, cohere, granite)
 - **Integration**: Works in terminals, editors, chat apps anywhere you can type
 
 ---
@@ -66,6 +66,7 @@
 | **canary-1b-v2** | canary | CPU (F16) | 25 langs, transcription + translation possible |
 | **Voxtral-Mini-3B-2507** | voxtral | GPU only | English + 7 langs, smart formatting, max 30s chunks |
 | **faster-whisper** | whisper | CPU/GPU | Many langs, translation when source ≠ target |
+| **ibm-granite/granite-speech-4.1-2b-nar** | granite | CPU/GPU | 9 langs (en/de/es/fr/it/ja/ko/pt/zh), `trust_remote_code=True`, requires `transformers>=5.5.3` + `torchaudio` |
 
 ### Important: Model Loading in `models.py`
 
@@ -78,6 +79,8 @@ Each model type has specific initialization logic. When adding a new backend:
 
 **⚠️ Critical**: The model wrapper uses `suppress_output()` context manager to hide OneLogger/NeMo initialization spam at import time. Keep this!
 
+**Granite-specific**: Uses `AutoModel` (not `AutoModelForSpeechSeq2Seq`) with `trust_remote_code=True`. GPU path uses `flash_attention_2` + `bfloat16`; CPU uses `sdpa` + `float32`. Inference calls `model.transcribe(**inputs)` with `processor.batch_decode(output.preds)`. Requires `transformers>=5.5.3` (enforced by `_check_transformers_version()` helper).
+
 ---
 
 ## 🔧 Configuration Flow
@@ -89,7 +92,7 @@ Each model type has specific initialization logic. When adding a new backend:
 
 ### Setting Fields (Settings dataclass)
 - `device_name`: PulseAudio input device name
-- `model_type`: whisper/parakeet/canary/voxtral/cohere
+- `model_type`: whisper/parakeet/canary/voxtral/cohere/granite
 - `model_name`: Hugging Face model identifier
 - `compute_type`: int8/float16/int4 (model-dependent)
 - `device`: cpu/cuda
@@ -266,7 +269,7 @@ The configuration flow uses a unified state machine pattern:
 |---------|---------|-----------|
 | `faster-whisper` | Whisper inference engine | CPU/GPU optimized |
 | `nemo_toolkit[asr]` | Parakeet/Canary models | NVIDIA ASR toolkit |
-| `transformers` | Voxtral/Cohere models | Hugging Face backend |
+| `transformers` | Voxtral/Cohere/Granite models | Hugging Face backend; Granite requires `>=5.5.3` |
 | `sounddevice` | Audio capture | Cross-platform audio API |
 | `pulsectl` | PulseAudio device selection | Linux audio server control |
 | `pynput` | Keyboard simulation | Paste & hotkey handling |

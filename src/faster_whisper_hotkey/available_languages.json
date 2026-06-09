@@ -246,5 +246,16 @@
     "zh",
     "ja",
     "ko"
+  ],
+  "accepted_languages_granite": [
+    "en",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "ko",
+    "pt",
+    "zh"
   ]
 }
