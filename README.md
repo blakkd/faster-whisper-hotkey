@@ -86,6 +86,8 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
 2. Install the package and dependencies:
 
+   **Note:** Python 3.10+ is required (currently tested with Python 3.13).
+
 - as a pip package:
 
   ```
@@ -100,11 +102,24 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
 ### For Nvidia GPU
 
-You need to install cudnn https://developer.nvidia.com/cudnn-downloads
+**FlashAttention** is required for GPU inference with the **granite-nar** model. Building it from source can take a while, so you can grab pre-built wheels from https://mjunya.com/flash-attention-prebuild-wheels/
 
 ## Usage
 
-1. Whether you installed from PyPi or from source, just run `faster-whisper-hotkey`
+1. Run the tool using one of these methods:
+
+   - If installed from PyPi or from source as a package/tool:
+
+     ```
+     faster-whisper-hotkey
+     ```
+
+   - Or using uv run (handles the venv and dependencies automatically):
+
+     ```
+     cd faster-whisper-hotkey
+     uv run faster-whisper-hotkey
+     ```
 2. Go through the menu steps.
 3. Once the model is loaded, focus on any text field.
 4. Then, simply press the hotkey (PAUSE, F4 or F8) while you speak, release it when you're done, and see the magic happening!
