@@ -37,6 +37,7 @@ from transformers import (
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
     BitsAndBytesConfig,
+    CohereAsrForConditionalGeneration,
     VoxtralForConditionalGeneration,
 )
 
@@ -143,39 +144,16 @@ class ModelWrapper:
 
         elif mt == "cohere":
             repo_id = self.settings.model_name
-            device_map = {"": self.settings.device}
 
-            self.processor = AutoProcessor.from_pretrained(
-                repo_id, trust_remote_code=True
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+
+            self.model = CohereAsrForConditionalGeneration.from_pretrained(
+                repo_id, device_map={"": self.settings.device}
             )
-
-            # Workaround: some transformers versions have a bug where
-            # _keys_to_ignore_on_load_unexpected is a list instead of a set,
-            # causing "TypeError: unsupported operand type(s) for |: 'list' and 'set'"
-            # during _adjust_missing_and_unexpected_keys. Patch the model class
-            # before from_pretrained to ensure it's a set.
-            try:
-                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                    repo_id,
-                    trust_remote_code=True,
-                    dtype=torch.float32,
-                    device_map=device_map,
-                ).eval()
-            except TypeError:
-                config = AutoConfig.from_pretrained(
-                    repo_id, trust_remote_code=True
-                )
-                model_class = AutoModelForSpeechSeq2Seq._model_mapping[type(config)]
-                if hasattr(model_class, "_keys_to_ignore_on_load_unexpected"):
-                    model_class._keys_to_ignore_on_load_unexpected = set(
-                        model_class._keys_to_ignore_on_load_unexpected
-                    )
-                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                    repo_id,
-                    trust_remote_code=True,
-                    dtype=torch.float32,
-                    device_map=device_map,
-                ).eval()
+            # float32 is ~8x faster than bfloat16 on CPU; bf16 is fine on GPU
+            if self.settings.device == "cpu":
+                self.model = self.model.float()
+            self.model = self.model.eval()
 
         elif mt == "granite":
             repo_id = self.settings.model_name
@@ -318,14 +296,13 @@ class ModelWrapper:
 
             elif mt == "cohere":
                 lang = language or "en"
-                texts = self.model.transcribe(
-                    processor=self.processor,
-                    audio_arrays=[audio_data],
-                    sample_rates=[sample_rate],
-                    language=lang,
-                    batch_size=8,
+                inputs = self.processor(
+                    audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang
                 )
-                return texts[0] if texts else ""
+                inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+                outputs = self.model.generate(**inputs, max_new_tokens=256)
+                text = self.processor.decode(outputs, skip_special_tokens=True)
+                return text if isinstance(text, str) else (text[0] if text else "")
             elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
