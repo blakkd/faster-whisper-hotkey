@@ -68,12 +68,9 @@ class LLMCorrector:
 
             if content:
                 corrected = content.strip()
-                # Strip surrounding quotes (single or double), even if mismatched
-                if len(corrected) >= 1:
-                    if corrected.startswith(('"', "'")):
-                        corrected = corrected[1:]
-                    if len(corrected) >= 1 and corrected.endswith(('"', "'")):
-                        corrected = corrected[:-1]
+                # Strip matching wrapper quotes added by the LLM
+                if len(corrected) >= 2 and corrected[0] == corrected[-1] and corrected[0] in ('"', "'"):
+                    corrected = corrected[1:-1]
                 if corrected != text:
                     logger.info(f'LLM corrected text: "{corrected}"')
                     return corrected

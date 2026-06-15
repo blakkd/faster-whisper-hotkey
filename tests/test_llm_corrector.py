@@ -102,8 +102,8 @@ class TestLLMCorrectorSuccessfulCorrection:
         assert result == "Corrected text with spaces"
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
-    def test_correct_strips_mismatched_quotes(self, mock_post):
-        """Mismatched quote types at start/end should still be stripped."""
+    def test_correct_keeps_mismatched_quotes(self, mock_post):
+        """Mismatched quote types at start/end should not be stripped."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_value = "\"This has mismatched quotes'"
@@ -115,11 +115,11 @@ class TestLLMCorrectorSuccessfulCorrection:
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         result = corrector.correct("Original text")
 
-        assert result == "This has mismatched quotes"
+        assert result == "\"This has mismatched quotes'"
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
-    def test_correct_strips_single_quote_at_start_only(self, mock_post):
-        """Quote only at start should be stripped."""
+    def test_correct_keeps_single_quote_at_start_only(self, mock_post):
+        """Quote only at start should not be stripped."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_val = '"Just a quote at start'
@@ -131,11 +131,11 @@ class TestLLMCorrectorSuccessfulCorrection:
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         result = corrector.correct("Original text")
 
-        assert result == "Just a quote at start"
+        assert result == '"Just a quote at start'
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
-    def test_correct_strips_single_quote_at_end_only(self, mock_post):
-        """Quote only at end should be stripped."""
+    def test_correct_keeps_single_quote_at_end_only(self, mock_post):
+        """Quote only at end should not be stripped (e.g., dialogue ending in a quote)."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_val = 'Just a quote at end"'
@@ -147,7 +147,28 @@ class TestLLMCorrectorSuccessfulCorrection:
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         result = corrector.correct("Original text")
 
-        assert result == "Just a quote at end"
+        assert result == 'Just a quote at end"'
+
+    @patch("faster_whisper_hotkey.llm_corrector.requests.post")
+    def test_correct_preserves_internal_quotes_when_llm_wraps_response(self, mock_post):
+        """LLM-wrapped dialogue with internal quotes should preserve closing quote.
+
+        Regression test: LLM returns '"I don't want the lumber."'
+        wrapping content that ends with ". Old code stripped the content's
+        closing quote, producing 'I don't want the lumber.' instead.
+        """
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        content_val = '"He said, \"hello.\""'
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": content_val}}]
+        }
+        mock_post.return_value = mock_response
+
+        corrector = LLMCorrector("http://localhost:8080", "test-model")
+        result = corrector.correct("Original text")
+
+        assert result == 'He said, "hello."'
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
     def test_correct_handles_whitespace_and_quotes_together(self, mock_post):
