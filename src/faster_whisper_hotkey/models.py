@@ -240,7 +240,20 @@ class ModelWrapper:
             elif mt == "parakeet":
                 with torch.inference_mode():
                     out = list(self.model.transcribe([audio_data]))
-                return out[0].text if out else ""
+                if not out:
+                    return ""
+                result = out[0]
+                if hasattr(result, "text"):
+                    return result.text
+                if isinstance(result, str):
+                    return result
+                if isinstance(result, list) and result:
+                    first = result[0]
+                    if hasattr(first, "text"):
+                        return first.text
+                    if isinstance(first, str):
+                        return first
+                return ""
 
             elif mt == "canary":
                 lang = language or "en-en"

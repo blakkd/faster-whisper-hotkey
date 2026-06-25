@@ -8,6 +8,7 @@ Skip CUDA configs automatically when no GPU is available. Override with:
     pytest tests/test_model_all_configs.py -v --tb=long --force-cuda
 """
 
+import gc
 import time
 
 import numpy as np
@@ -145,6 +146,12 @@ class TestTranscribeAllConfigs:
                 t1 = time.monotonic()
                 text = wrapper.transcribe(audio_data, sample_rate=sr)
                 transcribe_time = round(time.monotonic() - t1, 2)
+
+                # Unload model before testing next config
+                del wrapper
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
 
                 results.append(
                     (

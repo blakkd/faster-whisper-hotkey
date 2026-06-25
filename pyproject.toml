@@ -32,18 +32,18 @@ dependencies = [
     "pulsectl",
     "torch",
     "torchaudio",
-    "nemo_toolkit[asr]",
+    "nemo-toolkit[asr]",
     "requests",
     "importlib_resources",
-    "mistral-common[audio]>=1.8.4",
+    "mistral-common[audio]",
     "transformers>=5.5.3",
-    "bitsandbytes>=0.43.1",
+    "bitsandbytes",
     "pyperclip",
     "soundfile",
     "librosa",
     "sentencepiece",
     "protobuf",
-    "onnx>=1.18",
+    "onnx==1.22.0",
     "accelerate"
 ]
 
