@@ -253,7 +253,7 @@ class TestLLMCorrectorPayloadStructure:
 
         call_args = mock_post.call_args
         payload = call_args.kwargs["json"]
-        assert payload["temperature"] == 0.6
+        assert payload["temperature"] == 0.3
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
     def test_payload_has_max_tokens_setting(self, mock_post):
