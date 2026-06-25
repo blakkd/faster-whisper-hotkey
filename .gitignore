@@ -7,3 +7,4 @@ tests/__pycache__/
 .swival/
 TODO
 uv.lock
+tests/test.flac
