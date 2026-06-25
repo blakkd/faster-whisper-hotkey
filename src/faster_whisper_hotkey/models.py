@@ -169,19 +169,23 @@ class ModelWrapper:
 
             _check_transformers_version()
 
-            self.processor = AutoProcessor.from_pretrained(repo_id)
+            self.processor = AutoProcessor.from_pretrained(
+                repo_id, trust_remote_code=True
+            )
 
             if device == "cuda":
                 self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                     repo_id,
                     device_map=device_map,
                     torch_dtype=torch.bfloat16,
+                    trust_remote_code=True,
                 ).eval()
             else:
                 self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                     repo_id,
                     device_map=device_map,
                     torch_dtype=torch.float32,
+                    trust_remote_code=True,
                 ).eval()
 
         elif mt == "granite-nar":
