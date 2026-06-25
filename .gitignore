@@ -8,3 +8,4 @@ tests/__pycache__/
 TODO
 uv.lock
 tests/test.flac
+transcription_results.txt
