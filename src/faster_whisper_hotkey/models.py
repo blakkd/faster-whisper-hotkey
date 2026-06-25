@@ -31,6 +31,31 @@ with suppress_output():
 
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 
+    # Patch SentencePieceTokenizer.eos_id for canary models.
+    # Canary's tokenizer has <s> (token 3) as EOS, but SentencePiece doesn't
+    # flag it as a special token, so tokenizer.eos_id() returns -1. The NeMo
+    # canary2 prompt formatter asserts answer_ids[-1] == tokenizer.eos, which
+    # fails (3 != -1). We detect canary by its unique <|startoftranscript|> token.
+    from nemo.collections.common.tokenizers.sentencepiece_tokenizer import (
+        SentencePieceTokenizer,
+    )
+
+    _original_eos_id = SentencePieceTokenizer.eos_id
+
+    @property
+    def _patched_eos_id(self):
+        try:
+            if (
+                hasattr(self, "tokenizer")
+                and self.tokenizer.piece_to_id("<|startoftranscript|>") == 4
+            ):
+                return 3  # CANARY_EOS = "<s>"
+        except Exception:
+            pass
+        return _original_eos_id.fget(self)
+
+    SentencePieceTokenizer.eos_id = _patched_eos_id
+
 from transformers import (
     AutoConfig,
     AutoModel,
@@ -274,7 +299,10 @@ class ModelWrapper:
                             source_lang=source_lang,
                             target_lang=target_lang,
                         )
-                    return out[0].text.strip() if out and len(out) > 0 else ""
+                    if not out or len(out) == 0:
+                        return ""
+                    result = out[0]
+                    return result.strip() if isinstance(result, str) else result.text.strip()
                 finally:
                     if temp_path and os.path.exists(temp_path):
                         os.remove(temp_path)
