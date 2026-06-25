@@ -24,6 +24,7 @@ class ConfigStep(Enum):
     VOXTRAL_PRECISION = auto()
     VOXTRAL_INFO = auto()
     COHERE_DEVICE = auto()
+    COHERE_INFO = auto()
     COHERE_LANGUAGE = auto()
     GRANITE_NAR_DEVICE = auto()
     GRANITE_NAR_LANGUAGE = auto()
@@ -771,6 +772,28 @@ def _screen_cohere_device(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.device = selected
+    return (ConfigStep.COHERE_INFO, config)
+
+
+def _screen_cohere_info(stdscr, config: ConfigData):
+    """Display info about Cohere audio length limit."""
+    info_message = (
+        "For cohere-transcribe-03-2026, keep the audio <30s to avoid\n"
+        "truncation. Audio longer than 30s will be split into chunks.\n\n"
+        "Press ENTER to continue."
+    )
+
+    selected = curses_menu(
+        stdscr,
+        "Cohere Info",
+        ["Continue"],
+        message=info_message,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.model_name = "CohereLabs/cohere-transcribe-03-2026"
     return (ConfigStep.COHERE_LANGUAGE, config)
 
 

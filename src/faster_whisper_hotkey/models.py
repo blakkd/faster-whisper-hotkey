@@ -141,6 +141,10 @@ class ModelWrapper:
                 ).eval()
 
             self.TranscriptionRequest = TranscriptionRequest
+            self.max_duration = (
+                getattr(self.processor.feature_extractor, "max_duration", None)
+                or 30
+            )
 
         elif mt == "cohere":
             repo_id = self.settings.model_name
@@ -154,6 +158,10 @@ class ModelWrapper:
             if self.settings.device == "cpu":
                 self.model = self.model.float()
             self.model = self.model.eval()
+            self.max_duration = (
+                getattr(self.processor.feature_extractor, "max_duration", None)
+                or 30
+            )
 
         elif mt == "granite":
             repo_id = self.settings.model_name
@@ -255,15 +263,13 @@ class ModelWrapper:
                         os.remove(temp_path)
 
             elif mt == "voxtral":
-                # --- Voxtral-Mini-3B-2507-specific transcription with chunking ---
-                # Based on documentation and typical behavior, 30s is a safe limit for the encoder.
-                MAX_DURATION_SECONDS = 30
+                # Voxtral-specific transcription with chunking based on feature extractor max_duration
                 samples_per_second = sample_rate
-                max_samples = MAX_DURATION_SECONDS * samples_per_second
+                max_samples = self.max_duration * samples_per_second
 
                 if len(audio_data) > max_samples:
                     logger.warning(
-                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral-Mini-3B-2507's recommended input limit ({MAX_DURATION_SECONDS}s). "
+                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds Voxtral-Mini-3B-2507's input limit ({self.max_duration}s). "
                         "Processing in chunks."
                     )
                     chunks = []
@@ -295,14 +301,40 @@ class ModelWrapper:
                     )
 
             elif mt == "cohere":
-                lang = language or "en"
-                inputs = self.processor(
-                    audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang
-                )
-                inputs = inputs.to(self.model.device, dtype=self.model.dtype)
-                outputs = self.model.generate(**inputs, max_new_tokens=256)
-                text = self.processor.decode(outputs, skip_special_tokens=True)
-                return text if isinstance(text, str) else (text[0] if text else "")
+                # Cohere feature extractor has max_duration; chunk longer audio
+                samples_per_second = sample_rate
+                max_samples = self.max_duration * samples_per_second
+
+                if len(audio_data) > max_samples:
+                    logger.warning(
+                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds "
+                        f"cohere-transcribe-03-2026's input limit ({self.max_duration}s). "
+                        "Processing in chunks."
+                    )
+                    chunks = []
+                    for i in range(0, len(audio_data), max_samples):
+                        chunk = audio_data[i : i + max_samples]
+                        if len(chunk) < 1000:
+                            continue
+                        chunks.append(chunk)
+
+                    full_text = ""
+                    for i, chunk in enumerate(chunks):
+                        try:
+                            result = self._transcribe_single_chunk_cohere(
+                                chunk, sample_rate, language
+                            )
+                            if result.strip():
+                                full_text += result + " "
+                        except Exception as e:
+                            logger.error(f"Failed to transcribe chunk {i}: {e}")
+                            pass
+
+                    return full_text.strip()
+                else:
+                    return self._transcribe_single_chunk_cohere(
+                        audio_data, sample_rate, language
+                    )
             elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
@@ -347,6 +379,19 @@ class ModelWrapper:
         except Exception as e:
             logger.error(f"Error during model.transcribe: {e}")
             return ""
+
+    def _transcribe_single_chunk_cohere(
+        self, audio_data, sample_rate: int, language: Optional[str]
+    ) -> str:
+        """Transcribe a single chunk of audio for cohere-transcribe-03-2026."""
+        lang = language or "en"
+        inputs = self.processor(
+            audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang
+        )
+        inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+        outputs = self.model.generate(**inputs, max_new_tokens=256)
+        text = self.processor.decode(outputs, skip_special_tokens=True)
+        return text if isinstance(text, str) else (text[0] if text else "")
 
     def _transcribe_single_chunk_voxtral(
         self, audio_data, sample_rate: int, language: Optional[str]

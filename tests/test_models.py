@@ -122,13 +122,19 @@ class TestModelWrapperInitialization:
         mock_voxtral.from_pretrained.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
-    @patch("faster_whisper_hotkey.models.AutoModelForSpeechSeq2Seq")
-    def test_init_cohere_model(self, mock_auto_model, mock_processor):
+    @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
+    def test_init_cohere_model(self, mock_cohere, mock_processor):
         """Test loading a cohere model."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_feat_extractor = MagicMock()
+        mock_feat_extractor.max_duration = 30
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.feature_extractor = mock_feat_extractor
+        mock_processor.from_pretrained.return_value = mock_processor_instance
 
         settings = MockSettings(
             model_type="cohere",
@@ -139,7 +145,7 @@ class TestModelWrapperInitialization:
         wrapper = ModelWrapper(settings)
 
         assert wrapper.model_type == "cohere"
-        mock_auto_model.from_pretrained.assert_called_once()
+        mock_cohere.from_pretrained.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
@@ -360,7 +366,10 @@ class TestModelWrapperTranscribe:
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
+        mock_feat_extractor = MagicMock()
+        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
+        mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
@@ -393,7 +402,10 @@ class TestModelWrapperTranscribe:
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
+        mock_feat_extractor = MagicMock()
+        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
+        mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
@@ -422,18 +434,22 @@ class TestModelWrapperTranscribe:
             assert wrapper._transcribe_single_chunk_voxtral.call_count == 2
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
-    @patch("faster_whisper_hotkey.models.AutoModelForSpeechSeq2Seq")
-    def test_transcribe_cohere(self, mock_auto_model, mock_processor):
+    @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
+    def test_transcribe_cohere(self, mock_cohere, mock_processor):
         """Test cohere transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_model.transcribe.return_value = ["cohere transcription"]
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
+        mock_model.device = "cuda"
+        mock_model.dtype = MagicMock()
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
         )
 
+        mock_feat_extractor = MagicMock()
+        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
+        mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
 
         settings = MockSettings(
@@ -444,7 +460,12 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        result = wrapper.transcribe(self.sample_audio, 16000)
+        with patch.object(
+            wrapper,
+            "_transcribe_single_chunk_cohere",
+            return_value="cohere transcription",
+        ):
+            result = wrapper.transcribe(self.sample_audio, 16000)
 
         assert result == "cohere transcription"
 

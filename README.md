@@ -135,6 +135,8 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 - **voxtral**: because of some limitations, and to keep the automatic language recognition capabilities, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than this.
   In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
 
+- **cohere**: the model's feature extractor has a `max_duration` of 30s. Audio longer than 30s is automatically split into chunks for processing. Best results when audio is shorter than this.
+
 - Due to window type detection to send appropriate key stroke, unfortunately the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
 - Windows supported is not planned. That said, you can use [eutychius](https://github.com/eutychius/faster-whisper-hotkey/tree/feature/supportWindows)'s branch which seems working fine. See [this comment](https://github.com/blakkd/faster-whisper-hotkey/issues/8#issuecomment-3412700777) for instructions.
