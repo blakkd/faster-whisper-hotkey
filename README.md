@@ -10,14 +10,13 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
-- **LLM correction** *(experimental)*: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
+- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
 
-*To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case.*
+_To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case._
 
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
-
   - 14 languages
   - Transcription only
   - No automatic language recognition
@@ -25,21 +24,18 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - Quite smart, deals well with hesitation and stutters
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
-
   - 25 languages
   - Transcription and translation
   - No automatic language recognition
   - Crazy fast even on CPU in F16
 
 - **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
-
   - 25 languages
   - Transcription only
   - Automatic language recognition
   - Crazy fast even on CPU in F16
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
-
   - 8 languages
   - Transcription only
   - Automatic language recognition
@@ -47,12 +43,10 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - GPU only
 
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
-
   - Many languages
   - Transcription only
 
 - **(NEW) [ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
-
   - 9 languages
   - Transcription and translation (to/from English)
   - No automatic language recognition
@@ -60,7 +54,6 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - CPU/GPU
 
 - **(NEW) [ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
-
   - 9 languages
   - Transcription only
   - No automatic language recognition
@@ -101,7 +94,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
 2. Install the package and dependencies:
 
-   **Note:** Python 3.10+ is required (currently tested with Python 3.13).
+   **Note:** Currently tested with Python 3.13.12.
 
 - as a pip package:
 
@@ -122,7 +115,6 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 ## Usage
 
 1. Run the tool using one of these methods:
-
    - If installed from PyPi or from source as a package/tool:
 
      ```
@@ -135,6 +127,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
      cd faster-whisper-hotkey
      uv run faster-whisper-hotkey
      ```
+
 2. Go through the menu steps.
 3. Once the model is loaded, focus on any text field.
 4. Then, simply press the hotkey (PAUSE, F4, F8 or INSERT) while you speak, release it when you're done, and see the magic happening!
