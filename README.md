@@ -14,11 +14,11 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
-*To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text?error-rate-by-dataset=aa-agenttalk#aa-wer-aa-agenttalk-dataset) which is particularly relevant for our use case.*
+*To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case.*
 
-- (NEW) **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
+- **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
 
-  - 15 languages supported (en, de, fr, it, es, pt, el, nl, pl, ar, vi, zh, ja, ko)
+  - 14 languages
   - Transcription only
   - No automatic language recognition
   - Runs well on CPU
@@ -26,21 +26,21 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
 
-  - 25 languages supported
+  - 25 languages
   - Transcription and translation
   - No automatic language recognition
   - Crazy fast even on CPU in F16
 
 - **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
 
-  - 25 languages supported
+  - 25 languages
   - Transcription only
   - Automatic language recognition
   - Crazy fast even on CPU in F16
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
 
-  - English, Spanish, French, Portuguese, Hindi, German, Dutch, Italian
+  - 8 languages
   - Transcription only
   - Automatic language recognition
   - Smart (it even guesses when to put some quotes, etc.) and less error-prone for non English native speakers
@@ -51,11 +51,26 @@ In the terminal, in a text editor, or even in the text chat of your online video
   - Many languages
   - Transcription only
 
+- **(NEW) [ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
+
+  - 9 languages
+  - Transcription and translation (to/from English)
+  - No automatic language recognition
+  - Autoregressive with punctuation and capitalization
+  - CPU/GPU
+
+- **(NEW) [ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
+
+  - 9 languages
+  - Transcription only
+  - No automatic language recognition
+  - Non-autoregressive — very fast inference
+  - No punctuation in output
+  - CPU/GPU (requires FlashAttention on GPU)
+
 **_What I personally use currently?_**
 
-_- Almost always cohere-transcribe-03-2026, on CPU, when I need all my VRAM to run my LMs_
-
-_- Sometimes Voxtral-Mini-3B-2507, on GPU, when I run smaller LMs and can fit it along them_
+_- granite-speech-4.1-2b-nar sometimes with, but often without LLM correction_
 
 ## Installation
 
@@ -122,7 +137,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
      ```
 2. Go through the menu steps.
 3. Once the model is loaded, focus on any text field.
-4. Then, simply press the hotkey (PAUSE, F4 or F8) while you speak, release it when you're done, and see the magic happening!
+4. Then, simply press the hotkey (PAUSE, F4, F8 or INSERT) while you speak, release it when you're done, and see the magic happening!
 
 When the script is running, you can forget it, the model will remain loaded, and it's ready to transcribe at any time.
 
@@ -137,6 +152,8 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - **cohere**: the model's feature extractor has a `max_duration` of 30s. Audio longer than 30s is automatically split into chunks for processing. Best results when audio is shorter than this.
 
+- **granite-nar**: requires FlashAttention on GPU. No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
+
 - Due to window type detection to send appropriate key stroke, unfortunately the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
 - Windows supported is not planned. That said, you can use [eutychius](https://github.com/eutychius/faster-whisper-hotkey/tree/feature/supportWindows)'s branch which seems working fine. See [this comment](https://github.com/blakkd/faster-whisper-hotkey/issues/8#issuecomment-3412700777) for instructions.
@@ -145,6 +162,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
+- If you pick a granite model with punctuation enabled, the output will include proper punctuation and capitalization (including German noun capitalization).
 
 ## Acknowledgements
 
@@ -154,6 +172,7 @@ Many thanks to:
 - **NVIDIA** for their blazing fast parakeet and canary models
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - **Cohere** for their cohere-transcribe-03-2026 model
+- **IBM** for their granite-speech-4.1 models
 - and to **all the contributors** of the libraries I used
 
 Also thanks to [wgabrys88](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) and [MohamedRashadthat](https://huggingface.co/spaces/MohamedRashad/Voxtral) for their huggingface spaces that have been helpful!
