@@ -383,8 +383,14 @@ class ModelWrapper:
             elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
+                lang = language or "en-en"
+                lang_parts = lang.split("-") if lang else ["en", "en"]
+                if len(lang_parts) == 2 and lang_parts[0] != lang_parts[1]:
+                    action = f"translate the speech to {lang_parts[1]}"
+                else:
+                    action = "transcribe the speech"
                 user_prompt = (
-                    "<|audio|>transcribe the speech with proper punctuation "
+                    f"<|audio|>{action} with proper punctuation "
                     "and capitalization."
                 )
                 chat = [{"role": "user", "content": user_prompt}]

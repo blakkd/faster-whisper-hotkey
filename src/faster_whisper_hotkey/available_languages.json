@@ -257,5 +257,43 @@
     "ko",
     "pt",
     "zh"
+  ],
+  "granite_source_target_languages": [
+    "en",
+    "de",
+    "es",
+    "fr",
+    "ja",
+    "pt"
+  ],
+  "granite_target_languages": [
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "pt",
+    "zh"
+  ],
+  "granite_allowed_language_pairs": [
+    "de-de",
+    "de-en",
+    "en-de",
+    "en-en",
+    "en-es",
+    "en-fr",
+    "en-it",
+    "en-ja",
+    "en-pt",
+    "en-zh",
+    "es-es",
+    "es-en",
+    "fr-en",
+    "fr-fr",
+    "ja-en",
+    "ja-ja",
+    "pt-en",
+    "pt-pt"
   ]
 }

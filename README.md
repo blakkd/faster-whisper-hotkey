@@ -22,10 +22,11 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - No automatic language recognition
   - Runs well on CPU
   - Quite smart, deals well with hesitation and stutters
+  - **Limitation**: model supports 30s audio max, longer recordings are handled by chunking
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
   - 25 languages
-  - Transcription and translation
+  - Transcription and translation (bidirectional to/from English)
   - No automatic language recognition
   - Crazy fast even on CPU in F16
 
@@ -39,26 +40,27 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - 8 languages
   - Transcription only
   - Automatic language recognition
-  - Smart (it even guesses when to put some quotes, etc.) and less error-prone for non English native speakers
+  - Smart (it even guesses when to put some quotes, etc.) and seems less error-prone for non English native speakers
   - GPU only
+  - **Limitation**: auto language recognition requires <30s chunks
 
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
   - Many languages
   - Transcription only
 
 - **(NEW) [ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
-  - 9 languages
-  - Transcription and translation (to/from English)
+  - 6 source languages (en, de, es, fr, ja, pt)
+  - Transcription and translation (bidirectional to/from English, plus English→Italian and English→Mandarin)
   - No automatic language recognition
   - Autoregressive with punctuation and capitalization
   - CPU/GPU
 
 - **(NEW) [ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
-  - 9 languages
+  - 5 languages
   - Transcription only
   - No automatic language recognition
   - Non-autoregressive — very fast inference
-  - No punctuation in output
+  - No capitalization in output
   - CPU/GPU (requires FlashAttention on GPU)
 
 **_What I personally use currently?_**
