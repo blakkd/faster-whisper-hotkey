@@ -383,10 +383,23 @@ class ModelWrapper:
             elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
+                # Full language names expected by granite-speech-4.1-2b prompts
+                _GRANITE_LANG_NAMES: dict[str, str] = {
+                    "en": "English",
+                    "fr": "French",
+                    "de": "German",
+                    "es": "Spanish",
+                    "ja": "Japanese",
+                    "it": "Italian",
+                    "zh": "Mandarin",
+                }
                 lang = language or "en-en"
                 lang_parts = lang.split("-") if lang else ["en", "en"]
                 if len(lang_parts) == 2 and lang_parts[0] != lang_parts[1]:
-                    action = f"translate the speech to {lang_parts[1]}"
+                    target_name = _GRANITE_LANG_NAMES.get(
+                        lang_parts[1], lang_parts[1]
+                    )
+                    action = f"translate the speech to {target_name}"
                 else:
                     action = "transcribe the speech"
                 user_prompt = (
