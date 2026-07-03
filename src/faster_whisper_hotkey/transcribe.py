@@ -80,7 +80,7 @@ def main(headless: bool = False, settings_file: str | None = None):
 
             except KeyboardInterrupt:
                 logger.info("Program terminated by user")
-                break
+                return
 
     # Launch the transcriber with configured settings
     assert settings is not None

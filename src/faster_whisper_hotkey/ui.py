@@ -377,18 +377,27 @@ def _back_to_initial(config: ConfigData):
 
 def _screen_initial(stdscr, config: ConfigData):
     """Initial choice: use last settings or configure new ones."""
+    has_saved = bool(config.model_type)
+
     while True:
-        choice = curses_menu(
-            stdscr,
-            "",
-            ["Use Last Settings", "Configure New Settings"],
-        )
+        if has_saved:
+            choice = curses_menu(
+                stdscr,
+                "",
+                ["Use Last Settings", "Configure New Settings"],
+            )
+        else:
+            choice = curses_menu(
+                stdscr,
+                "",
+                ["Configure New Settings"],
+            )
 
         if choice is None:
             # ESC at initial screen - exit without saving
             return None
 
-        elif choice == "Use Last Settings":
+        elif has_saved and choice == "Use Last Settings":
             # Skip all screens, save unchanged settings, and start immediately
             return _create_settings_from_config(config, None)
 
