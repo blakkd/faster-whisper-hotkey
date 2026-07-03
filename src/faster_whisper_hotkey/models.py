@@ -462,7 +462,11 @@ class ModelWrapper:
         inputs = inputs.to(self.model.device, dtype=self.model.dtype)
         outputs = self.model.generate(**inputs, max_new_tokens=256)
         text = self.processor.decode(outputs, skip_special_tokens=True)
-        return text if isinstance(text, str) else (text[0] if text else "")
+        if isinstance(text, str):
+            return text.strip()
+        if text:
+            return text[0].strip()
+        return ""
 
     def _transcribe_single_chunk_voxtral(
         self, audio_data, sample_rate: int, language: Optional[str]
