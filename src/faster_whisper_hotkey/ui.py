@@ -1,5 +1,5 @@
 import curses
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum, auto
 
@@ -1030,7 +1030,7 @@ def _create_settings_from_config(
     config: ConfigData, last_settings: Settings | None
 ) -> Settings:
     """Create a Settings object from ConfigData."""
-    settings_dict = {
+    settings_dict: Dict[str, Any] = {
         "device_name": config.device_name or "",
         "model_type": config.model_type or "",
         "model_name": config.model_name,

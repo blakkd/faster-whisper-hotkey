@@ -1,4 +1,5 @@
 import logging
+from typing import Any, Dict
 
 import requests
 
@@ -44,7 +45,7 @@ class LLMCorrector:
             f"Transcription:\n{text}"
         )
 
-        payload = {
+        payload: Dict[str, Any] = {
             "model": self.model_name,
             "messages": [
                 {"role": "user", "content": user_prompt},

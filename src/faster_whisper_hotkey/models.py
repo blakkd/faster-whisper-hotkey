@@ -42,7 +42,7 @@ with suppress_output():
 
     _original_eos_id = SentencePieceTokenizer.eos_id
 
-    @property
+    @property  # type: ignore[misc]
     def _patched_eos_id(self):
         try:
             if (

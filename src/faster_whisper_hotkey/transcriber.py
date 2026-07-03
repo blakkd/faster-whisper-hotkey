@@ -2,6 +2,7 @@ import logging
 import signal
 import threading
 import time
+from typing import List
 
 import numpy as np
 import pulsectl
@@ -48,7 +49,7 @@ class MicrophoneTranscriber:
         self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
         self.is_transcribing = False
         self.last_transcription_end_time = 0.0
-        self.transcription_queue = []
+        self.transcription_queue: List[np.ndarray] = []
         self.timer = None
         self.recording_start_time = 0.0
 

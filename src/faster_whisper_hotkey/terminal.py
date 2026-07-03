@@ -22,8 +22,8 @@ TERMINAL_IDENTIFIERS = [
 
 def get_active_window_class_x11() -> List[str]:
     try:
-        win_id = subprocess.check_output(["xdotool", "getactivewindow"])
-        win_id = win_id.decode().strip()
+        raw_win_id = subprocess.check_output(["xdotool", "getactivewindow"])
+        win_id = raw_win_id.decode().strip()
         xprop_output = subprocess.check_output(["xprop", "-id", win_id, "WM_CLASS"])
         return re.findall(r'"([^"]+)"', xprop_output.decode())
     except Exception as e:
