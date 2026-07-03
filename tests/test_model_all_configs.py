@@ -1,7 +1,7 @@
 """
 Integration test: transcribe a fixed audio sample with every supported model config.
 
-Output: test_audio_data/transcription_results.txt, one row per config.
+Output: test_audio_data/transcription_results.txt, one block per config.
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
 Skip CUDA configs automatically when no GPU is available. Override with:
@@ -177,18 +177,6 @@ class TestTranscribeAllConfigs:
                 )
 
         # ---- write results file ----
-        sep = "|"
-        header_cols = [
-            "model_type",
-            "model_name",
-            "device",
-            "compute_type",
-            "load_time_s",
-            "transcribe_time_s",
-            "status",
-            "transcription",
-        ]
-
         lines = [
             "faster-whisper-hotkey transcription results",
             f"audio: {AUDIO_PATH}  ({round(len(audio_data) / sr, 2)}s @ {sr}Hz)",
@@ -196,28 +184,32 @@ class TestTranscribeAllConfigs:
             f"{'=' * 80}",
             "",
             f"{'RESULTS' if results else ''}",
-            sep.join(header_cols),
         ]
 
         for row in results:
-            lines.append(sep.join(str(c) for c in row))
+            model_type, model_name, device, compute_type, load_time, transcribe_time, status, transcription = row
+            lines.append(f"model: {model_type}/{model_name}")
+            lines.append(f"device: {device}  compute_type: {compute_type}")
+            lines.append(f"load_time: {load_time}s  transcribe_time: {transcribe_time}s  status: {status}")
+            lines.append(f"transcription:")
+            for line in transcription.split("\n"):
+                lines.append(f"  {line}")
+            lines.append("")
 
         if skipped:
-            lines.append("")
+            lines.append("-" * 80)
             lines.append("SKIPPED (CUDA not available)")
-            lines.append(sep.join(["model_type", "model_name", "device", "compute_type"]))
             for s in skipped:
-                lines.append(sep.join(str(c) for c in s))
+                lines.append(f"  {s[0]}/{s[1]} ({s[2]}/{s[3]})")
+            lines.append("")
 
         if errors:
-            lines.append("")
+            lines.append("-" * 80)
             lines.append("ERRORS")
-            err_cols = ["model_type", "model_name", "device", "compute_type", "error"]
-            lines.append(sep.join(err_cols))
             for e in errors:
-                lines.append(sep.join(str(c) for c in e))
+                lines.append(f"  {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}")
+            lines.append("")
 
-        lines.append("")
         lines.append(
             f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors"
         )
