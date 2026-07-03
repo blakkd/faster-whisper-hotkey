@@ -5,3 +5,4 @@ src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
 TODO
+test_audio_data/transcription_results.txt

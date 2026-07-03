@@ -1,7 +1,7 @@
 """
 Integration test: transcribe a fixed audio sample with every supported model config.
 
-Output: .temp/audio_data/transcription_results.txt, one row per config.
+Output: test_audio_data/transcription_results.txt, one row per config.
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
 Skip CUDA configs automatically when no GPU is available. Override with:
@@ -13,7 +13,6 @@ import time
 
 import numpy as np
 import pytest
-import soundfile as sf
 import torch
 
 from faster_whisper_hotkey.models import ModelWrapper
@@ -23,17 +22,17 @@ from faster_whisper_hotkey.settings import Settings
 # Audio fixture
 # ---------------------------------------------------------------------------
 
-AUDIO_PATH = ".temp/audio_data/test.flac"
+AUDIO_PATH = "test_audio_data/test.mp3"
 TARGET_SR = 16000
 
 
 @pytest.fixture(scope="module")
 def audio():
     """Load and resample the test audio once for the whole module."""
-    data, sr = sf.read(AUDIO_PATH, dtype="float32")
-    if sr != TARGET_SR:
-        import librosa
+    import librosa
 
+    data, sr = librosa.load(AUDIO_PATH, sr=None, dtype="float32")
+    if sr != TARGET_SR:
         data = librosa.resample(data, orig_sr=sr, target_sr=TARGET_SR)
         sr = TARGET_SR
     return data.astype(np.float32), sr
@@ -223,7 +222,7 @@ class TestTranscribeAllConfigs:
             f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors"
         )
 
-        output_path = ".temp/audio_data/transcription_results.txt"
+        output_path = "test_audio_data/transcription_results.txt"
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 
