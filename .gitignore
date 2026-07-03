@@ -5,4 +5,4 @@ src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
 TODO
-temp/
+temp/audio_data/
