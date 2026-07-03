@@ -66,7 +66,9 @@ def main(headless: bool = False, settings_file: str | None = None):
     else:
         while True:
             try:
-                result = curses.wrapper(config_screen_main)
+                result = curses.wrapper(
+                    lambda scr: config_screen_main(scr, settings_file)
+                )
 
                 # result is either a Settings object (success) or None (aborted/cancelled)
                 if isinstance(result, Settings):

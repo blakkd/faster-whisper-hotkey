@@ -235,7 +235,7 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
         stdscr.refresh()
 
 
-def config_screen_main(stdscr):
+def config_screen_main(stdscr, settings_file: str | None = None):
     """
     Unified configuration screen with consistent ESC behavior.
 
@@ -251,7 +251,7 @@ def config_screen_main(stdscr):
     curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
     # Load last settings for defaults
-    last_settings = load_settings()
+    last_settings = load_settings(settings_file)
 
     # Initialize config data with last settings as defaults
     config = ConfigData()
@@ -282,6 +282,7 @@ def config_screen_main(stdscr):
         else:
             # Success - all steps completed
             result_settings = _create_settings_from_config(config, last_settings)
+            save_settings(result_settings.__dict__, settings_file)
             return result_settings
 
 
@@ -1027,7 +1028,8 @@ def _final_save(stdscr, config: ConfigData):
 
 
 def _create_settings_from_config(
-    config: ConfigData, last_settings: Settings | None
+    config: ConfigData,
+    last_settings: Settings | None,
 ) -> Settings:
     """Create a Settings object from ConfigData."""
     settings_dict: Dict[str, Any] = {
@@ -1043,5 +1045,4 @@ def _create_settings_from_config(
         "llm_model_name": config.llm_model_name,
     }
 
-    save_settings(settings_dict)
     return Settings(**settings_dict)
