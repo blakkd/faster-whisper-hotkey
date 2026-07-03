@@ -102,7 +102,7 @@
 - **Headless mode:** loads settings from file (default or `--config` path), starts transcriber directly
 - On successful config, creates `MicrophoneTranscriber(settings)` and calls `run()`
 
-### TUI: `ui.py` (1047 lines)
+### TUI: `ui.py`
 
 - **State machine** with 26 configuration steps (`ConfigStep` enum)
 - Steps include: Initial choice, Device selection, Model type selection, then model-specific screens (Whisper/Parakeet/Canary/Voxtral/Cohere/Granite), Hotkey, LLM settings
@@ -125,7 +125,7 @@
 - Exports: whisper models/languages, canary language pairs, cohere languages, granite languages
 - English-only whisper models are tracked to skip language selection
 
-### Model Wrapper: `models.py` (530 lines)
+### Model Wrapper: `models.py`
 
 - **`ModelWrapper`** class handles all 7 model types:
   - **whisper:** Uses `faster_whisper.WhisperModel` directly
@@ -139,7 +139,7 @@
 - Audio chunking for models with 30s limits (voxtral, cohere)
 - Canary tokenizer patch: fixes EOS token ID detection
 
-### Transcriber: `transcriber.py` (308 lines)
+### Transcriber: `transcriber.py`
 
 - **`MicrophoneTranscriber`** class:
   - Audio buffer (10 minutes max at 16kHz)
@@ -207,6 +207,7 @@ From `pyproject.toml`:
 ### Code-level observations:
 
 - **SentencePieceTokenizer EOS patch** in `models.py` (lines 39-57): Workaround for Canary model where `<s>` (token 3) is EOS but not flagged as special token
+- **Cohere audio normalization** in `models.py`: The Cohere ASR model generates tokens with missing spaces (e.g., `Minister.he's`) when input audio amplitude is below [-1, 1]. Normalization is applied automatically in the cohere transcribe path.
 - The UI handles extreme terminal sizes gracefully (tested down to 1x1 character terminals)
 - Settings file path: `~/.config/faster_whisper_hotkey/transcriber_settings.json` (overridable with `--config`)
 

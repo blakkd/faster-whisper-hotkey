@@ -2,6 +2,8 @@ import contextlib
 import logging
 import os
 
+import numpy as np
+
 
 @contextlib.contextmanager
 def suppress_output():
@@ -345,6 +347,12 @@ class ModelWrapper:
                     )
 
             elif mt == "cohere":
+                # Cohere model is sensitive to audio amplitude; normalize to [-1, 1]
+                # to ensure consistent token generation (including proper spacing)
+                max_val = np.abs(audio_data).max()
+                if not np.isclose(max_val, 0):
+                    audio_data = audio_data / max_val
+
                 # Cohere feature extractor has max_duration; chunk longer audio
                 samples_per_second = sample_rate
                 max_samples = self.max_duration * samples_per_second
