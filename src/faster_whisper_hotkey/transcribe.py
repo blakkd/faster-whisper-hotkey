@@ -33,9 +33,9 @@ def _setup_logging():
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
         root_logger.addHandler(handler)
-        root_logger.setLevel(logging.INFO)
+        root_logger.setLevel(logging.DEBUG)
     else:
-
+        # Suppress third-party INFO/DEBUG noise; only our package logs at INFO
         class SimpleFormatter(logging.Formatter):
             def format(self, record):
                 return f"{record.levelname}:{record.getMessage()}"
@@ -43,7 +43,10 @@ def _setup_logging():
         handler = logging.StreamHandler()
         handler.setFormatter(SimpleFormatter())
         root_logger.addHandler(handler)
-        root_logger.setLevel(logging.INFO)
+        root_logger.setLevel(logging.WARNING)
+
+        # Our package logger still shows INFO+
+        logging.getLogger("faster_whisper_hotkey").setLevel(logging.INFO)
 
 
 _setup_logging()

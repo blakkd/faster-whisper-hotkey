@@ -23,6 +23,49 @@ def suppress_output():
         os.close(old_stderr)
 
 
+# Suppress OneLogger/NeMo output at runtime (model loading)
+@contextlib.contextmanager
+def suppress_nemo():
+    """Temporarily disable NeMo's OneLogger (bypasses Python logging)."""
+    if os.environ.get("FASTER_WHISPER_HOTKEY_DEBUG", "0") == "1":
+        yield
+        return
+
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    old_stdout_fd = os.dup(1)
+    old_stderr_fd = os.dup(2)
+
+    try:
+        os.dup2(devnull_fd, 1)
+        os.dup2(devnull_fd, 2)
+
+        # Also patch Python-level logger functions
+        patched: list[tuple] = []
+        try:
+            from nemo.utils import logging as nemo_logging
+        except ImportError:
+            nemo_logging = None
+
+        if nemo_logging is not None:
+            for attr in ("log_info", "log_warn", "log_error", "log_debug",
+                         "info", "warn", "error", "debug"):
+                orig = getattr(nemo_logging, attr, None)
+                if orig is not None and callable(orig):
+                    setattr(nemo_logging, attr, lambda *a, **k: None)
+                    patched.append((nemo_logging, attr, orig))
+
+        yield
+    finally:
+        os.dup2(old_stdout_fd, 1)
+        os.dup2(old_stderr_fd, 2)
+        os.close(devnull_fd)
+        os.close(old_stdout_fd)
+        os.close(old_stderr_fd)
+
+        for obj, attr, orig in patched:
+            setattr(obj, attr, orig)
+
+
 # Suppress OneLogger/NeMo initialization warnings at import time
 with suppress_output():
     import tempfile
@@ -114,17 +157,19 @@ class ModelWrapper:
             )
 
         elif mt == "parakeet":
-            self.model = ASRModel.from_pretrained(
-                model_name=self.settings.model_name,
-                map_location=self.settings.device,
-            ).eval()
-            self._model_ref = self.model
+            with suppress_nemo():
+                self.model = ASRModel.from_pretrained(
+                    model_name=self.settings.model_name,
+                    map_location=self.settings.device,
+                ).eval()
+                self._model_ref = self.model
 
         elif mt == "canary":
-            self.model = EncDecMultiTaskModel.from_pretrained(
-                self.settings.model_name, map_location=self.settings.device
-            ).eval()
-            self._model_ref = self.model
+            with suppress_nemo():
+                self.model = EncDecMultiTaskModel.from_pretrained(
+                    self.settings.model_name, map_location=self.settings.device
+                ).eval()
+                self._model_ref = self.model
 
         elif mt == "voxtral":
             from mistral_common.protocol.transcription.request import (

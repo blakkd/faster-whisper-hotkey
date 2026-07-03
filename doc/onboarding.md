@@ -90,14 +90,14 @@
 ### Entry Point: `__main__.py`
 
 - Parses CLI arguments: `--debug`, `--headless`, `--config`
-- `--debug`: sets `FASTER_WHISPER_HOTKEY_DEBUG` environment variable
+- `--debug`: sets `FASTER_WHISPER_HOTKEY_DEBUG` environment variable; enables verbose logging with full module paths (third-party library output included)
 - `--headless`: skips config UI, uses saved settings to start transcribing immediately
 - `--config <path>`: custom settings file path (default: `~/.config/faster_whisper_hotkey/transcriber_settings.json`)
 - Delegates to `transcribe.main(headless=..., settings_file=...)`
 
 ### Orchestrator: `transcribe.py`
 
-- Sets up logging (debug vs. normal mode)
+- Sets up logging: non-debug mode silences third-party output (root logger at WARNING, package logger at INFO); debug mode shows everything (root logger at DEBUG)
 - **Normal mode:** runs the curses configuration UI via `curses.wrapper(config_screen_main)`
 - **Headless mode:** loads settings from file (default or `--config` path), starts transcriber directly
 - On successful config, creates `MicrophoneTranscriber(settings)` and calls `run()`
@@ -127,6 +127,8 @@
 
 ### Model Wrapper: `models.py`
 
+- `suppress_output()` context manager: redirects stdout/stderr to /dev/null at fd level (used during NeMo imports)
+- `suppress_nemo()` context manager: silences NeMo's OneLogger during parakeet/canary model loading by redirecting fds and patching module-level logging functions; is a no-op when `--debug` is set
 - **`ModelWrapper`** class handles all 7 model types:
   - **whisper:** Uses `faster_whisper.WhisperModel` directly
   - **parakeet:** Uses NeMo's `ASRModel.from_pretrained()`
@@ -206,7 +208,7 @@ From `pyproject.toml`:
 
 ### Code-level observations:
 
-- **SentencePieceTokenizer EOS patch** in `models.py` (lines 39-57): Workaround for Canary model where `<s>` (token 3) is EOS but not flagged as special token
+- **SentencePieceTokenizer EOS patch** in `models.py` (lines 79-102): Workaround for Canary model where `<s>` (token 3) is EOS but not flagged as special token
 - **Cohere audio normalization** in `models.py`: The Cohere ASR model generates tokens with missing spaces (e.g., `Minister.he's`) when input audio amplitude is below [-1, 1]. Normalization is applied automatically in the cohere transcribe path.
 - The UI handles extreme terminal sizes gracefully (tested down to 1x1 character terminals)
 - Settings file path: `~/.config/faster_whisper_hotkey/transcriber_settings.json` (overridable with `--config`)
