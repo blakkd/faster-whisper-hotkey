@@ -46,6 +46,7 @@ class ConfigData:
     compute_type: str = ""
     device: str = ""
     language: str = ""
+    language_src_target: str = ""
     hotkey: str = ""
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
@@ -261,11 +262,16 @@ def config_screen_main(stdscr, settings_file: str | None = None):
         config.model_name = last_settings.model_name
         config.compute_type = last_settings.compute_type
         config.device = last_settings.device
-        config.language = last_settings.language
         config.hotkey = last_settings.hotkey
         config.llm_correction_enabled = last_settings.llm_correction_enabled
         config.llm_endpoint = last_settings.llm_endpoint
         config.llm_model_name = last_settings.llm_model_name
+        # Preserve full src-tgt language pair for target screen preselection
+        if last_settings.language and "-" in last_settings.language:
+            config.language_src_target = last_settings.language
+            config.language = last_settings.language.split("-")[0]
+        else:
+            config.language = last_settings.language
 
     current_step = ConfigStep.INITIAL
 
@@ -643,10 +649,12 @@ def _screen_canary_source_lang(stdscr, config: ConfigData):
     from .config import canary_source_target_languages
 
     initial_idx = 0
-    if config.language and "-" in config.language:
-        src = config.language.split("-")[0]
+    if config.language_src_target and "-" in config.language_src_target:
+        src = config.language_src_target.split("-")[0]
         if src in canary_source_target_languages:
             initial_idx = canary_source_target_languages.index(src)
+    elif config.language and config.language in canary_source_target_languages:
+        initial_idx = canary_source_target_languages.index(config.language)
 
     selected = curses_menu(
         stdscr,
@@ -677,9 +685,8 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
     target_options = sorted(allowed_targets)
 
     initial_idx = 0
-    if config.language and "-" in config.language:
-        final_lang = config.language
-        parts = final_lang.split("-")
+    if config.language_src_target and "-" in config.language_src_target:
+        parts = config.language_src_target.split("-")
         if len(parts) >= 2 and parts[1] in target_options:
             initial_idx = target_options.index(parts[1])
 
@@ -863,8 +870,8 @@ def _screen_granite_source_lang(stdscr, config: ConfigData):
     from .config import granite_source_target_languages
 
     initial_idx = 0
-    if config.language and "-" in config.language:
-        src = config.language.split("-")[0]
+    if config.language_src_target and "-" in config.language_src_target:
+        src = config.language_src_target.split("-")[0]
         if src in granite_source_target_languages:
             initial_idx = granite_source_target_languages.index(src)
     elif config.language and config.language in granite_source_target_languages:
@@ -898,8 +905,8 @@ def _screen_granite_target_lang(stdscr, config: ConfigData):
     target_options = sorted(allowed_targets)
 
     initial_idx = 0
-    if config.language and "-" in config.language:
-        parts = config.language.split("-")
+    if config.language_src_target and "-" in config.language_src_target:
+        parts = config.language_src_target.split("-")
         if len(parts) >= 2 and parts[1] in target_options:
             initial_idx = target_options.index(parts[1])
 
