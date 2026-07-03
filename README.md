@@ -34,7 +34,7 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
   - 14 languages
   - Transcription only
-  - No automatic language recognition
+  - Officially, no automatic language recognition, but it still works pretty great
   - Runs well on CPU
   - Quite smart, deals well with hesitation and stutters
   - **Limitation**: model supports 30s audio max, longer recordings are handled by chunking
