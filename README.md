@@ -16,6 +16,21 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 _To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case._
 
+- **[ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
+  - 6 source languages (en, de, es, fr, ja, pt)
+  - Transcription and translation (bidirectional to/from English, plus English→Italian and English→Mandarin)
+  - No automatic language recognition
+  - Autoregressive with punctuation and capitalization
+  - CPU/GPU
+
+- **[ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
+  - 5 languages
+  - Transcription only
+  - No automatic language recognition
+  - Non-autoregressive — very fast inference
+  - No capitalization in output
+  - CPU/GPU (requires FlashAttention on GPU)
+
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
   - 14 languages
   - Transcription only
@@ -47,21 +62,6 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
   - Many languages
   - Transcription only
-
-- **(NEW) [ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
-  - 6 source languages (en, de, es, fr, ja, pt)
-  - Transcription and translation (bidirectional to/from English, plus English→Italian and English→Mandarin)
-  - No automatic language recognition
-  - Autoregressive with punctuation and capitalization
-  - CPU/GPU
-
-- **(NEW) [ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
-  - 5 languages
-  - Transcription only
-  - No automatic language recognition
-  - Non-autoregressive — very fast inference
-  - No capitalization in output
-  - CPU/GPU (requires FlashAttention on GPU)
 
 **_What I personally use currently?_**
 
