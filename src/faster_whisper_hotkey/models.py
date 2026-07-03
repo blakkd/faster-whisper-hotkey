@@ -57,7 +57,6 @@ with suppress_output():
     SentencePieceTokenizer.eos_id = _patched_eos_id
 
 from transformers import (
-    AutoConfig,
     AutoModel,
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,

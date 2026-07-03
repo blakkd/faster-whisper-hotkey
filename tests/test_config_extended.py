@@ -35,7 +35,7 @@ class TestAcceptedModelsWhisperExtended:
 
         for model in accepted_models_whisper:
             assert isinstance(model, str), f"Model {model} should be a string"
-            assert len(model) > 0, f"Model name should not be empty"
+            assert len(model) > 0, "Model name should not be empty"
 
     def test_no_duplicate_models(self):
         """Verify no duplicate models in the list."""

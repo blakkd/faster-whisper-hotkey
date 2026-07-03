@@ -4,7 +4,6 @@ import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 
 class TestPasteX11:

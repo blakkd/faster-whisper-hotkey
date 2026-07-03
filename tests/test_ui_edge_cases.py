@@ -3,7 +3,6 @@ Edge case tests for ui.py to handle any terminal window size.
 These tests simulate exotic scenarios with extremely narrow or short terminals.
 """
 
-import curses
 from unittest.mock import MagicMock, patch
 
 

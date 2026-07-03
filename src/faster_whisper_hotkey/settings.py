@@ -25,17 +25,19 @@ class Settings:
     llm_model_name: str = ""
 
 
-def save_settings(settings: dict):
+def save_settings(settings: dict, settings_file: str | None = None):
+    filepath = settings_file or SETTINGS_FILE
     try:
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(settings, f)
     except IOError as e:
         logger.error(f"Failed to save settings: {e}")
 
 
-def load_settings() -> Settings | None:
+def load_settings(settings_file: str | None = None) -> Settings | None:
+    filepath = settings_file or SETTINGS_FILE
     try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+        with open(filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
             data.setdefault("hotkey", "pause")
             data.setdefault("model_type", "whisper")

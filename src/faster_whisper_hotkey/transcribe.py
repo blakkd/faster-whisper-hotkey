@@ -16,7 +16,7 @@ warnings.filterwarnings(
     module="pydub.utils",
 )
 
-from .settings import Settings
+from .settings import Settings, load_settings
 from .transcriber import MicrophoneTranscriber
 from .ui import config_screen_main
 
@@ -50,25 +50,35 @@ _setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def main():
-    """Main entry point - runs the unified config screen."""
+def main(headless: bool = False, settings_file: str | None = None):
+    """Main entry point - runs config screen or starts headless with saved settings."""
     settings: Settings | None = None
 
-    while True:
-        try:
-            result = curses.wrapper(config_screen_main)
-
-            # result is either a Settings object (success) or None (aborted/cancelled)
-            if isinstance(result, Settings):
-                settings = result
-                break
-
-            logger.info("Configuration cancelled. Exiting.")
+    if headless:
+        settings = load_settings(settings_file)
+        if settings is None:
+            logger.error(
+                "No saved settings found. Run without --headless to configure first, "
+                "or use --config to specify a settings file."
+            )
             return
+        logger.info(f"Headless mode: loaded settings from {settings_file or 'default path'}")
+    else:
+        while True:
+            try:
+                result = curses.wrapper(config_screen_main)
 
-        except KeyboardInterrupt:
-            logger.info("Program terminated by user")
-            break
+                # result is either a Settings object (success) or None (aborted/cancelled)
+                if isinstance(result, Settings):
+                    settings = result
+                    break
+
+                logger.info("Configuration cancelled. Exiting.")
+                return
+
+            except KeyboardInterrupt:
+                logger.info("Program terminated by user")
+                break
 
     # Launch the transcriber with configured settings
     assert settings is not None

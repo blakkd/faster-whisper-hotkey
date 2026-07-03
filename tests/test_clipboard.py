@@ -1,6 +1,5 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from faster_whisper_hotkey.clipboard import (
     backup_clipboard,

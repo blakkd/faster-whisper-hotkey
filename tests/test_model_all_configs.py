@@ -1,7 +1,7 @@
 """
 Integration test: transcribe a fixed audio sample with every supported model config.
 
-Output: .temp/data/transcription_results.txt, one row per config.
+Output: temp/test_data/transcription_results.txt, one row per config.
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
 Skip CUDA configs automatically when no GPU is available. Override with:
@@ -23,7 +23,7 @@ from faster_whisper_hotkey.settings import Settings
 # Audio fixture
 # ---------------------------------------------------------------------------
 
-AUDIO_PATH = ".temp/data/test.flac"
+AUDIO_PATH = "temp/test_data/test.flac"
 TARGET_SR = 16000
 
 
@@ -191,7 +191,7 @@ class TestTranscribeAllConfigs:
         ]
 
         lines = [
-            f"faster-whisper-hotkey transcription results",
+            "faster-whisper-hotkey transcription results",
             f"audio: {AUDIO_PATH}  ({round(len(audio_data) / sr, 2)}s @ {sr}Hz)",
             f"cuda_available: {_cuda_available()}",
             f"{'=' * 80}",
@@ -223,7 +223,7 @@ class TestTranscribeAllConfigs:
             f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors"
         )
 
-        output_path = ".temp/data/transcription_results.txt"
+        output_path = "temp/test_data/transcription_results.txt"
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 

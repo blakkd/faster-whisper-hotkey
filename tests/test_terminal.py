@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 
 from faster_whisper_hotkey.terminal import (
     TERMINAL_IDENTIFIERS,
