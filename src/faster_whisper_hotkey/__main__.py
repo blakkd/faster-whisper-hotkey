@@ -11,18 +11,18 @@ def main():
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Enable debug logging with full module paths",
+        help="enable debug logging with full module paths",
     )
     parser.add_argument(
         "--headless",
         action="store_true",
-        help="Skip config UI and start transcribing with saved settings",
+        help="skip config UI and start transcribing with saved settings",
     )
     parser.add_argument(
         "--config",
         type=str,
         default=None,
-        help="Path to custom settings file (default: ~/.config/faster_whisper_hotkey/transcriber_settings.json)",
+        help="path to custom settings file (default: ~/.config/faster_whisper_hotkey/transcriber_settings.json)",
     )
     args = parser.parse_args()
 
