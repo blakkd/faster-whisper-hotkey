@@ -4,7 +4,5 @@ src/faster_whisper_hotkey.egg-info/
 src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
-.swival/
 TODO
-tests/test.flac
-transcription_results.txt
+temp/
