@@ -133,12 +133,12 @@
   - **whisper:** Uses `faster_whisper.WhisperModel` directly
   - **parakeet:** Uses NeMo's `ASRModel.from_pretrained()`
   - **canary:** Uses NeMo's `EncDecMultiTaskModel.from_pretrained()` (with SentencePiece EOS patch)
-  - **voxtral:** Uses transformers `VoxtralForConditionalGeneration` with chunking (30s max)
+  - **voxtral:** Uses transformers `VoxtralForConditionalGeneration` with native chunking via `apply_transcription_request()` (up to ~30min, 30s feature chunks processed together)
   - **cohere:** Uses `CohereAsrForConditionalGeneration` with chunking (30s max)
   - **granite (AR):** Uses `AutoModelForSpeechSeq2Seq` with chat template prompts
   - **granite-nar:** Uses `AutoModel` with FlashAttention on GPU, SDPA on CPU
 - Supports multiple precision modes (float16, bfloat16, int8, int4 depending on model)
-- Audio chunking for models with 30s limits (voxtral, cohere)
+- Audio chunking for models with 30s feature extractor limits (voxtral uses native chunking with cross-chunk context; cohere uses manual chunking)
 - Canary tokenizer patch: fixes EOS token ID detection
 
 ### Transcriber: `transcriber.py`
@@ -177,7 +177,7 @@
 | faster-whisper (tiny-large-v3) | whisper     | 99+       | Yes       | Yes (int8) | Yes (float16/int8)      | SYSTRAN engine                    |
 | parakeet-tdt-0.6b-v3           | parakeet    | 25        | Yes       | Yes        | Yes                     | NeMo, fast on CPU                 |
 | canary-1b-v2                   | canary      | 25        | No        | Yes        | Yes                     | Transcribe + translate            |
-| Voxtral-Mini-3B-2507           | voxtral     | 8         | Yes       | No         | Yes (float16/int8/int4) | GPU only, 30s chunks              |
+| Voxtral-Mini-3B-2507           | voxtral     | 8         | Yes       | No         | Yes (float16/int8/int4) | GPU only, native chunking (~30min)|
 | cohere-transcribe-03-2026      | cohere      | 14        | No        | Yes        | Yes                     | 30s chunks                        |
 | granite-speech-4.1-2b          | granite     | 6+        | No        | Yes        | Yes                     | Autoregressive, punctuation       |
 | granite-speech-4.1-2b-nar      | granite-nar | 5         | No        | Yes        | Yes (FlashAttention)    | Non-AR, very fast, no punctuation |
@@ -200,7 +200,7 @@ From `pyproject.toml`:
 
 ### From README limitations:
 
-- **voxtral:** 30s audio chunks required for auto-language-detection; cannot reconcile long audio as single chunk with auto-lang detection; may need upstream patching
+- **voxtral:** uses `apply_transcription_request()` with native chunking — audio split into 30s feature chunks stacked along batch dimension for single forward pass; supports up to ~30min total
 - **cohere:** Same 30s max_duration limit, handled by chunking
 - **granite-nar:** Requires FlashAttention on GPU; no punctuation/capitalization in output; use autoregressive variant if needed
 - **VSCode/VSCodium terminal:** Not supported due to window type detection limitations
@@ -221,7 +221,7 @@ The test suite is very thorough with approximately 15 test files covering:
 
 - **Model initialization** for all 7 model types with edge cases (uppercase, old transformers version, trust_remote_code)
 - **Transcription** for each model type with mocked outputs
-- **Chunking behavior** for voxtral and cohere (exact limit, just over, short tails, individual chunk failures, all chunks failing)
+- **Chunking behavior** for cohere (native chunking); voxtral tests cover native chunking via `apply_transcription_request` (short/long audio, error handling)
 - **Language handling** for whisper (auto/empty), canary (invalid format/empty/None), granite (source/target pairs)
 - **UI edge cases** including extreme terminal sizes (1x1, 3x5, narrow widths 1-50, various heights)
 - **X11/Wayland** window detection workflow

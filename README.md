@@ -57,7 +57,7 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - Automatic language recognition
   - Smart (it even guesses when to put some quotes, etc.) and seems less error-prone for non English native speakers
   - GPU only
-  - **Limitation**: auto language recognition requires <30s chunks
+  - **Limitation**: feature extractor processes audio in 30s chunks internally; supports up to ~30min total via native chunking
 
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
   - Many languages
@@ -142,8 +142,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **voxtral**: because of some limitations, and to keep the automatic language recognition capabilities, we are splitting the audio by chunks of 30s. So even if we can still transcribe long speech, best results are when audio is shorter than this.
-  In the current state it seems impossible to concile long audio as 1 chunk and automatic language detection. We may need to patch upstream https://huggingface.co/docs/transformers/v4.56.1/en/model_doc/voxtral#transformers.VoxtralProcessor.apply_transcription_request
+- **voxtral**: uses native chunking via `apply_transcription_request()` — audio is split into 30s feature chunks and processed together in a single model forward pass with cross-chunk context. Supports up to ~30min of audio. Best results when audio is shorter than 30s.
 
 - **cohere**: the model's feature extractor has a `max_duration` of 30s. Audio longer than 30s is automatically split into chunks for processing. Best results when audio is shorter than this.
 
