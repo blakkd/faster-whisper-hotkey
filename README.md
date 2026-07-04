@@ -47,7 +47,7 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
 - **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
   - 25 languages
   - Transcription only
-  - Automatic language recognition
+  - Officially, no automatic language recognition, but it still works pretty great
   - Crazy fast even on CPU
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
@@ -94,7 +94,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
 2. Install the package and dependencies:
 
-   **Note:** Currently tested with Python 3.13.12.
+   **Note:** Currently tested with Python 3.11.14.
 
 - as a pip package:
 

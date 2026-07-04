@@ -9,7 +9,7 @@ description = "Push-to-talk transcription"
 readme = "README.md"
 authors = [{name = "blakkd"}]
 license-files = ["LICENSE.txt"]
-requires-python = ">=3.10"
+requires-python = "==3.11.14"
 
 classifiers = [
     "Programming Language :: Python :: 3",
