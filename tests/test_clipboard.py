@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-
 from faster_whisper_hotkey.clipboard import (
     backup_clipboard,
     restore_clipboard,

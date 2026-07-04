@@ -14,7 +14,7 @@ def get_resource_path(filename: str) -> str:
 
 try:
     config_path = get_resource_path("available_languages.json")
-    with open(config_path, "r", encoding="utf-8") as f:
+    with open(config_path, encoding="utf-8") as f:
         _CONFIG = json.load(f)
 except (FileNotFoundError, json.JSONDecodeError) as e:
     logger.error(f"Configuration error while loading available_languages.json: {e}")

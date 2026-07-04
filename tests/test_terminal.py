@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-
 from faster_whisper_hotkey.terminal import (
     TERMINAL_IDENTIFIERS,
     get_active_window_class_x11,
@@ -83,7 +82,7 @@ class TestGetActiveWindowClassX11:
 class TestGetFocusedContainerWayland:
     @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
     def test_get_focused_container_success(self, mock_check_output):
-        mock_tree = {
+        _mock_tree = {
             "type": "root",
             "nodes": [
                 {
@@ -99,7 +98,11 @@ class TestGetFocusedContainerWayland:
                 }
             ],
         }
-        mock_check_output.return_value = b'{"type": "root", "nodes": [{"type": "workspace", "nodes": [{"type": "window", "app_id": "kitty", "name": "shell", "focused": true}] }]}'
+        mock_check_output.return_value = (
+            b'{"type": "root", "nodes": [{"type": "workspace", "nodes": '
+            b'[{"type": "window", "app_id": "kitty", "name": "shell", '
+            b'"focused": true}] }]}'
+        )
 
         result = get_focused_container_wayland()
 
@@ -108,7 +111,7 @@ class TestGetFocusedContainerWayland:
 
     @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
     def test_get_focused_container_nested(self, mock_check_output):
-        mock_tree = {
+        _mock_tree = {
             "type": "root",
             "nodes": [
                 {
@@ -191,11 +194,14 @@ class TestTerminalDetectionWorkflow:
 
     @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
     def test_wayland_terminal_detection_workflow(self, mock_check_output):
-        mock_tree = {
+        _mock_tree = {
             "type": "root",
             "nodes": [{"type": "window", "app_id": "kitty", "focused": True}],
         }
-        mock_check_output.return_value = b'{"type": "root", "nodes": [{"type": "window", "app_id": "kitty", "focused": true}]}'
+        mock_check_output.return_value = (
+            b'{"type": "root", "nodes": [{"type": "window", '
+            b'"app_id": "kitty", "focused": true}]}'
+        )
 
         container = get_focused_container_wayland()
         is_terminal = is_terminal_window_wayland(container)

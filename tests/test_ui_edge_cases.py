@@ -177,7 +177,7 @@ class TestGetTextInputShortHeight:
                 result = get_text_input(mock_stdscr, "P:", "d")
                 assert result == "d"
             except Exception as e:
-                assert False, f"Failed for height={h}: {e}"
+                raise AssertionError(f"Failed for height={h}: {e}") from e
 
 
 class TestGetTextInputCombinedEdgeCases:
@@ -380,7 +380,7 @@ class TestVariousWidthScenarios:
                 result = get_text_input(mock_stdscr, prompt, default)
                 assert result == default
             except Exception as e:
-                assert False, f"Failed at width={width}: {type(e).__name__}: {e}"
+                raise AssertionError(f"Failed at width={width}: {type(e).__name__}: {e}") from e
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_various_common_term_widths(self, mock_curses):

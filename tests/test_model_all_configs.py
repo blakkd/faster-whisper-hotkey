@@ -183,7 +183,7 @@ def _format_results(model_label, results, skipped, errors, audio_data, sr):
         lines.append(f"model: {model_type}/{model_name}")
         lines.append(f"device: {device}  compute_type: {compute_type}")
         lines.append(f"load_time: {load_time}s  transcribe_time: {transcribe_time}s  status: {status}")
-        lines.append(f"transcription:")
+        lines.append("transcription:")
         for line in transcription.split("\n"):
             lines.append(f"  {line}")
         lines.append("")

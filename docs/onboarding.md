@@ -70,19 +70,19 @@ uv run pytest
 
 ### Module Overview
 
-| File               | Lines | Responsibility                                                             |
-| ------------------ | ----- | -------------------------------------------------------------------------- |
-| `__main__.py`      | 39    | CLI entry point; `--debug`, `--headless`, `--config` flags                 |
-| `transcribe.py`    | 94    | Orchestrator: logging, curses TUI → transcriber launch                     |
-| `settings.py`      | 53    | `Settings` dataclass + JSON save/load (`~/.config/faster_whisper_hotkey/`) |
-| `models.py`        | 458   | `ModelWrapper` — loads/runs 7 model types with output suppression          |
-| `transcriber.py`   | 309   | `MicrophoneTranscriber` — audio capture, hotkey detection, paste           |
-| `ui.py`            | 1069  | Curses TUI — 25-step config flow (`ConfigStep` enum)                       |
-| `clipboard.py`     | 45    | pyperclip wrapper: backup, set, restore                                    |
-| `paste.py`         | 70    | X11/Wayland detection; sends correct paste shortcut                        |
-| `terminal.py`      | 69    | Window detection via xdotool/xprop (X11) or swaymsg (Wayland)              |
-| `llm_corrector.py` | 85    | `LLMCorrector` — sends transcription to LLM API for cleanup                |
-| `config.py`        | 33    | Loads `available_languages.json`; exposes language/model lists             |
+| File               | Responsibility                                                             |
+| ------------------ | -------------------------------------------------------------------------- |
+| `__main__.py`      | CLI entry point; `--debug`, `--headless`, `--config` flags                 |
+| `transcribe.py`    | Orchestrator: logging, curses TUI → transcriber launch                     |
+| `settings.py`      | `Settings` dataclass + JSON save/load (`~/.config/faster_whisper_hotkey/`) |
+| `models.py`        | `ModelWrapper` — loads/runs 7 model types with output suppression          |
+| `transcriber.py`   | `MicrophoneTranscriber` — audio capture, hotkey detection, paste           |
+| `ui.py`            | Curses TUI — 25-step config flow (`ConfigStep` enum)                       |
+| `clipboard.py`     | pyperclip wrapper: backup, set, restore                                    |
+| `paste.py`         | X11/Wayland detection; sends correct paste shortcut                        |
+| `terminal.py`      | Window detection via xdotool/xprop (X11) or swaymsg (Wayland)              |
+| `llm_corrector.py` | `LLMCorrector` — sends transcription to LLM API for cleanup                |
+| `config.py`        | Loads `available_languages.json`; exposes language/model lists             |
 
 ### Supported Models (7)
 
@@ -160,9 +160,9 @@ Pytest config is in `pytest.ini`: DeprecationWarning, UserWarning, and FutureWar
 ### Style
 
 - Follows standard Python conventions (PEP 8)
-- Ruff is configured in `pyproject.toml` with only `E402` (module level import not at top of file) ignored — this is necessary because `models.py` suppresses NeMo output during imports using `with suppress_output():` blocks
+- Ruff is configured in `pyproject.toml` with no ignored rules
 - No explicit formatter is enforced; code uses 4-space indentation
-- Line length appears to be ~100-120 characters (not strictly 88)
+- Line length is 120 characters (configured in `pyproject.toml`)
 - Docstrings use triple double quotes (`"""`)
 
 ### Naming
@@ -183,7 +183,7 @@ Pytest config is in `pytest.ini`: DeprecationWarning, UserWarning, and FutureWar
 
 ### Error Handling
 
-- Heavy dependencies (torch, nemo, transformers) are imported inside `with suppress_output():` context managers to silence their noisy output
+- Heavy dependencies (torch, nemo) are imported inside `with suppress_output():` context managers to silence their noisy output
 - Transcription errors return `""` (empty string) rather than raising — the transcriber logs the error and continues
 - LLM correction failures silently fall back to original text
 - Clipboard failures fall back to character-by-character typing via pynput

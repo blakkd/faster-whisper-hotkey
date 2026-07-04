@@ -1,7 +1,9 @@
 """Tests for LLMCorrector class in llm_corrector.py."""
 
-import requests
 from unittest.mock import MagicMock, patch
+
+import requests
+
 from faster_whisper_hotkey.llm_corrector import LLMCorrector
 
 

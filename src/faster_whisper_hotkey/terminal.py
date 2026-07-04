@@ -2,7 +2,6 @@ import json
 import logging
 import re
 import subprocess
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +19,7 @@ TERMINAL_IDENTIFIERS = [
 ]
 
 
-def get_active_window_class_x11() -> List[str]:
+def get_active_window_class_x11() -> list[str]:
     try:
         raw_win_id = subprocess.check_output(["xdotool", "getactivewindow"])
         win_id = raw_win_id.decode().strip()
@@ -31,14 +30,11 @@ def get_active_window_class_x11() -> List[str]:
         return []
 
 
-def is_terminal_window_x11(classes: List[str]) -> bool:
-    for cls in classes:
-        if any(t in cls.lower() for t in TERMINAL_IDENTIFIERS):
-            return True
-    return False
+def is_terminal_window_x11(classes: list[str]) -> bool:
+    return any(any(t in cls.lower() for t in TERMINAL_IDENTIFIERS) for cls in classes)
 
 
-def get_focused_container_wayland() -> Optional[dict]:
+def get_focused_container_wayland() -> dict | None:
     try:
         raw = subprocess.check_output(["swaymsg", "-t", "get_tree"])
         tree = json.loads(raw.decode())
@@ -62,7 +58,7 @@ def get_focused_container_wayland() -> Optional[dict]:
     return find_focused(tree)
 
 
-def is_terminal_window_wayland(container: Optional[dict]) -> bool:
+def is_terminal_window_wayland(container: dict | None) -> bool:
     if not container:
         return False
     name = (container.get("app_id", "") + container.get("name", "")).lower()

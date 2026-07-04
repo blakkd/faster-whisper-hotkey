@@ -276,7 +276,7 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        result = wrapper.transcribe(self.sample_audio, 16000, language="auto")
+        wrapper.transcribe(self.sample_audio, 16000, language="auto")
 
         # language should be None when set to "auto"
         call_kwargs = mock_model.transcribe.call_args[1]
@@ -349,7 +349,7 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        result = wrapper.transcribe(self.sample_audio, 16000)
+        wrapper.transcribe(self.sample_audio, 16000)
 
         call_kwargs = mock_model.transcribe.call_args[1]
         assert call_kwargs["source_lang"] == "en"

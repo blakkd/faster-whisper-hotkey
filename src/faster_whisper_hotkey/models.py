@@ -2,7 +2,14 @@ import contextlib
 import logging
 import os
 
-import numpy as np
+from transformers import (
+    AutoModel,
+    AutoModelForSpeechSeq2Seq,
+    AutoProcessor,
+    BitsAndBytesConfig,
+    CohereAsrForConditionalGeneration,
+    VoxtralForConditionalGeneration,
+)
 
 
 @contextlib.contextmanager
@@ -73,7 +80,6 @@ with suppress_output():
     import soundfile as sf
     import torch
     from faster_whisper import WhisperModel
-
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 
     # Patch SentencePieceTokenizer.eos_id for canary models.
@@ -101,20 +107,9 @@ with suppress_output():
 
     SentencePieceTokenizer.eos_id = _patched_eos_id
 
-from transformers import (
-    AutoModel,
-    AutoModelForSpeechSeq2Seq,
-    AutoProcessor,
-    BitsAndBytesConfig,
-    CohereAsrForConditionalGeneration,
-    VoxtralForConditionalGeneration,
-)
-
-
 logger = logging.getLogger(__name__)
 
 # Optional types import (already available in Python 3.9+)
-from typing import Optional
 
 
 def _check_transformers_version():
@@ -272,7 +267,7 @@ class ModelWrapper:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
     def transcribe(
-        self, audio_data, sample_rate: int = 16000, language: Optional[str] = None
+        self, audio_data, sample_rate: int = 16000, language: str | None = None
     ) -> str:
         """
         Transcribe a numpy array of audio samples and return transcribed text.
@@ -344,7 +339,7 @@ class ModelWrapper:
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
                 # Full language names expected by granite-speech-4.1-2b prompts
-                _GRANITE_LANG_NAMES: dict[str, str] = {
+                granite_lang_names: dict[str, str] = {
                     "en": "English",
                     "fr": "French",
                     "de": "German",
@@ -356,7 +351,7 @@ class ModelWrapper:
                 lang = language or "en-en"
                 lang_parts = lang.split("-") if lang else ["en", "en"]
                 if len(lang_parts) == 2 and lang_parts[0] != lang_parts[1]:
-                    target_name = _GRANITE_LANG_NAMES.get(
+                    target_name = granite_lang_names.get(
                         lang_parts[1], lang_parts[1]
                     )
                     action = f"translate the speech to {target_name}"
@@ -405,7 +400,7 @@ class ModelWrapper:
             return ""
 
     def _transcribe_cohere(
-        self, audio_data, sample_rate: int, language: Optional[str]
+        self, audio_data, sample_rate: int, language: str | None
     ) -> str:
         """Transcribe audio for cohere-transcribe-03-2026 with native chunking."""
         lang = language or "en"
@@ -426,7 +421,7 @@ class ModelWrapper:
         return text.strip() if text else ""
 
     def _transcribe_voxtral(
-        self, audio_data, sample_rate: int, language: Optional[str]
+        self, audio_data, sample_rate: int, language: str | None
     ) -> str:
         """Transcribe audio using Voxtral with native chunking via apply_transcription_request."""
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
@@ -452,7 +447,5 @@ class ModelWrapper:
             decoded = self.processor.batch_decode(output, skip_special_tokens=True)[0]
             return decoded
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 os.unlink(audio_path)
-            except Exception:
-                pass

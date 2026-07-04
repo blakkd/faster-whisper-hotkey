@@ -10,12 +10,12 @@ from unittest.mock import MagicMock, patch
 class TestMainFlow:
     """Test main() orchestrates config -> transcriber correctly."""
 
-    @patch("faster_whisper_hotkey.transcribe.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
     @patch("faster_whisper_hotkey.transcribe.curses.wrapper")
     def test_successful_config_starts_transcriber(self, mock_wrapper, mock_transcriber_cls):
         """When config returns Settings, transcriber should be created and run."""
-        from faster_whisper_hotkey.transcribe import main
         from faster_whisper_hotkey.settings import Settings
+        from faster_whisper_hotkey.transcribe import main
 
         expected_settings = Settings(
             device_name="test_dev",
@@ -66,8 +66,8 @@ class TestSetupLogging:
 
     def test_debug_mode_includes_module_names(self):
         """In debug mode, formatter includes module path."""
-        import os
         import logging
+        import os
 
         os.environ["FASTER_WHISPER_HOTKEY_DEBUG"] = "1"
 
@@ -87,8 +87,8 @@ class TestSetupLogging:
 
     def test_normal_mode_omits_module_names(self):
         """In normal mode, formatter omits module path."""
-        import os
         import logging
+        import os
 
         os.environ.pop("FASTER_WHISPER_HOTKEY_DEBUG", None)
 

@@ -108,10 +108,11 @@ class TestConfigErrors:
     @patch("faster_whisper_hotkey.config.open", side_effect=FileNotFoundError)
     def test_missing_config_file_raises_error(self, mock_open):
         import importlib
+
         import faster_whisper_hotkey.config as config_module
 
         with pytest.raises(FileNotFoundError):
-            setattr(config_module, "_CONFIG", None)
+            config_module._CONFIG = None
             importlib.reload(config_module)
 
     @patch(
@@ -123,8 +124,9 @@ class TestConfigErrors:
         mock_file.__enter__.return_value = mock_file
         with patch("faster_whisper_hotkey.config.open", return_value=mock_file):
             import importlib
+
             import faster_whisper_hotkey.config as config_module
 
             with pytest.raises(json.JSONDecodeError):
-                setattr(config_module, "_CONFIG", None)
+                config_module._CONFIG = None
                 importlib.reload(config_module)

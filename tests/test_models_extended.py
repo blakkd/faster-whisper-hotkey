@@ -77,9 +77,9 @@ class TestGraniteInitEdgeCases:
         self, mock_auto_model, mock_processor
     ):
         """Test that Granite raises ImportError for old transformers version."""
-        from faster_whisper_hotkey.models import ModelWrapper
-
         import transformers as tf_lib
+
+        from faster_whisper_hotkey.models import ModelWrapper
 
         original_version = tf_lib.__version__
         tf_lib.__version__ = "4.0.0"

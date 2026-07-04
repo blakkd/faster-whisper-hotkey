@@ -5,7 +5,6 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 
-
 class TestPasteX11:
     """Test X11 paste functionality."""
 

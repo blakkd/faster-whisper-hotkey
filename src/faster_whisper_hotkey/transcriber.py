@@ -1,8 +1,8 @@
+import contextlib
 import logging
 import signal
 import threading
 import time
-from typing import List
 
 import numpy as np
 import pulsectl
@@ -49,7 +49,7 @@ class MicrophoneTranscriber:
         self.hotkey_key = self._parse_hotkey(self.settings.hotkey)
         self.is_transcribing = False
         self.last_transcription_end_time = 0.0
-        self.transcription_queue: List[np.ndarray] = []
+        self.transcription_queue: list[np.ndarray] = []
         self.timer = None
         self.recording_start_time = 0.0
 
@@ -270,10 +270,8 @@ class MicrophoneTranscriber:
     # Main loop
     # ------------------------------------------------------------------
     def run(self):
-        try:
+        with contextlib.suppress(Exception):
             self.set_default_audio_source()
-        except Exception:
-            pass
 
         # Define wrapper functions to satisfy type checker
         def _on_press(key):

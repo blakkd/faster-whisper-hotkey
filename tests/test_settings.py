@@ -60,12 +60,12 @@ class TestSaveSettings:
             save_settings(settings_dict)
 
             assert os.path.exists(test_file)
-            with open(test_file, "r") as f:
+            with open(test_file) as f:
                 loaded = json.load(f)
             assert loaded == settings_dict
 
     @patch(
-        "faster_whisper_hotkey.settings.open", side_effect=IOError("Permission denied")
+        "faster_whisper_hotkey.settings.open", side_effect=OSError("Permission denied")
     )
     def test_save_settings_failure(self, mock_open):
         settings_dict = {"device_name": "test"}
@@ -76,7 +76,7 @@ class TestLoadSettings:
     @pytest.fixture
     def temp_settings_file(self, tmp_path):
         test_file = str(tmp_path / "test_settings.json")
-        original_file = SETTINGS_FILE
+        _ = SETTINGS_FILE
 
         test_data = {
             "device_name": "test_device",

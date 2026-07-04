@@ -60,5 +60,5 @@ package-dir = {"" = "src"}
 faster_whisper_hotkey = ["*.json"]
 
 # RUFF
-[tool.ruff.lint]
-ignore = ["E402"]
+[tool.ruff]
+line-length = 120

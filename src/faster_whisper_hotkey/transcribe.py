@@ -16,9 +16,6 @@ warnings.filterwarnings(
     module="pydub.utils",
 )
 
-from .settings import Settings, load_settings
-from .transcriber import MicrophoneTranscriber
-from .ui import config_screen_main
 
 
 def _setup_logging():
@@ -55,6 +52,10 @@ logger = logging.getLogger(__name__)
 
 def main(headless: bool = False, settings_file: str | None = None):
     """Main entry point - runs config screen or starts headless with saved settings."""
+    from .settings import Settings, load_settings
+    from .transcriber import MicrophoneTranscriber
+    from .ui import config_screen_main
+
     settings: Settings | None = None
 
     if headless:

@@ -195,8 +195,9 @@ class TestConfigLoadingEdgeCases:
 
     def test_config_load_raises_on_missing_file(self):
         """Verify proper error handling when config file is missing."""
-        from unittest.mock import patch
         import importlib
+        from unittest.mock import patch
+
         import faster_whisper_hotkey.config as config_module
 
         with patch("faster_whisper_hotkey.config.open", side_effect=FileNotFoundError):
@@ -214,7 +215,7 @@ class TestConfigLoadingEdgeCases:
         import importlib
 
         # Create a fresh module namespace
-        spec = importlib.util.spec_from_file_location(
+        _ = importlib.util.spec_from_file_location(
             "config_test", "src/faster_whisper_hotkey/config.py"
         )
         # Just verify it doesn't crash with empty dict (will use empty list defaults)
@@ -223,11 +224,11 @@ class TestConfigLoadingEdgeCases:
         """Test that partial config loads correctly with defaults for missing keys."""
         # The config module already loaded at import time, verify the structure
         from faster_whisper_hotkey.config import (
-            accepted_models_whisper,
             accepted_languages_whisper,
-            english_only_models_whisper,
-            canary_source_target_languages,
+            accepted_models_whisper,
             canary_allowed_language_pairs,
+            canary_source_target_languages,
+            english_only_models_whisper,
         )
 
         # All should be lists or sets even if loaded from partial config

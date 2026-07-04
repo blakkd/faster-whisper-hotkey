@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any
 
 import requests
 
@@ -31,7 +31,8 @@ class LLMCorrector:
             "into grammatically correct, fluid sentences while preserving the original meaning.\n"
             "2. Holistic Normalization: Convert all spelled-out numbers, symbols, and technical "
             "notations into their standard written forms. This includes, but is not limited to:\n"
-            "   - Quantitative/Financial: 'five hundred seventy one dot nineteen' → '571.19', 'five percent' → '5%', 'twelve dollars and fifty cents' → '$12.50'.\n"
+            "   - Quantitative/Financial: 'five hundred seventy one dot nineteen' → '571.19', "
+            "'five percent' → '5%', 'twelve dollars and fifty cents' → '$12.50'.\n"
             "   - Temporal: 'October fifth twenty twenty four' → 'October 5, 2024', 'two thirty PM' → '2:30 PM'.\n"
             "   - Technical/Scientific: 'H two O' → 'H2O', 'carbon dioxide' → 'CO2', 'ten kilograms' → '10kg'.\n"
             "   - Symbols: 'press at blue sky web dot x y z' → 'press@blueskyweb.xyz', 'hash tag' → '#'.\n"
@@ -45,7 +46,7 @@ class LLMCorrector:
             f"Transcription:\n{text}"
         )
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "model": self.model_name,
             "messages": [
                 {"role": "user", "content": user_prompt},

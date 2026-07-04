@@ -1,10 +1,11 @@
 import curses
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Any
+
+from pulsectl import Pulse
 
 from .settings import Settings, load_settings, save_settings
-from pulsectl import Pulse
 
 
 class ConfigStep(Enum):
@@ -54,7 +55,7 @@ class ConfigData:
 
 
 def curses_menu(
-    stdscr, title: str, options: List[str], message: str = "", initial_idx: int = 0
+    stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0
 ):
     """
     Display a scrollable list of `options` in a curses window.
@@ -156,7 +157,7 @@ def curses_menu(
         draw_menu()
 
 
-def get_text_input(stdscr, prompt: str, default: str = "") -> Optional[str]:
+def get_text_input(stdscr, prompt: str, default: str = "") -> str | None:
     """
     Prompt the user for text input using curses.
     Returns the entered text, or None if ESC is pressed.
@@ -422,7 +423,7 @@ def _screen_device(stdscr, config: ConfigData):
         # Find current selection index
         initial_idx = 0
         if config.device_name:
-            for i, (desc, name) in enumerate(source_map.items()):
+            for i, (_desc, name) in enumerate(source_map.items()):
                 if name == config.device_name:
                     initial_idx = i
                     break
@@ -557,10 +558,7 @@ def _screen_whisper_precision(stdscr, config: ConfigData):
     """Select precision for Whisper."""
     from .config import english_only_models_whisper
 
-    if config.device == "cpu":
-        options = ["int8"]
-    else:
-        options = ["float16", "int8"]
+    options = ["int8"] if config.device == "cpu" else ["float16", "int8"]
 
     initial_idx = 0
     if config.compute_type == "int8" and config.device != "cpu":
@@ -1053,7 +1051,7 @@ def _create_settings_from_config(
     last_settings: Settings | None,
 ) -> Settings:
     """Create a Settings object from ConfigData."""
-    settings_dict: Dict[str, Any] = {
+    settings_dict: dict[str, Any] = {
         "device_name": config.device_name or "",
         "model_type": config.model_type or "",
         "model_name": config.model_name,

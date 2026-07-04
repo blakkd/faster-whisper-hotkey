@@ -1,6 +1,5 @@
 """Pytest configuration for integration tests."""
 
-import pytest
 
 
 def pytest_addoption(parser):

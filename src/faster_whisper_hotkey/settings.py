@@ -30,14 +30,14 @@ def save_settings(settings: dict, settings_file: str | None = None):
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(settings, f)
-    except IOError as e:
+    except OSError as e:
         logger.error(f"Failed to save settings: {e}")
 
 
 def load_settings(settings_file: str | None = None) -> Settings | None:
     filepath = settings_file or SETTINGS_FILE
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
             data.setdefault("hotkey", "pause")
             data.setdefault("model_type", "whisper")

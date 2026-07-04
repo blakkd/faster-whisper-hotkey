@@ -8,12 +8,12 @@ from unittest.mock import MagicMock, patch
 class TestHeadlessMode:
     """Test headless mode in transcribe.main()."""
 
-    @patch("faster_whisper_hotkey.transcribe.MicrophoneTranscriber")
-    @patch("faster_whisper_hotkey.transcribe.load_settings")
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.settings.load_settings")
     def test_headless_with_saved_settings(self, mock_load, mock_transcriber_cls):
         """Headless mode with valid saved settings starts transcriber."""
-        from faster_whisper_hotkey.transcribe import main
         from faster_whisper_hotkey.settings import Settings
+        from faster_whisper_hotkey.transcribe import main
 
         expected_settings = Settings(
             device_name="test_dev",
@@ -34,8 +34,8 @@ class TestHeadlessMode:
         mock_transcriber_cls.assert_called_once_with(expected_settings)
         mock_transcriber.run.assert_called_once()
 
-    @patch("faster_whisper_hotkey.transcribe.MicrophoneTranscriber")
-    @patch("faster_whisper_hotkey.transcribe.load_settings")
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.settings.load_settings")
     def test_headless_without_saved_settings(self, mock_load, mock_transcriber_cls):
         """Headless mode without saved settings returns without error."""
         from faster_whisper_hotkey.transcribe import main
@@ -48,12 +48,12 @@ class TestHeadlessMode:
         mock_load.assert_called_once_with(None)
         mock_transcriber_cls.assert_not_called()
 
-    @patch("faster_whisper_hotkey.transcribe.MicrophoneTranscriber")
-    @patch("faster_whisper_hotkey.transcribe.load_settings")
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.settings.load_settings")
     def test_headless_with_custom_config_path(self, mock_load, mock_transcriber_cls):
         """Headless mode passes custom config path to load_settings."""
-        from faster_whisper_hotkey.transcribe import main
         from faster_whisper_hotkey.settings import Settings
+        from faster_whisper_hotkey.transcribe import main
 
         expected_settings = Settings(
             device_name="test_dev",
@@ -74,12 +74,12 @@ class TestHeadlessMode:
         mock_transcriber_cls.assert_called_once_with(expected_settings)
         mock_transcriber.run.assert_called_once()
 
-    @patch("faster_whisper_hotkey.transcribe.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
     @patch("faster_whisper_hotkey.transcribe.curses.wrapper")
     def test_normal_mode_ignores_headless_false(self, mock_wrapper, mock_transcriber_cls):
         """Non-headless mode still runs curses UI even with settings_file."""
-        from faster_whisper_hotkey.transcribe import main
         from faster_whisper_hotkey.settings import Settings
+        from faster_whisper_hotkey.transcribe import main
 
         expected_settings = Settings(
             device_name="test_dev",
@@ -143,7 +143,7 @@ class TestConfigOption:
         save_settings(settings_dict, settings_file=test_file)
 
         assert os.path.exists(test_file)
-        with open(test_file, "r") as f:
+        with open(test_file) as f:
             loaded = json.load(f)
         assert loaded == settings_dict
 
@@ -190,18 +190,16 @@ class TestCLIParsing:
         """--headless flag is parsed correctly."""
         from faster_whisper_hotkey.__main__ import main as cli_main
 
-        with patch("sys.argv", ["faster-whisper-hotkey", "--headless"]):
-            with patch(
-                "faster_whisper_hotkey.transcribe.main"
-            ) as mock_transcribe_main:
-                with patch(
-                    "faster_whisper_hotkey.transcribe.load_settings", return_value=None
-                ):
-                    cli_main()
+        with patch("sys.argv", ["faster-whisper-hotkey", "--headless"]), patch(
+            "faster_whisper_hotkey.transcribe.main"
+        ) as mock_transcribe_main, patch(
+            "faster_whisper_hotkey.settings.load_settings", return_value=None
+        ):
+            cli_main()
 
-                    mock_transcribe_main.assert_called_once_with(
-                        headless=True, settings_file=None
-                    )
+            mock_transcribe_main.assert_called_once_with(
+                headless=True, settings_file=None
+            )
 
     def test_config_flag_parsed(self):
         """--config flag is parsed and passed correctly."""
@@ -211,15 +209,14 @@ class TestCLIParsing:
         with patch(
             "sys.argv",
             ["faster-whisper-hotkey", "--config", custom_path],
-        ):
-            with patch(
-                "faster_whisper_hotkey.transcribe.main"
-            ) as mock_transcribe_main:
-                cli_main()
+        ), patch(
+            "faster_whisper_hotkey.transcribe.main"
+        ) as mock_transcribe_main:
+            cli_main()
 
-                mock_transcribe_main.assert_called_once_with(
-                    headless=False, settings_file=custom_path
-                )
+            mock_transcribe_main.assert_called_once_with(
+                headless=False, settings_file=custom_path
+            )
 
     def test_headless_and_config_combined(self):
         """--headless and --config work together."""
@@ -229,15 +226,14 @@ class TestCLIParsing:
         with patch(
             "sys.argv",
             ["faster-whisper-hotkey", "--headless", "--config", custom_path],
-        ):
-            with patch(
-                "faster_whisper_hotkey.transcribe.main"
-            ) as mock_transcribe_main:
-                cli_main()
+        ), patch(
+            "faster_whisper_hotkey.transcribe.main"
+        ) as mock_transcribe_main:
+            cli_main()
 
-                mock_transcribe_main.assert_called_once_with(
-                    headless=True, settings_file=custom_path
-                )
+            mock_transcribe_main.assert_called_once_with(
+                headless=True, settings_file=custom_path
+            )
 
     def test_headless_config_with_debug(self):
         """--debug, --headless, and --config all work together."""
@@ -253,15 +249,14 @@ class TestCLIParsing:
                 "--config",
                 custom_path,
             ],
-        ):
-            with patch(
-                "faster_whisper_hotkey.transcribe.main"
-            ) as mock_transcribe_main:
-                cli_main()
+        ), patch(
+            "faster_whisper_hotkey.transcribe.main"
+        ) as mock_transcribe_main:
+            cli_main()
 
-                assert os.environ.get("FASTER_WHISPER_HOTKEY_DEBUG") == "1"
-                mock_transcribe_main.assert_called_once_with(
-                    headless=True, settings_file=custom_path
-                )
+            assert os.environ.get("FASTER_WHISPER_HOTKEY_DEBUG") == "1"
+            mock_transcribe_main.assert_called_once_with(
+                headless=True, settings_file=custom_path
+            )
 
         os.environ.pop("FASTER_WHISPER_HOTKEY_DEBUG", None)
