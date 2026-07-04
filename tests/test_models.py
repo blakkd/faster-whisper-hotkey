@@ -358,15 +358,12 @@ class TestModelWrapperTranscribe:
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
     def test_transcribe_voxtral_short_audio(self, mock_voxtral, mock_processor):
-        """Test voxtral transcription with short audio (no chunking needed)."""
+        """Test voxtral transcription with short audio."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
-        mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
@@ -380,29 +377,24 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        # Mock the internal helper method directly for simplicity
         with patch.object(
-            wrapper, "_transcribe_single_chunk_voxtral", return_value="voxtral output"
+            wrapper, "_transcribe_voxtral", return_value="voxtral output"
         ):
             short_audio = np.random.randn(48000).astype(np.float32)  # 3 seconds
             result = wrapper.transcribe(short_audio, 16000)
 
             assert result == "voxtral output"
-            # Verify we called the helper once (no chunking)
-            wrapper._transcribe_single_chunk_voxtral.assert_called_once()
+            wrapper._transcribe_voxtral.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_transcribe_voxtral_chunking(self, mock_voxtral, mock_processor):
-        """Test voxtral transcription with long audio requiring chunking."""
+    def test_transcribe_voxtral_long_audio(self, mock_voxtral, mock_processor):
+        """Test voxtral transcription with long audio (native chunking)."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
-        mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
@@ -416,19 +408,18 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        # Mock the internal helper method with side effects for multiple chunks
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_voxtral",
-            side_effect=["first chunk text", "second chunk text"],
+            "_transcribe_voxtral",
+            return_value="long audio transcription result",
         ):
-            long_audio = np.random.randn(500000).astype(np.float32)  # ~31 seconds
+            long_audio = np.random.randn(1000000).astype(np.float32)  # ~62 seconds
 
             result = wrapper.transcribe(long_audio, 16000)
 
-            assert "chunk" in result.lower() or len(result) > 0
-            # Verify we called the helper twice (chunking happened)
-            assert wrapper._transcribe_single_chunk_voxtral.call_count == 2
+            assert result == "long audio transcription result"
+            # Single call - native chunking handles long audio internally
+            wrapper._transcribe_voxtral.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")

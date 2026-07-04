@@ -156,13 +156,13 @@ class TestModelWrapperInitEdgeCases:
         assert call_kwargs["map_location"] == "cuda"
 
 
-class TestVoxtralChunkingEdgeCases:
-    """Test Voxtral chunking behavior with various edge cases."""
+class TestVoxtralNativeChunking:
+    """Test Voxtral with native chunking via apply_transcription_request."""
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_voxtral_exactly_at_limit(self, mock_voxtral, mock_processor):
-        """Test audio exactly at 30-second limit (480,000 samples)."""
+    def test_voxtral_short_audio(self, mock_voxtral, mock_processor):
+        """Test short audio transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -170,10 +170,7 @@ class TestVoxtralChunkingEdgeCases:
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
         )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
         settings = MockSettings(
@@ -186,19 +183,17 @@ class TestVoxtralChunkingEdgeCases:
         wrapper = ModelWrapper(settings)
 
         with patch.object(
-            wrapper, "_transcribe_single_chunk_voxtral", return_value="exact limit"
+            wrapper, "_transcribe_voxtral", return_value="short audio result"
         ):
-            # Exactly 30 seconds at 16kHz
-            exact_audio = np.random.randn(480000).astype(np.float32)
-            result = wrapper.transcribe(exact_audio, 16000)
+            short_audio = np.random.randn(48000).astype(np.float32)  # 3s
+            result = wrapper.transcribe(short_audio, 16000)
 
-            assert result == "exact limit"
-            assert wrapper._transcribe_single_chunk_voxtral.call_count == 1
+            assert result == "short audio result"
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_voxtral_just_over_limit(self, mock_voxtral, mock_processor):
-        """Test audio just over 30-second limit triggers chunking."""
+    def test_voxtral_long_audio_single_call(self, mock_voxtral, mock_processor):
+        """Test long audio uses native chunking (single method call)."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -206,10 +201,7 @@ class TestVoxtralChunkingEdgeCases:
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
         )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
         settings = MockSettings(
@@ -223,20 +215,21 @@ class TestVoxtralChunkingEdgeCases:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_voxtral",
-            side_effect=["chunk1", "chunk2"],
+            "_transcribe_voxtral",
+            return_value="long audio transcription",
         ):
-            # Just over 30 seconds but ensuring second chunk >= 1000 samples (not skipped)
-            long_audio = np.random.randn(481000).astype(np.float32)
+            # 60+ seconds - previously would have been manually chunked
+            long_audio = np.random.randn(1200000).astype(np.float32)
             result = wrapper.transcribe(long_audio, 16000)
 
-            # Should have chunked (2 calls)
-            assert wrapper._transcribe_single_chunk_voxtral.call_count == 2
+            assert result == "long audio transcription"
+            # Single call - native chunking handles all lengths internally
+            wrapper._transcribe_voxtral.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_voxtral_skips_very_short_chunks(self, mock_voxtral, mock_processor):
-        """Test that very short chunks (<1000 samples) are skipped."""
+    def test_voxtral_handles_error(self, mock_voxtral, mock_processor):
+        """Test that errors in transcription are caught and return empty string."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -244,51 +237,7 @@ class TestVoxtralChunkingEdgeCases:
         mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
             mock_model
         )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
-        mock_processor.from_pretrained.return_value = mock_proc_instance
-
-        settings = MockSettings(
-            model_type="voxtral",
-            model_name="mistralai/Voxtral-Mini-3B-2507",
-            device="cuda",
-            compute_type="float16",
-        )
-
-        wrapper = ModelWrapper(settings)
-
-        # Create audio that will result in a short final chunk
-        with patch.object(
-            wrapper,
-            "_transcribe_single_chunk_voxtral",
-            side_effect=["main chunk"],
-        ):
-            # 30s + very small amount (will be skipped as <1000 samples)
-            audio_with_short_tail = np.random.randn(480500).astype(np.float32)
-            result = wrapper.transcribe(audio_with_short_tail, 16000)
-
-            # Only one call since the tail is skipped
-            assert wrapper._transcribe_single_chunk_voxtral.call_count == 1
-
-    @patch("faster_whisper_hotkey.models.AutoProcessor")
-    @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_voxtral_handles_error_in_individual_chunk(
-        self, mock_voxtral, mock_processor
-    ):
-        """Test that errors in individual chunks don't break the whole transcription."""
-        from faster_whisper_hotkey.models import ModelWrapper
-
-        mock_model = MagicMock()
-        mock_model.device = "cuda"
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
-        mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
         settings = MockSettings(
@@ -302,50 +251,13 @@ class TestVoxtralChunkingEdgeCases:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_voxtral",
-            side_effect=[Exception("Chunk 1 failed"), "chunk 2 succeeded"],
+            "_transcribe_voxtral",
+            side_effect=Exception("Transcription failed"),
         ):
-            long_audio = np.random.randn(1000000).astype(np.float32)
-            result = wrapper.transcribe(long_audio, 16000)
+            audio = np.random.randn(480000).astype(np.float32)
+            result = wrapper.transcribe(audio, 16000)
 
-            # Should get the successful chunk despite error
-            assert "succeeded" in result.lower() or len(result) > 0
-
-    @patch("faster_whisper_hotkey.models.AutoProcessor")
-    @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
-    def test_voxtral_all_chunks_fail(self, mock_voxtral, mock_processor):
-        """Test behavior when all chunks fail."""
-        from faster_whisper_hotkey.models import ModelWrapper
-
-        mock_model = MagicMock()
-        mock_model.device = "cuda"
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
-        mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
-        mock_processor.from_pretrained.return_value = mock_proc_instance
-
-        settings = MockSettings(
-            model_type="voxtral",
-            model_name="mistralai/Voxtral-Mini-3B-2507",
-            device="cuda",
-            compute_type="float16",
-        )
-
-        wrapper = ModelWrapper(settings)
-
-        with patch.object(
-            wrapper,
-            "_transcribe_single_chunk_voxtral",
-            side_effect=Exception("All chunks fail"),
-        ):
-            long_audio = np.random.randn(1000000).astype(np.float32)
-            result = wrapper.transcribe(long_audio, 16000)
-
-            # Should return empty string
+            # Caught by outer exception handler in transcribe()
             assert result == ""
 
 
