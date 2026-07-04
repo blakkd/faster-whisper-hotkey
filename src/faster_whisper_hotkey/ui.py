@@ -708,13 +708,18 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
 
 
 def _screen_canary_device(stdscr, config: ConfigData):
-    """Select compute device for Canary (CPU only)."""
-    options = ["cpu"]
+    """Select compute device for Canary."""
+    options = ["cuda", "cpu"]
+
+    initial_idx = 0
+    if config.device == "cpu":
+        initial_idx = 1
 
     selected = curses_menu(
         stdscr,
         "Compute Device",
         options,
+        initial_idx=initial_idx,
     )
 
     if selected is None:
