@@ -43,13 +43,13 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - 25 languages
   - Transcription and translation (bidirectional to/from English)
   - No automatic language recognition
-  - Crazy fast even on CPU in F16
+  - CPU/GPU Still usable on CPU
 
 - **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
   - 25 languages
   - Transcription only
   - Automatic language recognition
-  - Crazy fast even on CPU in F16
+  - Crazy fast even on CPU
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
   - 8 languages
