@@ -229,10 +229,6 @@ class ModelWrapper:
             if self.settings.device == "cpu":
                 self.model = self.model.float()
             self.model = self.model.eval()
-            self.max_duration = (
-                getattr(self.processor.feature_extractor, "max_duration", None)
-                or 30
-            )
 
         elif mt == "granite":
             repo_id = self.settings.model_name
@@ -392,46 +388,7 @@ class ModelWrapper:
                     )
 
             elif mt == "cohere":
-                # Cohere model is sensitive to audio amplitude; normalize to [-1, 1]
-                # to ensure consistent token generation (including proper spacing)
-                max_val = np.abs(audio_data).max()
-                if not np.isclose(max_val, 0):
-                    audio_data = audio_data / max_val
-
-                # Cohere feature extractor has max_duration; chunk longer audio
-                samples_per_second = sample_rate
-                max_samples = self.max_duration * samples_per_second
-
-                if len(audio_data) > max_samples:
-                    logger.warning(
-                        f"Audio length ({len(audio_data) / samples_per_second:.2f}s) exceeds "
-                        f"cohere-transcribe-03-2026's input limit ({self.max_duration}s). "
-                        "Processing in chunks."
-                    )
-                    chunks = []
-                    for i in range(0, len(audio_data), max_samples):
-                        chunk = audio_data[i : i + max_samples]
-                        if len(chunk) < 1000:
-                            continue
-                        chunks.append(chunk)
-
-                    full_text = ""
-                    for i, chunk in enumerate(chunks):
-                        try:
-                            result = self._transcribe_single_chunk_cohere(
-                                chunk, sample_rate, language
-                            )
-                            if result.strip():
-                                full_text += result + " "
-                        except Exception as e:
-                            logger.error(f"Failed to transcribe chunk {i}: {e}")
-                            pass
-
-                    return full_text.strip()
-                else:
-                    return self._transcribe_single_chunk_cohere(
-                        audio_data, sample_rate, language
-                    )
+                return self._transcribe_cohere(audio_data, sample_rate, language)
             elif mt == "granite":
                 device = self.settings.device
                 waveform = torch.from_numpy(audio_data).to(device)
@@ -496,22 +453,26 @@ class ModelWrapper:
             logger.error(f"Error during model.transcribe: {e}")
             return ""
 
-    def _transcribe_single_chunk_cohere(
+    def _transcribe_cohere(
         self, audio_data, sample_rate: int, language: Optional[str]
     ) -> str:
-        """Transcribe a single chunk of audio for cohere-transcribe-03-2026."""
+        """Transcribe audio for cohere-transcribe-03-2026 with native chunking."""
         lang = language or "en"
         inputs = self.processor(
             audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang
         )
+        audio_chunk_index = inputs.get("audio_chunk_index")
         inputs = inputs.to(self.model.device, dtype=self.model.dtype)
         outputs = self.model.generate(**inputs, max_new_tokens=256)
-        text = self.processor.decode(outputs, skip_special_tokens=True)
-        if isinstance(text, str):
-            return text.strip()
-        if text:
-            return text[0].strip()
-        return ""
+        text = self.processor.decode(
+            outputs,
+            skip_special_tokens=True,
+            audio_chunk_index=audio_chunk_index,
+            language=lang,
+        )
+        if isinstance(text, list):
+            return text[0].strip() if text else ""
+        return text.strip() if text else ""
 
     def _transcribe_single_chunk_voxtral(
         self, audio_data, sample_rate: int, language: Optional[str]

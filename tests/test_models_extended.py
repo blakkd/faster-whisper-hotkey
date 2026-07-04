@@ -349,13 +349,13 @@ class TestVoxtralChunkingEdgeCases:
             assert result == ""
 
 
-class TestCohereChunkingEdgeCases:
-    """Test Cohere chunking behavior with various edge cases."""
+class TestCohereNativeChunking:
+    """Test Cohere with native transformers chunking (no manual chunking)."""
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_exactly_at_limit(self, mock_cohere, mock_processor):
-        """Test audio exactly at 30-second limit (480,000 samples)."""
+    def test_cohere_short_audio_no_chunking(self, mock_cohere, mock_processor):
+        """Test short audio passes through without chunking."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -365,7 +365,6 @@ class TestCohereChunkingEdgeCases:
             mock_model
         )
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
@@ -379,18 +378,17 @@ class TestCohereChunkingEdgeCases:
         wrapper = ModelWrapper(settings)
 
         with patch.object(
-            wrapper, "_transcribe_single_chunk_cohere", return_value="exact limit"
+            wrapper, "_transcribe_cohere", return_value="short audio result"
         ):
-            exact_audio = np.random.randn(480000).astype(np.float32)
-            result = wrapper.transcribe(exact_audio, 16000)
+            short_audio = np.random.randn(480000).astype(np.float32)  # 30s
+            result = wrapper.transcribe(short_audio, 16000)
 
-            assert result == "exact limit"
-            assert wrapper._transcribe_single_chunk_cohere.call_count == 1
+            assert result == "short audio result"
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_just_over_limit(self, mock_cohere, mock_processor):
-        """Test audio just over 30-second limit triggers chunking."""
+    def test_cohere_long_audio_native_chunking(self, mock_cohere, mock_processor):
+        """Test long audio is handled by native chunking (single method call)."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -400,7 +398,6 @@ class TestCohereChunkingEdgeCases:
             mock_model
         )
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
@@ -415,18 +412,18 @@ class TestCohereChunkingEdgeCases:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_cohere",
-            side_effect=["chunk1", "chunk2"],
+            "_transcribe_cohere",
+            return_value="long audio reassembled",
         ):
-            long_audio = np.random.randn(481000).astype(np.float32)
+            long_audio = np.random.randn(960000).astype(np.float32)  # 60s
             result = wrapper.transcribe(long_audio, 16000)
 
-            assert wrapper._transcribe_single_chunk_cohere.call_count == 2
+            assert result == "long audio reassembled"
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_skips_very_short_chunks(self, mock_cohere, mock_processor):
-        """Test that very short chunks (<1000 samples) are skipped."""
+    def test_cohere_ten_minute_audio(self, mock_cohere, mock_processor):
+        """Test 10-minute audio (max recording buffer) is handled."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -436,7 +433,6 @@ class TestCohereChunkingEdgeCases:
             mock_model
         )
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
@@ -451,20 +447,18 @@ class TestCohereChunkingEdgeCases:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_cohere",
-            side_effect=["main chunk"],
+            "_transcribe_cohere",
+            return_value="full ten minutes transcribed",
         ):
-            audio_with_short_tail = np.random.randn(480500).astype(np.float32)
-            result = wrapper.transcribe(audio_with_short_tail, 16000)
+            ten_min_audio = np.random.randn(960000).astype(np.float32)  # 10 min at 16kHz
+            result = wrapper.transcribe(ten_min_audio, 16000)
 
-            assert wrapper._transcribe_single_chunk_cohere.call_count == 1
+            assert result == "full ten minutes transcribed"
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_handles_error_in_individual_chunk(
-        self, mock_cohere, mock_processor
-    ):
-        """Test that errors in individual chunks don't break transcription."""
+    def test_cohere_error_handling(self, mock_cohere, mock_processor):
+        """Test that errors in _transcribe_cohere are caught."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
@@ -474,7 +468,6 @@ class TestCohereChunkingEdgeCases:
             mock_model
         )
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
@@ -489,47 +482,11 @@ class TestCohereChunkingEdgeCases:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_cohere",
-            side_effect=[Exception("Chunk 1 failed"), "chunk 2 succeeded"],
+            "_transcribe_cohere",
+            side_effect=Exception("transcription failed"),
         ):
-            long_audio = np.random.randn(1000000).astype(np.float32)
-            result = wrapper.transcribe(long_audio, 16000)
-
-            assert "succeeded" in result.lower() or len(result) > 0
-
-    @patch("faster_whisper_hotkey.models.AutoProcessor")
-    @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_all_chunks_fail(self, mock_cohere, mock_processor):
-        """Test behavior when all chunks fail."""
-        from faster_whisper_hotkey.models import ModelWrapper
-
-        mock_model = MagicMock()
-        mock_model.device = "cuda"
-        mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
-        mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
-        mock_proc_instance = MagicMock()
-        mock_proc_instance.feature_extractor = mock_feat_extractor
-        mock_processor.from_pretrained.return_value = mock_proc_instance
-
-        settings = MockSettings(
-            model_type="cohere",
-            model_name="CohereLabs/cohere-transcribe-03-2026",
-            device="cuda",
-        )
-
-        wrapper = ModelWrapper(settings)
-
-        with patch.object(
-            wrapper,
-            "_transcribe_single_chunk_cohere",
-            side_effect=Exception("All chunks fail"),
-        ):
-            long_audio = np.random.randn(1000000).astype(np.float32)
-            result = wrapper.transcribe(long_audio, 16000)
+            audio = np.random.randn(16000).astype(np.float32)
+            result = wrapper.transcribe(audio, 16000)
 
             assert result == ""
 
@@ -875,7 +832,6 @@ class TestCohereTranscription:
         mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_proc_instance
@@ -890,7 +846,7 @@ class TestCohereTranscription:
         wrapper = ModelWrapper(settings)
         sample_audio = np.random.randn(16000).astype(np.float32)
 
-        with patch.object(wrapper, "_transcribe_single_chunk_cohere", return_value=""):
+        with patch.object(wrapper, "_transcribe_cohere", return_value=""):
             result = wrapper.transcribe(sample_audio, 16000)
 
         assert result == ""
@@ -907,13 +863,14 @@ class TestCohereTranscription:
         mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
-        mock_proc_instance.decode.return_value = "result"
+        mock_proc_instance.decode.return_value = ["result"]
         mock_inputs = MagicMock()
+        mock_inputs.get.return_value = None  # no chunking needed
         mock_inputs.to.return_value = mock_inputs
         mock_proc_instance.return_value = mock_inputs
+        mock_model.generate.return_value = MagicMock()
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
         settings = MockSettings(

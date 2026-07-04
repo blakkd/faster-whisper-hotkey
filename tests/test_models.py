@@ -129,7 +129,6 @@ class TestModelWrapperInitialization:
         mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
         mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -445,7 +444,6 @@ class TestModelWrapperTranscribe:
         )
 
         mock_feat_extractor = MagicMock()
-        mock_feat_extractor.max_duration = 30
         mock_processor_instance = MagicMock()
         mock_processor_instance.feature_extractor = mock_feat_extractor
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -460,7 +458,7 @@ class TestModelWrapperTranscribe:
 
         with patch.object(
             wrapper,
-            "_transcribe_single_chunk_cohere",
+            "_transcribe_cohere",
             return_value="cohere transcription",
         ):
             result = wrapper.transcribe(self.sample_audio, 16000)
