@@ -37,7 +37,6 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - Officially, no automatic language recognition, but it still works pretty great
   - Runs well on CPU
   - Quite smart, deals well with hesitation and stutters
-  - **Limitation**: model supports 30s audio max, longer recordings are handled by chunking
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
   - 25 languages
@@ -57,7 +56,6 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - Automatic language recognition
   - Smart (it even guesses when to put some quotes, etc.) and seems less error-prone for non English native speakers
   - GPU only
-  - **Limitation**: feature extractor processes audio in 30s chunks internally; supports up to ~30min total via native chunking
 
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
   - Many languages
@@ -142,13 +140,9 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **voxtral**: uses native chunking via `apply_transcription_request()` — audio is split into 30s feature chunks and processed together in a single model forward pass with cross-chunk context. Supports up to ~30min of audio. Best results when audio is shorter than 30s.
-
-- **cohere**: the model's feature extractor has a `max_duration` of 30s. Audio longer than 30s is automatically split into chunks for processing. Best results when audio is shorter than this.
-
 - **granite-nar**: requires FlashAttention on GPU. No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
 
-- Due to window type detection to send appropriate key stroke, unfortunately the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
+- Using window type detection to send appropriate key strokes, we unfortunately can't see "sub windows". So for example, the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
 - Windows supported is not planned. That said, you can use [eutychius](https://github.com/eutychius/faster-whisper-hotkey/tree/feature/supportWindows)'s branch which seems working fine. See [this comment](https://github.com/blakkd/faster-whisper-hotkey/issues/8#issuecomment-3412700777) for instructions.
 
@@ -156,7 +150,6 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
-- If you pick a granite model with punctuation enabled, the output will include proper punctuation and capitalization (including German noun capitalization).
 
 ## Acknowledgements
 

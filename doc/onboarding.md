@@ -172,15 +172,15 @@
 
 ## Supported Models
 
-| Model                          | Type        | Languages | Auto-lang | CPU        | GPU                     | Notes                             |
-| ------------------------------ | ----------- | --------- | --------- | ---------- | ----------------------- | --------------------------------- |
-| faster-whisper (tiny-large-v3) | whisper     | 99+       | Yes       | Yes (int8) | Yes (float16/int8)      | SYSTRAN engine                    |
-| parakeet-tdt-0.6b-v3           | parakeet    | 25        | Yes       | Yes        | Yes                     | NeMo, fast on CPU                 |
-| canary-1b-v2                   | canary      | 25        | No        | Yes        | Yes                     | Transcribe + translate            |
-| Voxtral-Mini-3B-2507           | voxtral     | 8         | Yes       | No         | Yes (float16/int8/int4) | GPU only, native chunking (~30min)|
-| cohere-transcribe-03-2026      | cohere      | 14        | No        | Yes        | Yes                     | 30s chunks                        |
-| granite-speech-4.1-2b          | granite     | 6+        | No        | Yes        | Yes                     | Autoregressive, punctuation       |
-| granite-speech-4.1-2b-nar      | granite-nar | 5         | No        | Yes        | Yes (FlashAttention)    | Non-AR, very fast, no punctuation |
+| Model                          | Type        | Languages | Auto-lang | CPU        | GPU                     | Notes                              |
+| ------------------------------ | ----------- | --------- | --------- | ---------- | ----------------------- | ---------------------------------- |
+| faster-whisper (tiny-large-v3) | whisper     | 99+       | Yes       | Yes (int8) | Yes (float16/int8)      | SYSTRAN engine                     |
+| parakeet-tdt-0.6b-v3           | parakeet    | 25        | Yes       | Yes        | Yes                     | NeMo, fast on CPU                  |
+| canary-1b-v2                   | canary      | 25        | No        | Yes        | Yes                     | Transcribe + translate             |
+| Voxtral-Mini-3B-2507           | voxtral     | 8         | Yes       | No         | Yes (float16/int8/int4) | GPU only, native chunking (~30min) |
+| cohere-transcribe-03-2026      | cohere      | 14        | No        | Yes        | Yes                     | 30s chunks                         |
+| granite-speech-4.1-2b          | granite     | 6+        | No        | Yes        | Yes                     | Autoregressive, punctuation        |
+| granite-speech-4.1-2b-nar      | granite-nar | 5         | No        | Yes        | Yes (FlashAttention)    | Non-AR, very fast, no punctuation  |
 
 ---
 
