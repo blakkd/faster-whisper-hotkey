@@ -184,6 +184,22 @@
 
 ---
 
+## Model Native Precisions
+
+Precision each model was released and trained in:
+
+| Model                     | Native Precision |
+| ------------------------- | ---------------- |
+| faster-whisper            | float16          |
+| parakeet-tdt-0.6b-v3      | float32          |
+| canary-1b-v2              | float32          |
+| Voxtral-Mini-3B-2507      | float32          |
+| cohere-transcribe-03-2026 | bfloat16         |
+| granite-speech-4.1-2b     | bfloat16         |
+| granite-speech-4.1-2b-nar | bfloat16         |
+
+---
+
 ## Key Dependencies
 
 From `pyproject.toml`:
