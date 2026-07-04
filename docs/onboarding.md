@@ -505,7 +505,7 @@ The test suite covers all modules with mocked dependencies:
 | `test_clipboard.py`         | Clipboard backup/set/restore                        |
 | `test_paste.py`             | X11/Wayland paste shortcut selection                |
 | `test_terminal.py`          | Terminal window detection (X11 + Wayland)           |
-| `test_model_all_configs.py` | Integration test: all model/device/precision combos |
+| `test_model_all_configs.py` | Integration test: per-model transcription (7 test classes) |
 
 ## Release Process
 
@@ -555,5 +555,6 @@ faster-whisper-hotkey/
     ├── test_clipboard.py
     ├── test_paste.py
     ├── test_terminal.py
+    ├── conftest.py
     └── test_model_all_configs.py
 ```
