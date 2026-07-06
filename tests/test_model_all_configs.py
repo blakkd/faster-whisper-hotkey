@@ -45,55 +45,74 @@ def audio():
 
 WHISPER_MODELS = ["small"]
 
-# whisper: cpu/int8, cuda/float16, cuda/int8
+# whisper: CPU (int8) + CUDA (float16, float32, int8)
+# float16 unsupported on CPU (CTranslate2 hw requirement); int4 not supported
 _configs = [
-    (m, "cpu", "int8")
+    (m, "cpu", prec)
     for m in WHISPER_MODELS
+    for prec in ("int8",)
 ] + [
-    (m, "cuda", "float16")
+    (m, "cuda", prec)
     for m in WHISPER_MODELS
-] + [
-    (m, "cuda", "int8")
-    for m in WHISPER_MODELS
+    for prec in ("float16", "float32", "int8")
 ]
 
 WHISPER = [
     ("whisper", m, dev, prec) for m, dev, prec in _configs
 ]
 
-# parakeet: cpu, cuda
+# parakeet: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/f16/int8/int4)
 PARAKEET = [
-    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", dev, "float16")
-    for dev in ("cpu", "cuda")
+    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cuda", prec)
+    for prec in ("float32", "bfloat16", "float16", "int8", "int4")
 ]
 
-# canary: cpu only
+# canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/f16/int8/int4)
 CANARY = [
-    ("canary", "nvidia/canary-1b-v2", "cpu", "float16"),
+    ("canary", "nvidia/canary-1b-v2", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("canary", "nvidia/canary-1b-v2", "cuda", prec)
+    for prec in ("float32", "bfloat16", "float16", "int8", "int4")
 ]
 
-# voxtral: cuda only, 3 precisions
+# voxtral: native=float32, CPU (no int4, hangs) + CUDA (all precisions)
 VOXTRAL = [
+    ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cpu", prec)
+    for prec in ("float32", "float16", "bfloat16", "int8")
+] + [
     ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cuda", prec)
-    for prec in ("float16", "int8", "int4")
+    for prec in ("float32", "float16", "bfloat16", "int8", "int4")
 ]
 
-# cohere: cpu, cuda
+# cohere: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
 COHERE = [
-    ("cohere", "CohereLabs/cohere-transcribe-03-2026", dev, "float16")
-    for dev in ("cpu", "cuda")
+    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cuda", prec)
+    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
 ]
 
-# granite-nar: cpu, cuda
+# granite-nar: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
 GRANITE_NAR = [
-    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", dev, "float16")
-    for dev in ("cpu", "cuda")
+    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cuda", prec)
+    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
 ]
 
-# granite (AR): cpu, cuda
+# granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
 GRANITE = [
-    ("granite", "ibm-granite/granite-speech-4.1-2b", dev, "float16")
-    for dev in ("cpu", "cuda")
+    ("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec)
+    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
 ]
 
 def _cuda_available():
@@ -121,6 +140,7 @@ def _run_configs(configs, audio, request, results_file):
             skipped.append((model_type, model_name, device, compute_type))
             continue
 
+        print(f"\n>>> Testing: {model_type}/{model_name} ({device}/{compute_type})")
         try:
             settings = Settings(
                 device_name="",

@@ -109,6 +109,22 @@ with suppress_output():
 
 logger = logging.getLogger(__name__)
 
+
+def _materialize_weights(model):
+    """Force all model parameters and buffers into RAM.
+
+    safetensors uses memory-mapped files by default. Even with
+    low_cpu_mem_usage=False and no device_map, tensors loaded from
+    safetensors remain mmap'd — data is read from disk on-demand
+    during inference, causing severe slowdowns. This function clones
+    every parameter and buffer to break the mmap and ensure weights
+    reside in actual RAM.
+    """
+    for p in model.parameters():
+        p.data = p.data.clone()
+    for b in model.buffers():
+        b.data = b.data.clone()
+
 # Optional types import (already available in Python 3.9+)
 
 
@@ -153,29 +169,63 @@ class ModelWrapper:
 
         elif mt == "parakeet":
             with suppress_nemo():
-                self.model = ASRModel.from_pretrained(
-                    model_name=self.settings.model_name,
-                    map_location=self.settings.device,
-                ).eval()
+                if compute_type in ("int8", "int4") and device == "cuda":
+                    quant_cfg = BitsAndBytesConfig(
+                        load_in_8bit=True if compute_type == "int8" else False,
+                        load_in_4bit=True if compute_type == "int4" else False,
+                    )
+                    self.model = ASRModel.from_pretrained(
+                        model_name=self.settings.model_name,
+                        map_location=self.settings.device,
+                    ).eval()
+                else:
+                    self.model = ASRModel.from_pretrained(
+                        model_name=self.settings.model_name,
+                        map_location=self.settings.device,
+                    ).eval()
                 self._model_ref = self.model
+
+            if compute_type and compute_type not in ("int8", "int4"):
+                self.model = self.model.to(
+                    {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}.get(
+                        compute_type, torch.float32
+                    )
+                )
 
         elif mt == "canary":
             with suppress_nemo():
-                self.model = EncDecMultiTaskModel.from_pretrained(
-                    self.settings.model_name, map_location=self.settings.device
-                ).eval()
+                if compute_type in ("int8", "int4") and device == "cuda":
+                    quant_cfg = BitsAndBytesConfig(
+                        load_in_8bit=True if compute_type == "int8" else False,
+                        load_in_4bit=True if compute_type == "int4" else False,
+                    )
+                    self.model = EncDecMultiTaskModel.from_pretrained(
+                        self.settings.model_name, map_location=self.settings.device
+                    ).eval()
+                else:
+                    self.model = EncDecMultiTaskModel.from_pretrained(
+                        self.settings.model_name, map_location=self.settings.device
+                    ).eval()
                 self._model_ref = self.model
+
+            if compute_type and compute_type not in ("int8", "int4"):
+                self.model = self.model.to(
+                    {"float32": torch.float32, "bfloat16": torch.bfloat16, "float16": torch.float16}.get(
+                        compute_type, torch.float32
+                    )
+                )
 
         elif mt == "voxtral":
             repo_id = self.settings.model_name
             self.processor = AutoProcessor.from_pretrained(repo_id)
+            device_map = {"": device}
 
             if self.settings.compute_type == "int8":
                 quant_cfg = BitsAndBytesConfig(load_in_8bit=True)
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     quantization_config=quant_cfg,
-                    device_map="cuda",
+                    device_map=device_map,
                 ).eval()
 
             elif self.settings.compute_type == "int4":
@@ -183,33 +233,66 @@ class ModelWrapper:
                 self.model = VoxtralForConditionalGeneration.from_pretrained(
                     repo_id,
                     quantization_config=quant_cfg,
-                    device_map="cuda",
+                    device_map=device_map,
                 ).eval()
 
             else:
                 compute_dtype = {
+                    "float32": torch.float32,
                     "float16": torch.float16,
                     "bfloat16": torch.bfloat16,
                 }.get(self.settings.compute_type, torch.float16)
 
-                self.model = VoxtralForConditionalGeneration.from_pretrained(
-                    repo_id,
-                    dtype=compute_dtype,
-                    device_map="cuda",
-                ).eval()
+                if device == "cpu":
+                    self.model = VoxtralForConditionalGeneration.from_pretrained(
+                        repo_id,
+                        dtype=compute_dtype,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = VoxtralForConditionalGeneration.from_pretrained(
+                        repo_id,
+                        dtype=compute_dtype,
+                        device_map=device_map,
+                    )
+                self.model = self.model.eval()
 
         elif mt == "cohere":
             repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
 
             self.processor = AutoProcessor.from_pretrained(repo_id)
 
-            self.model = CohereAsrForConditionalGeneration.from_pretrained(
-                repo_id, device_map={"": self.settings.device}
-            )
-            # float32 is ~8x faster than bfloat16 on CPU; bf16 is fine on GPU
-            if self.settings.device == "cpu":
-                self.model = self.model.float()
-            self.model = self.model.eval()
+            if compute_type in ("int8", "int4") and device == "cuda":
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_8bit=True if compute_type == "int8" else False,
+                    load_in_4bit=True if compute_type == "int4" else False,
+                )
+                self.model = CohereAsrForConditionalGeneration.from_pretrained(
+                    repo_id,
+                    device_map=device_map,
+                    quantization_config=quant_cfg,
+                )
+            else:
+                _dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                    compute_type, torch.bfloat16 if device == "cuda" else torch.float32
+                ) if compute_type and compute_type not in ("int8", "int4") else torch.float32
+
+                if device == "cpu":
+                    self.model = CohereAsrForConditionalGeneration.from_pretrained(
+                        repo_id,
+                        torch_dtype=_dtype,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = CohereAsrForConditionalGeneration.from_pretrained(
+                        repo_id,
+                        device_map=device_map,
+                    )
+                    self.model = self.model.to(dtype=_dtype)
+                self.model = self.model.eval()
 
         elif mt == "granite":
             repo_id = self.settings.model_name
@@ -221,20 +304,38 @@ class ModelWrapper:
                 repo_id, trust_remote_code=True
             )
 
-            if device == "cuda":
+            if compute_type in ("int8", "int4") and device == "cuda":
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_8bit=True if compute_type == "int8" else False,
+                    load_in_4bit=True if compute_type == "int4" else False,
+                )
                 self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                     repo_id,
                     device_map=device_map,
-                    torch_dtype=torch.bfloat16,
+                    quantization_config=quant_cfg,
                     trust_remote_code=True,
                 ).eval()
             else:
-                self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
-                    repo_id,
-                    device_map=device_map,
-                    torch_dtype=torch.float32,
-                    trust_remote_code=True,
-                ).eval()
+                _dtype = compute_type and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                    compute_type
+                ) or (torch.bfloat16 if device == "cuda" else torch.float32)
+
+                if device == "cpu":
+                    self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                        repo_id,
+                        torch_dtype=_dtype,
+                        trust_remote_code=True,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
+                        repo_id,
+                        device_map=device_map,
+                        torch_dtype=_dtype,
+                        trust_remote_code=True,
+                    )
+                self.model = self.model.eval()
 
         elif mt == "granite-nar":
             repo_id = self.settings.model_name
@@ -246,22 +347,41 @@ class ModelWrapper:
                 repo_id, trust_remote_code=True
             )
 
-            if device == "cuda":
+            if compute_type in ("int8", "int4") and device == "cuda":
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_8bit=True if compute_type == "int8" else False,
+                    load_in_4bit=True if compute_type == "int4" else False,
+                )
                 self.model = AutoModel.from_pretrained(
                     repo_id,
                     trust_remote_code=True,
                     attn_implementation="flash_attention_2",
                     device_map=device_map,
-                    torch_dtype=torch.bfloat16,
+                    quantization_config=quant_cfg,
                 ).eval()
             else:
-                self.model = AutoModel.from_pretrained(
-                    repo_id,
-                    trust_remote_code=True,
-                    attn_implementation="sdpa",
-                    device_map=device_map,
-                    torch_dtype=torch.float32,
-                ).eval()
+                _dtype = compute_type and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                    compute_type
+                ) or (torch.bfloat16 if device == "cuda" else torch.float32)
+
+                if device == "cpu":
+                    self.model = AutoModel.from_pretrained(
+                        repo_id,
+                        trust_remote_code=True,
+                        attn_implementation="sdpa",
+                        torch_dtype=_dtype,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = AutoModel.from_pretrained(
+                        repo_id,
+                        trust_remote_code=True,
+                        attn_implementation="flash_attention_2",
+                        device_map=device_map,
+                        torch_dtype=_dtype,
+                    )
+                self.model = self.model.eval()
 
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")

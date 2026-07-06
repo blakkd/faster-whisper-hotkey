@@ -19,18 +19,23 @@ class ConfigStep(Enum):
     WHISPER_PRECISION = auto()
     WHISPER_LANGUAGE = auto()
     PARAKEET_DEVICE = auto()
+    PARAKEET_PRECISION = auto()
     CANARY_SOURCE_LANG = auto()
     CANARY_TARGET_LANG = auto()
     CANARY_DEVICE = auto()
+    CANARY_PRECISION = auto()
     VOXTRAL_DEVICE = auto()
     VOXTRAL_PRECISION = auto()
     COHERE_DEVICE = auto()
     COHERE_LANGUAGE = auto()
+    COHERE_PRECISION = auto()
     GRANITE_NAR_DEVICE = auto()
     GRANITE_NAR_LANGUAGE = auto()
+    GRANITE_NAR_PRECISION = auto()
     GRANITE_SOURCE_LANG = auto()
     GRANITE_TARGET_LANG = auto()
     GRANITE_DEVICE = auto()
+    GRANITE_PRECISION = auto()
     HOTKEY = auto()
     LLM_ENABLE = auto()
     LLM_ENDPOINT = auto()
@@ -55,11 +60,12 @@ class ConfigData:
 
 
 def curses_menu(
-    stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0
+    stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0, footer: str = ""
 ):
     """
     Display a scrollable list of `options` in a curses window.
     A `message` (e.g. "Source language") can be shown directly above the list.
+    A `footer` is shown at the bottom of the screen.
 
     Returns the selected option, or None if the user aborts with ESC.
     """
@@ -120,7 +126,7 @@ def curses_menu(
 
         if max_visible < len(options) and h > 0 and w > 0:
             ratio = (current_row + 1) / len(options)
-            y_scroll = h - 2
+            y_scroll = h - (2 if footer else 2)
             x_start = w // 4
             length = w // 2
             x_start = max(0, min(x_start, w - 1))
@@ -131,6 +137,29 @@ def curses_menu(
             stdscr.addstr(y_scroll, x_start + 1, " " * (length - 2))
             stdscr.addstr(y_scroll, end_pos, "█")
             stdscr.addstr(y_scroll, x_start + length - 1, "]")
+
+        if footer and h > 1:
+            max_line = max(w - 1, 1)
+            footer_lines = []
+            words = footer.split()
+            current = ""
+            for word in words:
+                if not current:
+                    current = word
+                elif len(current) + 1 + len(word) <= max_line:
+                    current = current + " " + word
+                else:
+                    footer_lines.append(current)
+                    current = word
+            if current:
+                footer_lines.append(current)
+            if not footer_lines:
+                footer_lines = [""]
+            for i, line in enumerate(footer_lines):
+                y = h - len(footer_lines) + i
+                if 0 <= y < h:
+                    x = max(0, (w - len(line)) // 2)
+                    stdscr.addstr(y, x, line)
 
         stdscr.refresh()
 
@@ -324,6 +353,8 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
     # Parakeet sub-steps
     elif current_step == ConfigStep.PARAKEET_DEVICE:
         return _screen_parakeet_device(stdscr, config)
+    elif current_step == ConfigStep.PARAKEET_PRECISION:
+        return _screen_parakeet_precision(stdscr, config)
 
     # Canary sub-steps
     elif current_step == ConfigStep.CANARY_SOURCE_LANG:
@@ -332,6 +363,8 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_canary_target_lang(stdscr, config)
     elif current_step == ConfigStep.CANARY_DEVICE:
         return _screen_canary_device(stdscr, config)
+    elif current_step == ConfigStep.CANARY_PRECISION:
+        return _screen_canary_precision(stdscr, config)
 
     # Voxtral sub-steps
     elif current_step == ConfigStep.VOXTRAL_DEVICE:
@@ -344,18 +377,24 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_cohere_device(stdscr, config)
     elif current_step == ConfigStep.COHERE_LANGUAGE:
         return _screen_cohere_language(stdscr, config)
+    elif current_step == ConfigStep.COHERE_PRECISION:
+        return _screen_cohere_precision(stdscr, config)
 
     # Granite sub-steps
     elif current_step == ConfigStep.GRANITE_NAR_DEVICE:
         return _screen_granite_nar_device(stdscr, config)
     elif current_step == ConfigStep.GRANITE_NAR_LANGUAGE:
         return _screen_granite_nar_language(stdscr, config)
+    elif current_step == ConfigStep.GRANITE_NAR_PRECISION:
+        return _screen_granite_nar_precision(stdscr, config)
     elif current_step == ConfigStep.GRANITE_SOURCE_LANG:
         return _screen_granite_source_lang(stdscr, config)
     elif current_step == ConfigStep.GRANITE_TARGET_LANG:
         return _screen_granite_target_lang(stdscr, config)
     elif current_step == ConfigStep.GRANITE_DEVICE:
         return _screen_granite_device(stdscr, config)
+    elif current_step == ConfigStep.GRANITE_PRECISION:
+        return _screen_granite_precision(stdscr, config)
 
     # Common final steps
     elif current_step == ConfigStep.HOTKEY:
@@ -631,9 +670,34 @@ def _screen_parakeet_device(stdscr, config: ConfigData):
 
     config.model_name = "nvidia/parakeet-tdt-0.6b-v3"
     config.device = selected
-    config.compute_type = "float16"
     config.language = ""  # Parakeet supports auto-detection
 
+    return (ConfigStep.PARAKEET_PRECISION, config)
+
+
+def _screen_parakeet_precision(stdscr, config: ConfigData):
+    """Select precision for Parakeet."""
+    options = (
+        ["float32", "bfloat16", "float16", "int8", "int4"]
+        if config.device == "cuda"
+        else ["float32", "bfloat16"]
+    )
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
@@ -699,7 +763,6 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.model_name = "nvidia/canary-1b-v2"
-    config.compute_type = "float16"
     config.language = f"{src}-{selected}"
 
     return (ConfigStep.CANARY_DEVICE, config)
@@ -724,6 +787,32 @@ def _screen_canary_device(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.device = selected
+    return (ConfigStep.CANARY_PRECISION, config)
+
+
+def _screen_canary_precision(stdscr, config: ConfigData):
+    """Select precision for Canary."""
+    options = (
+        ["float32", "bfloat16", "float16", "int8", "int4"]
+        if config.device == "cuda"
+        else ["float32", "bfloat16"]
+    )
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
@@ -810,9 +899,34 @@ def _screen_cohere_language(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.model_name = "CohereLabs/cohere-transcribe-03-2026"
-    config.compute_type = "float16"
     config.language = selected
 
+    return (ConfigStep.COHERE_PRECISION, config)
+
+
+def _screen_cohere_precision(stdscr, config: ConfigData):
+    """Select precision for Cohere."""
+    options = (
+        ["bfloat16", "float32", "float16", "int8", "int4"]
+        if config.device == "cuda"
+        else ["float32", "bfloat16"]
+    )
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
@@ -862,9 +976,34 @@ def _screen_granite_nar_language(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.model_name = "ibm-granite/granite-speech-4.1-2b-nar"
-    config.compute_type = "float32"
     config.language = selected
 
+    return (ConfigStep.GRANITE_NAR_PRECISION, config)
+
+
+def _screen_granite_nar_precision(stdscr, config: ConfigData):
+    """Select precision for Granite NAR."""
+    options = (
+        ["bfloat16", "float32", "float16", "int8", "int4"]
+        if config.device == "cuda"
+        else ["float32", "bfloat16"]
+    )
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
@@ -946,7 +1085,32 @@ def _screen_granite_device(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.device = selected
-    config.compute_type = "bfloat16"
+    return (ConfigStep.GRANITE_PRECISION, config)
+
+
+def _screen_granite_precision(stdscr, config: ConfigData):
+    """Select precision for Granite AR."""
+    options = (
+        ["bfloat16", "float32", "float16", "int8", "int4"]
+        if config.device == "cuda"
+        else ["float32", "bfloat16"]
+    )
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
