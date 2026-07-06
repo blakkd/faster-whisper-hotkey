@@ -1,7 +1,13 @@
+# Benchmark Results
+
+**Hardware**: AMD Ryzen 9 5950X (16C/32T), NVIDIA GeForce RTX 3090 (24GB), 32GB RAM
+**Audio**: `test_audio_data/test.mp3` — 40.05s (16kHz mono float32)
+
+---
+
 # faster-whisper Benchmarks
 
 Model: `Systran/faster-whisper` (size: `small`)
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -35,7 +41,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # Voxtral-Mini-3B-2507 Benchmarks
 
 Model: `mistralai/Voxtral-Mini-3B-2507`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -70,7 +75,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # parakeet-tdt-0.6b-v3 Benchmarks
 
 Model: `nvidia/parakeet-tdt-0.6b-v3`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -100,7 +104,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # canary-1b-v2 Benchmarks
 
 Model: `nvidia/canary-1b-v2`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -130,7 +133,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # cohere-transcribe-03-2026 Benchmarks
 
 Model: `CohereLabs/cohere-transcribe-03-2026`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -164,7 +166,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # granite-speech-4.1-2b-nar Benchmarks
 
 Model: `ibm-granite/granite-speech-4.1-2b-nar`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
@@ -198,7 +199,6 @@ Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 # granite-speech-4.1-2b Benchmarks
 
 Model: `ibm-granite/granite-speech-4.1-2b`
-Audio: `test_audio_data/test.mp3` (16kHz mono float32)
 
 ## CPU
 
