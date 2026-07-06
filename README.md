@@ -27,7 +27,7 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - 5 languages
   - Transcription only
   - No automatic language recognition
-  - Non-autoregressive — very fast inference
+  - Non-autoregressive --> faster than the above AR variant
   - No capitalization in output
   - CPU/GPU (requires FlashAttention on GPU)
 
@@ -60,27 +60,30 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
 - **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
   - Many languages
   - Transcription only
+  - CPU/GPU
 
-**_What I personally use currently?_**
-
-_- granite-speech-4.1-2b-nar sometimes with, but often without LLM correction_
+**_To get an idea of the speed, you can look at benchmark results for my config in `docs/speed.md`_**
 
 ## Installation
 
 _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
+
+**Requires Python `3.11.14`**
 
 ### From PyPi
 
 - As a pip package:
 
   ```
+  uv venv --python 3.11.14
+  source .venv/bin/activate
   uv pip install faster-whisper-hotkey
   ```
 
 - or as an tool, so that you can run faster-whisper-hotkey from any venv:
 
   ```
-  uv tool install faster-whisper-hotkey
+  uv tool install faster-whisper-hotkey --python=3.11.14
   ```
 
 ### From source
@@ -94,11 +97,11 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
 2. Install the package and dependencies:
 
-   **Note:** Currently tested with Python 3.11.14.
-
 - as a pip package:
 
   ```
+  uv venv --python 3.11.14
+  source .venv/bin/activate
   uv pip install .
   ```
 
