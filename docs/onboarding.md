@@ -88,13 +88,13 @@ uv run pytest
 
 | Model Type                | Internal Key  | HuggingFace Repo                      | Languages | Device   | Precision                                            | Notes                              |
 | ------------------------- | ------------- | ------------------------------------- | --------- | -------- | ---------------------------------------------------- | ---------------------------------- |
-| faster-whisper            | `whisper`     | Systran/faster-whisper                | 100+      | CPU/GPU  | User-selectable (int8/f16 CPU, f16/f32/int8 GPU)     | 16 sizes                           |
-| parakeet-tdt-0.6b-v3      | `parakeet`    | nvidia/parakeet-tdt-0.6b-v3           | 25 (auto) | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +int8/int4 GPU)   | Very fast on CPU (float32)         |
-| canary-1b-v2              | `canary`      | nvidia/canary-1b-v2                   | 25        | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +int8/int4 GPU)   | Transcription + translation        |
-| Voxtral-Mini-3B-2507      | `voxtral`     | mistralai/Voxtral-Mini-3B-2507        | 8 (auto)  | GPU only | User-selectable (f16/int8/int4)                      | Native chunking                    |
-| cohere-transcribe-03-2026 | `cohere`      | CohereLabs/cohere-transcribe-03-2026  | 14        | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | Native chunking                    |
-| granite-speech-4.1-2b-nar | `granite-nar` | ibm-granite/granite-speech-4.1-2b-nar | 9         | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | Non-AR, very fast, no punctuation  |
-| granite-speech-4.1-2b     | `granite`     | ibm-granite/granite-speech-4.1-2b     | 6→8       | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | AR with punctuation/capitalization |
+| faster-whisper            | `whisper`     | Systran/faster-whisper                | 100+      | CPU/GPU  | User-selectable (int8 CPU, f16/int8 GPU)             | 16 sizes                           |
+| parakeet-tdt-0.6b-v3      | `parakeet`    | nvidia/parakeet-tdt-0.6b-v3           | 25 (auto) | CPU/GPU  | User-selectable (f32/bf16 CPU, +f32/bf16/int8/int4 GPU)   | Very fast on CPU (float32)         |
+| canary-1b-v2              | `canary`      | nvidia/canary-1b-v2                   | 25        | CPU/GPU  | User-selectable (f32/bf16 CPU, +f32/bf16/int8/int4 GPU)   | Transcription + translation        |
+| Voxtral-Mini-3B-2507      | `voxtral`     | mistralai/Voxtral-Mini-3B-2507        | 8 (auto)  | GPU only | User-selectable (f32/bf16/int8/int4)                      | Native chunking                    |
+| cohere-transcribe-03-2026 | `cohere`      | CohereLabs/cohere-transcribe-03-2026  | 14        | CPU/GPU  | User-selectable (f32/bf16 CPU, +bf16/f32/int8/int4 GPU) | Native chunking                    |
+| granite-speech-4.1-2b-nar | `granite-nar` | ibm-granite/granite-speech-4.1-2b-nar | 9         | CPU/GPU  | User-selectable (f32/bf16 CPU, +bf16/f32/int8/int4 GPU) | Non-AR, very fast, no punctuation  |
+| granite-speech-4.1-2b     | `granite`     | ibm-granite/granite-speech-4.1-2b     | 6→8       | CPU/GPU  | User-selectable (f32/bf16 CPU, +bf16/f32/int8/int4 GPU) | AR with punctuation/capitalization |
 
 ### Model Native Precisions
 

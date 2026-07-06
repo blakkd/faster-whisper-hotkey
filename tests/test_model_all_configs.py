@@ -61,58 +61,55 @@ WHISPER = [
     ("whisper", m, dev, prec) for m, dev, prec in _configs
 ]
 
-# parakeet: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/f16/int8/int4)
+# parakeet: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
 PARAKEET = [
     ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cpu", prec)
     for prec in ("float32", "bfloat16")
 ] + [
     ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cuda", prec)
-    for prec in ("float32", "bfloat16", "float16", "int8", "int4")
+    for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
-# canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/f16/int8/int4)
+# canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
 CANARY = [
     ("canary", "nvidia/canary-1b-v2", "cpu", prec)
     for prec in ("float32", "bfloat16")
 ] + [
     ("canary", "nvidia/canary-1b-v2", "cuda", prec)
-    for prec in ("float32", "bfloat16", "float16", "int8", "int4")
+    for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
-# voxtral: native=float32, CPU (no int4, hangs) + CUDA (all precisions)
+# voxtral: native=float32, CUDA (f32/bf16/int8/int4)
 VOXTRAL = [
-    ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cpu", prec)
-    for prec in ("float32", "float16", "bfloat16", "int8")
-] + [
     ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cuda", prec)
-    for prec in ("float32", "float16", "bfloat16", "int8", "int4")
+    for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
-# cohere: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
+# cohere: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 COHERE = [
     ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cpu", prec)
     for prec in ("float32", "bfloat16")
 ] + [
     ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cuda", prec)
-    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
+    for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
-# granite-nar: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
+# granite-nar: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE_NAR = [
     ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cpu", prec)
     for prec in ("float32", "bfloat16")
 ] + [
     ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cuda", prec)
-    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
+    for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
-# granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/f16/int8/int4)
+# granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE = [
     ("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec)
     for prec in ("float32", "bfloat16")
 ] + [
     ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec)
-    for prec in ("bfloat16", "float32", "float16", "int8", "int4")
+    for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
 def _cuda_available():

@@ -678,7 +678,7 @@ def _screen_parakeet_device(stdscr, config: ConfigData):
 def _screen_parakeet_precision(stdscr, config: ConfigData):
     """Select precision for Parakeet."""
     options = (
-        ["float32", "bfloat16", "float16", "int8", "int4"]
+        ["float32", "bfloat16", "int8", "int4"]
         if config.device == "cuda"
         else ["float32", "bfloat16"]
     )
@@ -793,7 +793,7 @@ def _screen_canary_device(stdscr, config: ConfigData):
 def _screen_canary_precision(stdscr, config: ConfigData):
     """Select precision for Canary."""
     options = (
-        ["float32", "bfloat16", "float16", "int8", "int4"]
+        ["float32", "bfloat16", "int8", "int4"]
         if config.device == "cuda"
         else ["float32", "bfloat16"]
     )
@@ -836,7 +836,7 @@ def _screen_voxtral_device(stdscr, config: ConfigData):
 
 def _screen_voxtral_precision(stdscr, config: ConfigData):
     """Select precision for Voxtral."""
-    options = ["float16", "int8", "int4"]
+    options = ["float32", "bfloat16", "int8", "int4"]
 
     initial_idx = 0
     if config.compute_type in options:
@@ -907,7 +907,7 @@ def _screen_cohere_language(stdscr, config: ConfigData):
 def _screen_cohere_precision(stdscr, config: ConfigData):
     """Select precision for Cohere."""
     options = (
-        ["bfloat16", "float32", "float16", "int8", "int4"]
+        ["bfloat16", "float32", "int8", "int4"]
         if config.device == "cuda"
         else ["float32", "bfloat16"]
     )
@@ -984,7 +984,7 @@ def _screen_granite_nar_language(stdscr, config: ConfigData):
 def _screen_granite_nar_precision(stdscr, config: ConfigData):
     """Select precision for Granite NAR."""
     options = (
-        ["bfloat16", "float32", "float16", "int8", "int4"]
+        ["bfloat16", "float32", "int8", "int4"]
         if config.device == "cuda"
         else ["float32", "bfloat16"]
     )
@@ -1091,7 +1091,7 @@ def _screen_granite_device(stdscr, config: ConfigData):
 def _screen_granite_precision(stdscr, config: ConfigData):
     """Select precision for Granite AR."""
     options = (
-        ["bfloat16", "float32", "float16", "int8", "int4"]
+        ["bfloat16", "float32", "int8", "int4"]
         if config.device == "cuda"
         else ["float32", "bfloat16"]
     )
