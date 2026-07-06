@@ -280,7 +280,7 @@ def _screen_my_model_language(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
     config.model_name = "org/my-model"
-    config.compute_type = "float16"
+    config.compute_type = "float32"
     config.language = selected
     return (ConfigStep.HOTKEY, config)  # Route to common hotkey step
 ```
