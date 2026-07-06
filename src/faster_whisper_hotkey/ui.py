@@ -530,7 +530,7 @@ def _screen_model_type(stdscr, config: ConfigData):
     elif config.model_type == "parakeet":
         return (ConfigStep.PARAKEET_DEVICE, config)
     elif config.model_type == "canary":
-        return (ConfigStep.CANARY_SOURCE_LANG, config)
+        return (ConfigStep.CANARY_DEVICE, config)
     elif config.model_type == "voxtral":
         return (ConfigStep.VOXTRAL_DEVICE, config)
     elif config.model_type == "cohere":
@@ -538,8 +538,7 @@ def _screen_model_type(stdscr, config: ConfigData):
     elif config.model_type == "granite-nar":
         return (ConfigStep.GRANITE_NAR_DEVICE, config)
     elif config.model_type == "granite":
-        config.model_name = "ibm-granite/granite-speech-4.1-2b"
-        return (ConfigStep.GRANITE_SOURCE_LANG, config)
+        return (ConfigStep.GRANITE_DEVICE, config)
 
     return _back_to_initial(config)
 
@@ -762,10 +761,9 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "nvidia/canary-1b-v2"
     config.language = f"{src}-{selected}"
 
-    return (ConfigStep.CANARY_DEVICE, config)
+    return (ConfigStep.HOTKEY, config)
 
 
 def _screen_canary_device(stdscr, config: ConfigData):
@@ -786,6 +784,7 @@ def _screen_canary_device(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
 
+    config.model_name = "nvidia/canary-1b-v2"
     config.device = selected
     return (ConfigStep.CANARY_PRECISION, config)
 
@@ -813,7 +812,7 @@ def _screen_canary_precision(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.compute_type = selected
-    return (ConfigStep.HOTKEY, config)
+    return (ConfigStep.CANARY_SOURCE_LANG, config)
 
 
 # ============================================================================
@@ -877,30 +876,6 @@ def _screen_cohere_device(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.device = selected
-    return (ConfigStep.COHERE_LANGUAGE, config)
-
-
-def _screen_cohere_language(stdscr, config: ConfigData):
-    """Select language for Cohere (no auto-detection)."""
-    from .config import accepted_languages_cohere
-
-    initial_idx = 0
-    if config.language and config.language in accepted_languages_cohere:
-        initial_idx = accepted_languages_cohere.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Language",
-        accepted_languages_cohere,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "CohereLabs/cohere-transcribe-03-2026"
-    config.language = selected
-
     return (ConfigStep.COHERE_PRECISION, config)
 
 
@@ -927,6 +902,30 @@ def _screen_cohere_precision(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.compute_type = selected
+    return (ConfigStep.COHERE_LANGUAGE, config)
+
+
+def _screen_cohere_language(stdscr, config: ConfigData):
+    """Select language for Cohere (no auto-detection)."""
+    from .config import accepted_languages_cohere
+
+    initial_idx = 0
+    if config.language and config.language in accepted_languages_cohere:
+        initial_idx = accepted_languages_cohere.index(config.language)
+
+    selected = curses_menu(
+        stdscr,
+        "Language",
+        accepted_languages_cohere,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.model_name = "CohereLabs/cohere-transcribe-03-2026"
+    config.language = selected
+
     return (ConfigStep.HOTKEY, config)
 
 
@@ -953,31 +952,8 @@ def _screen_granite_nar_device(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
 
-    config.device = selected
-    return (ConfigStep.GRANITE_NAR_LANGUAGE, config)
-
-
-def _screen_granite_nar_language(stdscr, config: ConfigData):
-    """Select language for Granite NAR."""
-    from .config import accepted_languages_granite
-
-    initial_idx = 0
-    if config.language and config.language in accepted_languages_granite:
-        initial_idx = accepted_languages_granite.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Language",
-        accepted_languages_granite,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
     config.model_name = "ibm-granite/granite-speech-4.1-2b-nar"
-    config.language = selected
-
+    config.device = selected
     return (ConfigStep.GRANITE_NAR_PRECISION, config)
 
 
@@ -1004,6 +980,29 @@ def _screen_granite_nar_precision(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.compute_type = selected
+    return (ConfigStep.GRANITE_NAR_LANGUAGE, config)
+
+
+def _screen_granite_nar_language(stdscr, config: ConfigData):
+    """Select language for Granite NAR."""
+    from .config import accepted_languages_granite
+
+    initial_idx = 0
+    if config.language and config.language in accepted_languages_granite:
+        initial_idx = accepted_languages_granite.index(config.language)
+
+    selected = curses_menu(
+        stdscr,
+        "Language",
+        accepted_languages_granite,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.language = selected
+
     return (ConfigStep.HOTKEY, config)
 
 
@@ -1063,7 +1062,7 @@ def _screen_granite_target_lang(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.language = f"{src}-{selected}"
-    return (ConfigStep.GRANITE_DEVICE, config)
+    return (ConfigStep.HOTKEY, config)
 
 
 def _screen_granite_device(stdscr, config: ConfigData):
@@ -1084,6 +1083,7 @@ def _screen_granite_device(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
 
+    config.model_name = "ibm-granite/granite-speech-4.1-2b"
     config.device = selected
     return (ConfigStep.GRANITE_PRECISION, config)
 
@@ -1111,7 +1111,7 @@ def _screen_granite_precision(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.compute_type = selected
-    return (ConfigStep.HOTKEY, config)
+    return (ConfigStep.GRANITE_SOURCE_LANG, config)
 
 
 # ============================================================================
