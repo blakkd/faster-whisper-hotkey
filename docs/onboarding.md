@@ -77,7 +77,7 @@ uv run pytest
 | `settings.py`      | `Settings` dataclass + JSON save/load (`~/.config/faster_whisper_hotkey/`) |
 | `models.py`        | `ModelWrapper` — loads/runs 7 model types with output suppression          |
 | `transcriber.py`   | `MicrophoneTranscriber` — audio capture, hotkey detection, paste           |
-| `ui.py`            | Curses TUI — 25-step config flow (`ConfigStep` enum)                       |
+| `ui.py`            | Curses TUI — 29-step config flow (`ConfigStep` enum)                       |
 | `clipboard.py`     | pyperclip wrapper: backup, set, restore                                    |
 | `paste.py`         | X11/Wayland detection; sends correct paste shortcut                        |
 | `terminal.py`      | Window detection via xdotool/xprop (X11) or swaymsg (Wayland)              |
@@ -86,15 +86,15 @@ uv run pytest
 
 ### Supported Models (7)
 
-| Model Type                | Internal Key  | HuggingFace Repo                      | Languages | Device   | Precision                      | Notes                              |
-| ------------------------- | ------------- | ------------------------------------- | --------- | -------- | ------------------------------ | ---------------------------------- |
-| faster-whisper            | `whisper`     | Systran/faster-whisper                | 100+      | CPU/GPU  | int8 (CPU), float16/int8 (GPU) | 16 sizes                           |
-| parakeet-tdt-0.6b-v3      | `parakeet`    | nvidia/parakeet-tdt-0.6b-v3           | 25 (auto) | CPU/GPU  | float16 (hardcoded)            | Very fast on CPU                   |
-| canary-1b-v2              | `canary`      | nvidia/canary-1b-v2                   | 25        | CPU/GPU  | float16 (hardcoded)            | Transcription + translation        |
-| Voxtral-Mini-3B-2507      | `voxtral`     | mistralai/Voxtral-Mini-3B-2507        | 8 (auto)  | GPU only | float16/int8/int4              | Native chunking                    |
-| cohere-transcribe-03-2026 | `cohere`      | CohereLabs/cohere-transcribe-03-2026  | 14        | CPU/GPU  | float32 (auto)                 | Native chunking                    |
-| granite-speech-4.1-2b-nar | `granite-nar` | ibm-granite/granite-speech-4.1-2b-nar | 9         | CPU/GPU  | bf16 (GPU), f32 (CPU)          | Non-AR, very fast, no punctuation  |
-| granite-speech-4.1-2b     | `granite`     | ibm-granite/granite-speech-4.1-2b     | 6→8       | CPU/GPU  | bf16 (GPU), f32 (CPU)          | AR with punctuation/capitalization |
+| Model Type                | Internal Key  | HuggingFace Repo                      | Languages | Device   | Precision                                            | Notes                              |
+| ------------------------- | ------------- | ------------------------------------- | --------- | -------- | ---------------------------------------------------- | ---------------------------------- |
+| faster-whisper            | `whisper`     | Systran/faster-whisper                | 100+      | CPU/GPU  | User-selectable (int8/f16 CPU, f16/f32/int8 GPU)     | 16 sizes                           |
+| parakeet-tdt-0.6b-v3      | `parakeet`    | nvidia/parakeet-tdt-0.6b-v3           | 25 (auto) | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +int8/int4 GPU)   | Very fast on CPU (float32)         |
+| canary-1b-v2              | `canary`      | nvidia/canary-1b-v2                   | 25        | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +int8/int4 GPU)   | Transcription + translation        |
+| Voxtral-Mini-3B-2507      | `voxtral`     | mistralai/Voxtral-Mini-3B-2507        | 8 (auto)  | GPU only | User-selectable (f16/int8/int4)                      | Native chunking                    |
+| cohere-transcribe-03-2026 | `cohere`      | CohereLabs/cohere-transcribe-03-2026  | 14        | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | Native chunking                    |
+| granite-speech-4.1-2b-nar | `granite-nar` | ibm-granite/granite-speech-4.1-2b-nar | 9         | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | Non-AR, very fast, no punctuation  |
+| granite-speech-4.1-2b     | `granite`     | ibm-granite/granite-speech-4.1-2b     | 6→8       | CPU/GPU  | User-selectable (f32/bf16/f16 CPU, +bf16/f32/int8/4) | AR with punctuation/capitalization |
 
 ### Model Native Precisions
 
@@ -490,21 +490,21 @@ uv run faster-whisper-hotkey --headless --config /path/to/settings.json
 
 The test suite covers all modules with mocked dependencies:
 
-| Test File                   | Coverage                                            |
-| --------------------------- | --------------------------------------------------- |
-| `test_models.py`            | Model loading + transcription for all 7 types       |
-| `test_models_extended.py`   | Additional edge cases for models                    |
-| `test_transcribe.py`        | Main entry point flow                               |
-| `test_settings.py`          | Settings save/load/roundtrip/corruption             |
-| `test_ui.py`                | TUI menu rendering and navigation                   |
-| `test_ui_edge_cases.py`     | Terminal size edge cases (1x1 to 300px width)       |
-| `test_config.py`            | Config loading and resource path resolution         |
-| `test_config_extended.py`   | Extended config validation                          |
-| `test_headless_config.py`   | Headless mode with saved/missing settings           |
-| `test_llm_corrector.py`     | LLM correction: success, failure, edge cases        |
-| `test_clipboard.py`         | Clipboard backup/set/restore                        |
-| `test_paste.py`             | X11/Wayland paste shortcut selection                |
-| `test_terminal.py`          | Terminal window detection (X11 + Wayland)           |
+| Test File                   | Coverage                                                   |
+| --------------------------- | ---------------------------------------------------------- |
+| `test_models.py`            | Model loading + transcription for all 7 types              |
+| `test_models_extended.py`   | Additional edge cases for models                           |
+| `test_transcribe.py`        | Main entry point flow                                      |
+| `test_settings.py`          | Settings save/load/roundtrip/corruption                    |
+| `test_ui.py`                | TUI menu rendering and navigation                          |
+| `test_ui_edge_cases.py`     | Terminal size edge cases (1x1 to 300px width)              |
+| `test_config.py`            | Config loading and resource path resolution                |
+| `test_config_extended.py`   | Extended config validation                                 |
+| `test_headless_config.py`   | Headless mode with saved/missing settings                  |
+| `test_llm_corrector.py`     | LLM correction: success, failure, edge cases               |
+| `test_clipboard.py`         | Clipboard backup/set/restore                               |
+| `test_paste.py`             | X11/Wayland paste shortcut selection                       |
+| `test_terminal.py`          | Terminal window detection (X11 + Wayland)                  |
 | `test_model_all_configs.py` | Integration test: per-model transcription (7 test classes) |
 
 ## Release Process

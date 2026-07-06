@@ -62,3 +62,12 @@ faster_whisper_hotkey = ["*.json"]
 # RUFF
 [tool.ruff]
 line-length = 120
+
+# PYRIGHT
+[tool.pyright]
+pythonVersion = "3.11"
+include = ["src"]
+exclude = ["src/faster_whisper_hotkey/models.py"]
+typeCheckingMode = "standard"
+reportMissingImports = "warning"
+reportMissingTypeStubs = "none"
