@@ -37,8 +37,9 @@ class MicrophoneTranscriber:
         if getattr(settings, "llm_correction_enabled", False):
             endpoint = getattr(settings, "llm_endpoint", "")
             model_name = getattr(settings, "llm_model_name", "")
+            api_key = getattr(settings, "llm_api_key", "")
             if endpoint and model_name:
-                self.llm_corrector = LLMCorrector(endpoint, model_name)
+                self.llm_corrector = LLMCorrector(endpoint, model_name, api_key)
 
         self.stop_event = threading.Event()
         self.exit_flag = False

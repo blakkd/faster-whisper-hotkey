@@ -23,6 +23,7 @@ class Settings:
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
     llm_model_name: str = ""
+    llm_api_key: str = ""
 
 
 def save_settings(settings: dict, settings_file: str | None = None):
@@ -45,6 +46,7 @@ def load_settings(settings_file: str | None = None) -> Settings | None:
             data.setdefault("llm_correction_enabled", False)
             data.setdefault("llm_endpoint", "")
             data.setdefault("llm_model_name", "")
+            data.setdefault("llm_api_key", "")
             return Settings(**data)
     except FileNotFoundError:
         return None

@@ -11,9 +11,10 @@ class LLMCorrector:
     Handles transcription correction via an OpenAI-compatible API endpoint.
     """
 
-    def __init__(self, endpoint: str, model_name: str):
+    def __init__(self, endpoint: str, model_name: str, api_key: str = ""):
         self.endpoint = endpoint.rstrip("/") + "/chat/completions"
         self.model_name = model_name
+        self.api_key = api_key
 
     def correct(self, text: str) -> str:
         """
@@ -58,6 +59,8 @@ class LLMCorrector:
 
         try:
             headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
             response = requests.post(
                 self.endpoint, json=payload, headers=headers, timeout=120
             )

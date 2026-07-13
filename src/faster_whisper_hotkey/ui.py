@@ -40,6 +40,7 @@ class ConfigStep(Enum):
     LLM_ENABLE = auto()
     LLM_ENDPOINT = auto()
     LLM_MODEL = auto()
+    LLM_API_KEY = auto()
 
 
 @dataclass
@@ -57,6 +58,7 @@ class ConfigData:
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
     llm_model_name: str = ""
+    llm_api_key: str = ""
 
 
 def curses_menu(
@@ -296,6 +298,7 @@ def config_screen_main(stdscr, settings_file: str | None = None):
         config.llm_correction_enabled = last_settings.llm_correction_enabled
         config.llm_endpoint = last_settings.llm_endpoint
         config.llm_model_name = last_settings.llm_model_name
+        config.llm_api_key = last_settings.llm_api_key
         # Preserve full src-tgt language pair for target screen preselection
         if last_settings.language and "-" in last_settings.language:
             config.language_src_target = last_settings.language
@@ -406,6 +409,8 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_llm_endpoint(stdscr, config)
     elif current_step == ConfigStep.LLM_MODEL:
         return _screen_llm_model(stdscr, config)
+    elif current_step == ConfigStep.LLM_API_KEY:
+        return _screen_llm_api_key(stdscr, config)
 
     # Should never reach here
     return (current_step, config)
@@ -1188,6 +1193,19 @@ def _screen_llm_model(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.llm_model_name = result
+    return (ConfigStep.LLM_API_KEY, config)
+
+
+def _screen_llm_api_key(stdscr, config: ConfigData):
+    """Enter LLM API key (masked input)."""
+    default = config.llm_api_key or ""
+
+    result = get_text_input(stdscr, "API key: ", default)
+
+    if result is None:
+        return _back_to_initial(config)
+
+    config.llm_api_key = result
     return _final_save(stdscr, config)
 
 
@@ -1226,6 +1244,7 @@ def _create_settings_from_config(
         "llm_correction_enabled": config.llm_correction_enabled,
         "llm_endpoint": config.llm_endpoint,
         "llm_model_name": config.llm_model_name,
+        "llm_api_key": config.llm_api_key,
     }
 
     return Settings(**settings_dict)
