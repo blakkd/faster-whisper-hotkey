@@ -62,8 +62,6 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - Transcription only
   - CPU/GPU
 
-**_To get an idea of the speed, you can look at benchmark results for my config in `docs/speed.md`_**
-
 ## Installation
 
 _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
