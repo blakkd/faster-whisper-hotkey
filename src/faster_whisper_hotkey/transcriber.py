@@ -8,6 +8,7 @@ import numpy as np
 import pulsectl
 import sounddevice as sd
 from pynput import keyboard
+from silero_vad import get_speech_timestamps, load_silero_vad
 
 from .clipboard import backup_clipboard, restore_clipboard, set_clipboard
 from .llm_corrector import LLMCorrector
@@ -19,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 # Minimum recording duration to prevent short noise transcriptions
 MIN_RECORDING_DURATION = 1.0  # seconds
+
+# Silero VAD model (loaded once, thread-safe inference)
+_vad_model = load_silero_vad()
 
 
 class MicrophoneTranscriber:
@@ -96,6 +100,22 @@ class MicrophoneTranscriber:
         if audio_data.ndim > 1 and audio_data.shape[1] == 2:
             return np.mean(audio_data, axis=1).astype(np.float32)
         return audio_data.flatten().astype(np.float32)
+
+    @staticmethod
+    def _has_speech(audio_data: np.ndarray, sample_rate: int) -> bool:
+        """Check if audio contains speech using Silero VAD."""
+        if len(audio_data) < 512:
+            return True
+        audio_tensor = np.expand_dims(audio_data, axis=0)
+        timestamps = get_speech_timestamps(
+            audio_tensor,
+            _vad_model,
+            threshold=0.5,
+            sampling_rate=sample_rate,
+            min_speech_duration_ms=100,
+            min_silence_duration_ms=50,
+        )
+        return len(timestamps) > 0
 
     # ------------------------------------------------------------------
     # Audio callback
@@ -214,14 +234,23 @@ class MicrophoneTranscriber:
                 recording_duration = time.time() - self.recording_start_time
 
                 if recording_duration >= MIN_RECORDING_DURATION:
-                    self.audio_buffer = np.zeros(
-                        self.max_buffer_length, dtype=np.float32
-                    )
-                    self.buffer_index = 0
-                    self.transcription_queue.append(audio_data)
-                    self.process_next_transcription()
-                    logger.info(f"Recording duration: {recording_duration:.2f}s")
-                    logger.info("Processing transcription...")
+                    if not self._has_speech(audio_data, self.sample_rate):
+                        self.audio_buffer = np.zeros(
+                            self.max_buffer_length, dtype=np.float32
+                        )
+                        self.buffer_index = 0
+                        logger.info(
+                            f"Recording duration: {recording_duration:.2f}s - no speech detected, skipping transcription"
+                        )
+                    else:
+                        self.audio_buffer = np.zeros(
+                            self.max_buffer_length, dtype=np.float32
+                        )
+                        self.buffer_index = 0
+                        self.transcription_queue.append(audio_data)
+                        self.process_next_transcription()
+                        logger.info(f"Recording duration: {recording_duration:.2f}s")
+                        logger.info("Processing transcription...")
                 else:
                     self.audio_buffer = np.zeros(
                         self.max_buffer_length, dtype=np.float32

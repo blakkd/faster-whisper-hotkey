@@ -45,6 +45,7 @@ dependencies = [
     "protobuf==5.29.6",
     "onnx==1.22.0",
     "accelerate==1.14.0",
+    "silero-vad>=6.2.1",
 ]
 
 # SCRIPTS
