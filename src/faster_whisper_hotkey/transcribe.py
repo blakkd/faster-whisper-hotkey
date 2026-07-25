@@ -17,7 +17,6 @@ warnings.filterwarnings(
 )
 
 
-
 def _setup_logging():
     """Configure logging based on DEBUG environment variable."""
     import os
@@ -70,9 +69,7 @@ def main(headless: bool = False, settings_file: str | None = None):
     else:
         while True:
             try:
-                result = curses.wrapper(
-                    lambda scr: config_screen_main(scr, settings_file)
-                )
+                result = curses.wrapper(lambda scr: config_screen_main(scr, settings_file))
 
                 # result is either a Settings object (success) or None (aborted/cancelled)
                 if isinstance(result, Settings):

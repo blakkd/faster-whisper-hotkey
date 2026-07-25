@@ -9,9 +9,7 @@ import pytest
 class MockSettings:
     """Simple mock settings object for testing."""
 
-    def __init__(
-        self, model_type, model_name, device, compute_type=None, language="auto"
-    ):
+    def __init__(self, model_type, model_name, device, compute_type=None, language="auto"):
         self.model_type = model_type
         self.model_name = model_name
         self.device = device
@@ -25,16 +23,12 @@ class TestGraniteInitEdgeCases:
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModelForSpeechSeq2Seq")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_init_granite_uppercase_model_type(
-        self, mock_check, mock_auto_model, mock_processor
-    ):
+    def test_init_granite_uppercase_model_type(self, mock_check, mock_auto_model, mock_processor):
         """Test that uppercase model type is normalized to lowercase."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="GRANITE",
@@ -48,9 +42,7 @@ class TestGraniteInitEdgeCases:
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_init_granite_trust_remote_code(
-        self, mock_check, mock_auto_model, mock_processor
-    ):
+    def test_init_granite_trust_remote_code(self, mock_check, mock_auto_model, mock_processor):
         """Test that Granite loads with trust_remote_code=True."""
         from faster_whisper_hotkey.models import ModelWrapper
 
@@ -73,9 +65,7 @@ class TestGraniteInitEdgeCases:
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
-    def test_init_granite_old_transformers_version(
-        self, mock_auto_model, mock_processor
-    ):
+    def test_init_granite_old_transformers_version(self, mock_auto_model, mock_processor):
         """Test that Granite raises ImportError for old transformers version."""
         import transformers as tf_lib
 
@@ -167,9 +157,7 @@ class TestVoxtralNativeChunking:
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_proc_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
@@ -182,9 +170,7 @@ class TestVoxtralNativeChunking:
 
         wrapper = ModelWrapper(settings)
 
-        with patch.object(
-            wrapper, "_transcribe_voxtral", return_value="short audio result"
-        ):
+        with patch.object(wrapper, "_transcribe_voxtral", return_value="short audio result"):
             short_audio = np.random.randn(48000).astype(np.float32)  # 3s
             result = wrapper.transcribe(short_audio, 16000)
 
@@ -198,9 +184,7 @@ class TestVoxtralNativeChunking:
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_proc_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
@@ -234,9 +218,7 @@ class TestVoxtralNativeChunking:
 
         mock_model = MagicMock()
         mock_model.device = "cuda"
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_proc_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_proc_instance
 
@@ -273,9 +255,7 @@ class TestCohereNativeChunking:
         mock_model = MagicMock()
         mock_model.device = "cuda"
         mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_feat_extractor = MagicMock()
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
@@ -289,9 +269,7 @@ class TestCohereNativeChunking:
 
         wrapper = ModelWrapper(settings)
 
-        with patch.object(
-            wrapper, "_transcribe_cohere", return_value="short audio result"
-        ):
+        with patch.object(wrapper, "_transcribe_cohere", return_value="short audio result"):
             short_audio = np.random.randn(480000).astype(np.float32)  # 30s
             result = wrapper.transcribe(short_audio, 16000)
 
@@ -306,9 +284,7 @@ class TestCohereNativeChunking:
         mock_model = MagicMock()
         mock_model.device = "cuda"
         mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_feat_extractor = MagicMock()
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
@@ -341,9 +317,7 @@ class TestCohereNativeChunking:
         mock_model = MagicMock()
         mock_model.device = "cuda"
         mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_feat_extractor = MagicMock()
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
@@ -376,9 +350,7 @@ class TestCohereNativeChunking:
         mock_model = MagicMock()
         mock_model.device = "cuda"
         mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_feat_extractor = MagicMock()
         mock_proc_instance = MagicMock()
         mock_proc_instance.feature_extractor = mock_feat_extractor
@@ -414,9 +386,7 @@ class TestCanaryLanguageParsingEdgeCases:
         mock_model = MagicMock()
         mock_output = MagicMock(text="default to en-en")
         mock_model.transcribe.return_value = [mock_output]
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="canary",
@@ -441,9 +411,7 @@ class TestCanaryLanguageParsingEdgeCases:
         mock_model = MagicMock()
         mock_output = MagicMock(text="default to en-en")
         mock_model.transcribe.return_value = [mock_output]
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="canary",
@@ -468,9 +436,7 @@ class TestCanaryLanguageParsingEdgeCases:
         mock_model = MagicMock()
         mock_output = MagicMock(text="default to en-en")
         mock_model.transcribe.return_value = [mock_output]
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="canary",
@@ -597,9 +563,7 @@ class TestTranscriptionOutputHandling:
 
         mock_model = MagicMock()
         mock_model.transcribe.return_value = []  # Empty result
-        mock_asr.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_asr.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="parakeet",
@@ -620,9 +584,7 @@ class TestTranscriptionOutputHandling:
 
         mock_model = MagicMock()
         mock_model.transcribe.return_value = []  # Empty result
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="canary",
@@ -689,9 +651,7 @@ class TestVoxtralInitWithDifferentPrecisions:
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="voxtral",
@@ -714,9 +674,7 @@ class TestVoxtralInitWithDifferentPrecisions:
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="voxtral",
@@ -809,16 +767,12 @@ class TestGraniteTranscription:
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_granite_transcription_with_language(
-        self, mock_check, mock_torch, mock_auto_model, mock_processor
-    ):
+    def test_granite_transcription_with_language(self, mock_check, mock_torch, mock_auto_model, mock_processor):
         """Test Granite transcription passes audio correctly."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -852,16 +806,12 @@ class TestGraniteTranscription:
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_granite_empty_transcription(
-        self, mock_check, mock_torch, mock_auto_model, mock_processor
-    ):
+    def test_granite_empty_transcription(self, mock_check, mock_torch, mock_auto_model, mock_processor):
         """Test Granite with empty batch_decode result."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -894,17 +844,13 @@ class TestGraniteTranscription:
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_granite_transcription_error_handling(
-        self, mock_check, mock_torch, mock_auto_model, mock_processor
-    ):
+    def test_granite_transcription_error_handling(self, mock_check, mock_torch, mock_auto_model, mock_processor):
         """Test Granite handles transcription errors gracefully."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
         mock_model.transcribe.side_effect = RuntimeError("Granite error")
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
         mock_processor.from_pretrained.return_value = MagicMock()
 
         mock_tensor = MagicMock()

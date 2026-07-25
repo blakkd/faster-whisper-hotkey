@@ -64,9 +64,7 @@ class TestSaveSettings:
                 loaded = json.load(f)
             assert loaded == settings_dict
 
-    @patch(
-        "faster_whisper_hotkey.settings.open", side_effect=OSError("Permission denied")
-    )
+    @patch("faster_whisper_hotkey.settings.open", side_effect=OSError("Permission denied"))
     def test_save_settings_failure(self, mock_open):
         settings_dict = {"device_name": "test"}
         save_settings(settings_dict)

@@ -190,73 +190,68 @@ class TestCLIParsing:
         """--headless flag is parsed correctly."""
         from faster_whisper_hotkey.__main__ import main as cli_main
 
-        with patch("sys.argv", ["faster-whisper-hotkey", "--headless"]), patch(
-            "faster_whisper_hotkey.transcribe.main"
-        ) as mock_transcribe_main, patch(
-            "faster_whisper_hotkey.settings.load_settings", return_value=None
+        with (
+            patch("sys.argv", ["faster-whisper-hotkey", "--headless"]),
+            patch("faster_whisper_hotkey.transcribe.main") as mock_transcribe_main,
+            patch("faster_whisper_hotkey.settings.load_settings", return_value=None),
         ):
             cli_main()
 
-            mock_transcribe_main.assert_called_once_with(
-                headless=True, settings_file=None
-            )
+            mock_transcribe_main.assert_called_once_with(headless=True, settings_file=None)
 
     def test_config_flag_parsed(self):
         """--config flag is parsed and passed correctly."""
         from faster_whisper_hotkey.__main__ import main as cli_main
 
         custom_path = "/my/custom/config.json"
-        with patch(
-            "sys.argv",
-            ["faster-whisper-hotkey", "--config", custom_path],
-        ), patch(
-            "faster_whisper_hotkey.transcribe.main"
-        ) as mock_transcribe_main:
+        with (
+            patch(
+                "sys.argv",
+                ["faster-whisper-hotkey", "--config", custom_path],
+            ),
+            patch("faster_whisper_hotkey.transcribe.main") as mock_transcribe_main,
+        ):
             cli_main()
 
-            mock_transcribe_main.assert_called_once_with(
-                headless=False, settings_file=custom_path
-            )
+            mock_transcribe_main.assert_called_once_with(headless=False, settings_file=custom_path)
 
     def test_headless_and_config_combined(self):
         """--headless and --config work together."""
         from faster_whisper_hotkey.__main__ import main as cli_main
 
         custom_path = "/my/custom/config.json"
-        with patch(
-            "sys.argv",
-            ["faster-whisper-hotkey", "--headless", "--config", custom_path],
-        ), patch(
-            "faster_whisper_hotkey.transcribe.main"
-        ) as mock_transcribe_main:
+        with (
+            patch(
+                "sys.argv",
+                ["faster-whisper-hotkey", "--headless", "--config", custom_path],
+            ),
+            patch("faster_whisper_hotkey.transcribe.main") as mock_transcribe_main,
+        ):
             cli_main()
 
-            mock_transcribe_main.assert_called_once_with(
-                headless=True, settings_file=custom_path
-            )
+            mock_transcribe_main.assert_called_once_with(headless=True, settings_file=custom_path)
 
     def test_headless_config_with_debug(self):
         """--debug, --headless, and --config all work together."""
         from faster_whisper_hotkey.__main__ import main as cli_main
 
         custom_path = "/my/custom/config.json"
-        with patch(
-            "sys.argv",
-            [
-                "faster-whisper-hotkey",
-                "--debug",
-                "--headless",
-                "--config",
-                custom_path,
-            ],
-        ), patch(
-            "faster_whisper_hotkey.transcribe.main"
-        ) as mock_transcribe_main:
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "faster-whisper-hotkey",
+                    "--debug",
+                    "--headless",
+                    "--config",
+                    custom_path,
+                ],
+            ),
+            patch("faster_whisper_hotkey.transcribe.main") as mock_transcribe_main,
+        ):
             cli_main()
 
             assert os.environ.get("FASTER_WHISPER_HOTKEY_DEBUG") == "1"
-            mock_transcribe_main.assert_called_once_with(
-                headless=True, settings_file=custom_path
-            )
+            mock_transcribe_main.assert_called_once_with(headless=True, settings_file=custom_path)
 
         os.environ.pop("FASTER_WHISPER_HOTKEY_DEBUG", None)

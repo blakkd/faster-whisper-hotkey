@@ -125,9 +125,7 @@ class TestPasteToActiveWindow:
     @patch("faster_whisper_hotkey.paste.paste_x11")
     @patch("faster_whisper_hotkey.paste.terminal.is_terminal_window_x11")
     @patch("faster_whisper_hotkey.paste.terminal.get_active_window_class_x11")
-    def test_paste_to_active_window_x11(
-        self, mock_get_class, mock_is_terminal, mock_paste
-    ):
+    def test_paste_to_active_window_x11(self, mock_get_class, mock_is_terminal, mock_paste):
         """Test paste routing on X11."""
         from faster_whisper_hotkey.paste import paste_to_active_window
 
@@ -145,9 +143,7 @@ class TestPasteToActiveWindow:
     @patch("faster_whisper_hotkey.paste.paste_wayland")
     @patch("faster_whisper_hotkey.paste.terminal.is_terminal_window_wayland")
     @patch("faster_whisper_hotkey.paste.terminal.get_focused_container_wayland")
-    def test_paste_to_active_window_wayland(
-        self, mock_get_container, mock_is_terminal, mock_paste
-    ):
+    def test_paste_to_active_window_wayland(self, mock_get_container, mock_is_terminal, mock_paste):
         """Test paste routing on Wayland."""
         from faster_whisper_hotkey.paste import paste_to_active_window
 
@@ -165,9 +161,7 @@ class TestPasteToActiveWindow:
     @patch("faster_whisper_hotkey.paste.paste_x11")
     @patch("faster_whisper_hotkey.paste.terminal.is_terminal_window_x11")
     @patch("faster_whisper_hotkey.paste.terminal.get_active_window_class_x11")
-    def test_paste_to_active_window_default_x11(
-        self, mock_get_class, mock_is_terminal, mock_paste_x11
-    ):
+    def test_paste_to_active_window_default_x11(self, mock_get_class, mock_is_terminal, mock_paste_x11):
         """Test paste defaults to X11 when WAYLAND_DISPLAY not set."""
         from faster_whisper_hotkey.paste import paste_to_active_window
 

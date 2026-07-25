@@ -199,8 +199,7 @@ class TestTerminalDetectionWorkflow:
             "nodes": [{"type": "window", "app_id": "kitty", "focused": True}],
         }
         mock_check_output.return_value = (
-            b'{"type": "root", "nodes": [{"type": "window", '
-            b'"app_id": "kitty", "focused": true}]}'
+            b'{"type": "root", "nodes": [{"type": "window", "app_id": "kitty", "focused": true}]}'
         )
 
         container = get_focused_container_wayland()

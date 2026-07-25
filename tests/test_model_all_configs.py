@@ -47,70 +47,45 @@ WHISPER_MODELS = ["small"]
 
 # whisper: CPU (int8) + CUDA (float16, float32, int8)
 # float16 unsupported on CPU (CTranslate2 hw requirement); int4 not supported
-_configs = [
-    (m, "cpu", prec)
-    for m in WHISPER_MODELS
-    for prec in ("int8",)
-] + [
-    (m, "cuda", prec)
-    for m in WHISPER_MODELS
-    for prec in ("float16", "float32", "int8")
+_configs = [(m, "cpu", prec) for m in WHISPER_MODELS for prec in ("int8",)] + [
+    (m, "cuda", prec) for m in WHISPER_MODELS for prec in ("float16", "float32", "int8")
 ]
 
-WHISPER = [
-    ("whisper", m, dev, prec) for m, dev, prec in _configs
-]
+WHISPER = [("whisper", m, dev, prec) for m, dev, prec in _configs]
 
 # parakeet: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
-PARAKEET = [
-    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cpu", prec)
-    for prec in ("float32", "bfloat16")
-] + [
-    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cuda", prec)
-    for prec in ("float32", "bfloat16", "int8", "int4")
+PARAKEET = [("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cpu", prec) for prec in ("float32", "bfloat16")] + [
+    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
 # canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
-CANARY = [
-    ("canary", "nvidia/canary-1b-v2", "cpu", prec)
-    for prec in ("float32", "bfloat16")
-] + [
-    ("canary", "nvidia/canary-1b-v2", "cuda", prec)
-    for prec in ("float32", "bfloat16", "int8", "int4")
+CANARY = [("canary", "nvidia/canary-1b-v2", "cpu", prec) for prec in ("float32", "bfloat16")] + [
+    ("canary", "nvidia/canary-1b-v2", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
 # voxtral: native=float32, CUDA (f32/bf16/int8/int4)
 VOXTRAL = [
-    ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cuda", prec)
-    for prec in ("float32", "bfloat16", "int8", "int4")
+    ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
 ]
 
 # cohere: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
-COHERE = [
-    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cpu", prec)
-    for prec in ("float32", "bfloat16")
-] + [
-    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cuda", prec)
-    for prec in ("bfloat16", "float32", "int8", "int4")
+COHERE = [("cohere", "CohereLabs/cohere-transcribe-03-2026", "cpu", prec) for prec in ("float32", "bfloat16")] + [
+    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
 # granite-nar: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE_NAR = [
-    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cpu", prec)
-    for prec in ("float32", "bfloat16")
+    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cpu", prec) for prec in ("float32", "bfloat16")
 ] + [
     ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cuda", prec)
     for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
 # granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
-GRANITE = [
-    ("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec)
-    for prec in ("float32", "bfloat16")
-] + [
-    ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec)
-    for prec in ("bfloat16", "float32", "int8", "int4")
+GRANITE = [("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec) for prec in ("float32", "bfloat16")] + [
+    ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
 ]
+
 
 def _cuda_available():
     return torch.cuda.is_available()
@@ -217,9 +192,7 @@ def _format_results(model_label, results, skipped, errors, audio_data, sr):
             lines.append(f"  {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}")
         lines.append("")
 
-    lines.append(
-        f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors"
-    )
+    lines.append(f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors")
     lines.append("")
 
     return "\n".join(lines)
@@ -234,18 +207,13 @@ class TestTranscribeWhisper:
     """Transcribe test audio with faster-whisper configs."""
 
     def test_whisper(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            WHISPER, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(WHISPER, audio, request, None)
 
         block = _format_results("faster-whisper", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -253,18 +221,13 @@ class TestTranscribeParakeet:
     """Transcribe test audio with parakeet configs."""
 
     def test_parakeet(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            PARAKEET, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET, audio, request, None)
 
         block = _format_results("parakeet", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -272,18 +235,13 @@ class TestTranscribeCanary:
     """Transcribe test audio with canary configs."""
 
     def test_canary(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            CANARY, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(CANARY, audio, request, None)
 
         block = _format_results("canary", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -291,18 +249,13 @@ class TestTranscribeVoxtral:
     """Transcribe test audio with voxtral configs."""
 
     def test_voxtral(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            VOXTRAL, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(VOXTRAL, audio, request, None)
 
         block = _format_results("voxtral", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -310,18 +263,13 @@ class TestTranscribeCohere:
     """Transcribe test audio with cohere configs."""
 
     def test_cohere(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            COHERE, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(COHERE, audio, request, None)
 
         block = _format_results("cohere", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -329,18 +277,13 @@ class TestTranscribeGraniteNAR:
     """Transcribe test audio with granite-nar configs."""
 
     def test_granite_nar(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            GRANITE_NAR, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_NAR, audio, request, None)
 
         block = _format_results("granite-nar", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
 
 
@@ -348,19 +291,11 @@ class TestTranscribeGranite:
     """Transcribe test audio with granite (AR) configs."""
 
     def test_granite(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(
-            GRANITE, audio, request, None
-        )
+        results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request, None)
 
         block = _format_results("granite", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
-        assert errors == [], (
-            f"{len(errors)} config(s) failed:\n"
-            + "\n".join(
-                f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-            )
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
         )
-
-
-

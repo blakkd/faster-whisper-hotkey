@@ -48,9 +48,7 @@ class TestEnglishOnlyModelsWhisper:
     def test_english_only_models_contains_en_suffix(self):
         for model in english_only_models_whisper:
             if "distil-large" not in model:
-                assert model.endswith(".en"), (
-                    f"{model} should end with .en or be a distil-large-vX model"
-                )
+                assert model.endswith(".en"), f"{model} should end with .en or be a distil-large-vX model"
 
     def test_english_only_models_not_empty(self):
         assert len(english_only_models_whisper) > 0

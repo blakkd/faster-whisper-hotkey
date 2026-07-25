@@ -1,7 +1,6 @@
 """Pytest configuration for integration tests."""
 
 
-
 def pytest_addoption(parser):
     parser.addoption(
         "--force-cuda",

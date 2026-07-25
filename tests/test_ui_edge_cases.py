@@ -45,9 +45,7 @@ class TestGetTextInputNarrowWidths:
         mock_stdscr = self._create_mock_stdscr(width=5)
         mock_stdscr.getch.side_effect = [13]
 
-        result = get_text_input(
-            mock_stdscr, "Endpoint URL: ", "http://localhost:8678/v1"
-        )
+        result = get_text_input(mock_stdscr, "Endpoint URL: ", "http://localhost:8678/v1")
         assert result == "http://localhost:8678/v1"
 
     @patch("faster_whisper_hotkey.ui.curses")
@@ -277,9 +275,7 @@ class TestGetTextInputDisplayTruncation:
         mock_stdscr = self._create_mock_stdscr(width=20)
         mock_stdscr.getch.side_effect = [13]
 
-        very_long_url = (
-            "http://localhost:8678/v1/chat/completions?model=test&extra=params"
-        )
+        very_long_url = "http://localhost:8678/v1/chat/completions?model=test&extra=params"
         result = get_text_input(mock_stdscr, "URL: ", very_long_url)
         assert result == very_long_url
 
@@ -298,9 +294,7 @@ class TestGetTextInputDisplayTruncation:
             if text:
                 assert x >= 0, f"X position should be non-negative: {x}"
                 assert x < 15, f"X position should be within width: {x} >= 15"
-                assert x + len(text) <= 15, (
-                    f"Text would overflow: pos {x} + len {len(text)} > 15"
-                )
+                assert x + len(text) <= 15, f"Text would overflow: pos {x} + len {len(text)} > 15"
 
 
 class TestCursesMenuEdgeCases:

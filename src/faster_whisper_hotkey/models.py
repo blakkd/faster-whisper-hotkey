@@ -54,8 +54,7 @@ def suppress_nemo():
             nemo_logging = None
 
         if nemo_logging is not None:
-            for attr in ("log_info", "log_warn", "log_error", "log_debug",
-                         "info", "warn", "error", "debug"):
+            for attr in ("log_info", "log_warn", "log_error", "log_debug", "info", "warn", "error", "debug"):
                 orig = getattr(nemo_logging, attr, None)
                 if orig is not None and callable(orig):
                     setattr(nemo_logging, attr, lambda *a, **k: None)
@@ -96,10 +95,7 @@ with suppress_output():
     @property  # type: ignore[misc]
     def _patched_eos_id(self):
         try:
-            if (
-                hasattr(self, "tokenizer")
-                and self.tokenizer.piece_to_id("<|startoftranscript|>") == 4
-            ):
+            if hasattr(self, "tokenizer") and self.tokenizer.piece_to_id("<|startoftranscript|>") == 4:
                 return 3  # CANARY_EOS = "<s>"
         except Exception:
             pass
@@ -124,6 +120,7 @@ def _materialize_weights(model):
         p.data = p.data.clone()
     for b in model.buffers():
         b.data = b.data.clone()
+
 
 # Optional types import (already available in Python 3.9+)
 
@@ -275,9 +272,13 @@ class ModelWrapper:
                     quantization_config=quant_cfg,
                 )
             else:
-                _dtype = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
-                    compute_type, torch.bfloat16 if device == "cuda" else torch.float32
-                ) if compute_type and compute_type not in ("int8", "int4") else torch.float32
+                _dtype = (
+                    {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                        compute_type, torch.bfloat16 if device == "cuda" else torch.float32
+                    )
+                    if compute_type and compute_type not in ("int8", "int4")
+                    else torch.float32
+                )
 
                 if device == "cpu":
                     self.model = CohereAsrForConditionalGeneration.from_pretrained(
@@ -300,9 +301,7 @@ class ModelWrapper:
 
             _check_transformers_version()
 
-            self.processor = AutoProcessor.from_pretrained(
-                repo_id, trust_remote_code=True
-            )
+            self.processor = AutoProcessor.from_pretrained(repo_id, trust_remote_code=True)
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
@@ -316,9 +315,13 @@ class ModelWrapper:
                     trust_remote_code=True,
                 ).eval()
             else:
-                _dtype = compute_type and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                _dtype = (
                     compute_type
-                ) or (torch.bfloat16 if device == "cuda" else torch.float32)
+                    and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                        compute_type
+                    )
+                    or (torch.bfloat16 if device == "cuda" else torch.float32)
+                )
 
                 if device == "cpu":
                     self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
@@ -343,9 +346,7 @@ class ModelWrapper:
 
             _check_transformers_version()
 
-            self.processor = AutoProcessor.from_pretrained(
-                repo_id, trust_remote_code=True
-            )
+            self.processor = AutoProcessor.from_pretrained(repo_id, trust_remote_code=True)
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
@@ -360,9 +361,13 @@ class ModelWrapper:
                     quantization_config=quant_cfg,
                 ).eval()
             else:
-                _dtype = compute_type and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                _dtype = (
                     compute_type
-                ) or (torch.bfloat16 if device == "cuda" else torch.float32)
+                    and {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}.get(
+                        compute_type
+                    )
+                    or (torch.bfloat16 if device == "cuda" else torch.float32)
+                )
 
                 if device == "cpu":
                     self.model = AutoModel.from_pretrained(
@@ -386,9 +391,7 @@ class ModelWrapper:
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
-    def transcribe(
-        self, audio_data, sample_rate: int = 16000, language: str | None = None
-    ) -> str:
+    def transcribe(self, audio_data, sample_rate: int = 16000, language: str | None = None) -> str:
         """
         Transcribe a numpy array of audio samples and return transcribed text.
         For some models (canary, voxtral) we write to a temp file and call model utilities requiring a file.
@@ -471,23 +474,14 @@ class ModelWrapper:
                 lang = language or "en-en"
                 lang_parts = lang.split("-") if lang else ["en", "en"]
                 if len(lang_parts) == 2 and lang_parts[0] != lang_parts[1]:
-                    target_name = granite_lang_names.get(
-                        lang_parts[1], lang_parts[1]
-                    )
+                    target_name = granite_lang_names.get(lang_parts[1], lang_parts[1])
                     action = f"translate the speech to {target_name}"
                 else:
                     action = "transcribe the speech"
-                user_prompt = (
-                    f"<|audio|>{action} with proper punctuation "
-                    "and capitalization."
-                )
+                user_prompt = f"<|audio|>{action} with proper punctuation and capitalization."
                 chat = [{"role": "user", "content": user_prompt}]
-                prompt = self.processor.tokenizer.apply_chat_template(
-                    chat, tokenize=False, add_generation_prompt=True
-                )
-                model_inputs = self.processor(
-                    prompt, waveform, device=device, return_tensors="pt"
-                ).to(device)
+                prompt = self.processor.tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=True)
+                model_inputs = self.processor(prompt, waveform, device=device, return_tensors="pt").to(device)
                 model_outputs = self.model.generate(
                     **model_inputs,
                     max_new_tokens=400,
@@ -507,9 +501,7 @@ class ModelWrapper:
                 inputs = self.processor([waveform], device=device)
                 with torch.no_grad():
                     output = self.model.transcribe(**inputs)
-                transcriptions = self.processor.batch_decode(
-                    output.preds, skip_special_tokens=True
-                )
+                transcriptions = self.processor.batch_decode(output.preds, skip_special_tokens=True)
                 return transcriptions[0] if transcriptions else ""
 
             else:
@@ -519,14 +511,10 @@ class ModelWrapper:
             logger.error(f"Error during model.transcribe: {e}")
             return ""
 
-    def _transcribe_cohere(
-        self, audio_data, sample_rate: int, language: str | None
-    ) -> str:
+    def _transcribe_cohere(self, audio_data, sample_rate: int, language: str | None) -> str:
         """Transcribe audio for cohere-transcribe-03-2026 with native chunking."""
         lang = language or "en"
-        inputs = self.processor(
-            audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang
-        )
+        inputs = self.processor(audio_data, sampling_rate=sample_rate, return_tensors="pt", language=lang)
         audio_chunk_index = inputs.get("audio_chunk_index")
         inputs = inputs.to(self.model.device, dtype=self.model.dtype)
         outputs = self.model.generate(**inputs, max_new_tokens=256)
@@ -540,9 +528,7 @@ class ModelWrapper:
             return text[0].strip() if text else ""
         return text.strip() if text else ""
 
-    def _transcribe_voxtral(
-        self, audio_data, sample_rate: int, language: str | None
-    ) -> str:
+    def _transcribe_voxtral(self, audio_data, sample_rate: int, language: str | None) -> str:
         """Transcribe audio using Voxtral with native chunking via apply_transcription_request."""
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
             sf.write(tmp_audio.name, audio_data, sample_rate)

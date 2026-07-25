@@ -7,6 +7,7 @@ import time
 import numpy as np
 import pulsectl
 import sounddevice as sd
+import torch
 from pynput import keyboard
 from silero_vad import get_speech_timestamps, load_silero_vad
 
@@ -106,7 +107,7 @@ class MicrophoneTranscriber:
         """Check if audio contains speech using Silero VAD."""
         if len(audio_data) < 512:
             return True
-        audio_tensor = np.expand_dims(audio_data, axis=0)
+        audio_tensor = torch.from_numpy(np.expand_dims(audio_data, axis=0))
         timestamps = get_speech_timestamps(
             audio_tensor,
             _vad_model,
@@ -196,9 +197,7 @@ class MicrophoneTranscriber:
         if self.transcription_queue and not self.is_transcribing:
             audio_data = self.transcription_queue.pop(0)
             self.is_transcribing = True
-            threading.Thread(
-                target=self.transcribe_and_send, args=(audio_data,), daemon=True
-            ).start()
+            threading.Thread(target=self.transcribe_and_send, args=(audio_data,), daemon=True).start()
 
     # ------------------------------------------------------------------
     # Recording control
@@ -237,30 +236,22 @@ class MicrophoneTranscriber:
                     if getattr(self.settings, "vad_enabled", True) and not self._has_speech(
                         audio_data, self.sample_rate
                     ):
-                        self.audio_buffer = np.zeros(
-                            self.max_buffer_length, dtype=np.float32
-                        )
+                        self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
                         self.buffer_index = 0
                         logger.info(
                             f"Recording duration: {recording_duration:.2f}s - Silero VAD: no speech, skipping transcription"
                         )
                     else:
-                        self.audio_buffer = np.zeros(
-                            self.max_buffer_length, dtype=np.float32
-                        )
+                        self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
                         self.buffer_index = 0
                         self.transcription_queue.append(audio_data)
                         self.process_next_transcription()
                         logger.info(f"Recording duration: {recording_duration:.2f}s")
                         logger.info("Processing transcription...")
                 else:
-                    self.audio_buffer = np.zeros(
-                        self.max_buffer_length, dtype=np.float32
-                    )
+                    self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
                     self.buffer_index = 0
-                    logger.info(
-                        f"Recording duration: {recording_duration:.2f}s - too short, skipping transcription"
-                    )
+                    logger.info(f"Recording duration: {recording_duration:.2f}s - too short, skipping transcription")
             else:
                 self.buffer_index = 0
                 self.is_transcribing = False
@@ -273,9 +264,7 @@ class MicrophoneTranscriber:
     def on_press(self, key):
         try:
             current_time = time.time()
-            if self.is_recording or (
-                current_time - self.last_transcription_end_time < 0.1
-            ):
+            if self.is_recording or (current_time - self.last_transcription_end_time < 0.1):
                 return True
             if key == self.hotkey_key and not self.is_recording:
                 self.start_recording()
@@ -317,9 +306,7 @@ class MicrophoneTranscriber:
         listener = keyboard.Listener(on_press=_on_press, on_release=_on_release)
         listener.start()
 
-        logger.info(
-            f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit."
-        )
+        logger.info(f"Press {self.settings.hotkey.capitalize()} to start/stop recording. Press Ctrl+C to exit.")
 
         def sigint_handler(signum, frame):
             self.exit_flag = True

@@ -9,9 +9,7 @@ import pytest
 class MockSettings:
     """Simple mock settings object for testing."""
 
-    def __init__(
-        self, model_type, model_name, device, compute_type=None, language="auto"
-    ):
+    def __init__(self, model_type, model_name, device, compute_type=None, language="auto"):
         self.model_type = model_type
         self.model_name = model_name
         self.device = device
@@ -37,9 +35,7 @@ class TestModelWrapperInitialization:
         wrapper = ModelWrapper(settings)
 
         assert wrapper.model_type == "whisper"
-        mock_whisper.assert_called_once_with(
-            model_size_or_path="small", device="cpu", compute_type="int8"
-        )
+        mock_whisper.assert_called_once_with(model_size_or_path="small", device="cpu", compute_type="int8")
 
     @patch("faster_whisper_hotkey.models.ASRModel")
     def test_init_parakeet_model(self, mock_asr):
@@ -68,9 +64,7 @@ class TestModelWrapperInitialization:
         mock_model = MagicMock()
         mock_encdec.from_pretrained.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="canary", model_name="nvidia/canary-1b-v2", device="cuda"
-        )
+        settings = MockSettings(model_type="canary", model_name="nvidia/canary-1b-v2", device="cuda")
 
         wrapper = ModelWrapper(settings)
 
@@ -147,9 +141,7 @@ class TestModelWrapperInitialization:
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_init_granite_model_cuda(
-        self, mock_check, mock_auto_model, mock_processor
-    ):
+    def test_init_granite_model_cuda(self, mock_check, mock_auto_model, mock_processor):
         """Test loading a granite model on CUDA."""
         import torch
 
@@ -174,9 +166,7 @@ class TestModelWrapperInitialization:
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_init_granite_model_cpu(
-        self, mock_check, mock_auto_model, mock_processor
-    ):
+    def test_init_granite_model_cpu(self, mock_check, mock_auto_model, mock_processor):
         """Test loading a granite model on CPU."""
         import torch
 
@@ -217,9 +207,7 @@ class TestModelWrapperTranscribe:
 
     def setup_method(self):
         """Create sample audio data for testing."""
-        self.sample_audio = np.random.randn(16000).astype(
-            np.float32
-        )  # 1 second at 16kHz
+        self.sample_audio = np.random.randn(16000).astype(np.float32)  # 1 second at 16kHz
 
     @patch("faster_whisper_hotkey.models.WhisperModel")
     def test_transcribe_whisper(self, mock_whisper):
@@ -231,9 +219,7 @@ class TestModelWrapperTranscribe:
         mock_model.transcribe.return_value = ([mock_segment], None)
         mock_whisper.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="whisper", model_name="tiny", device="cpu", compute_type="int8"
-        )
+        settings = MockSettings(model_type="whisper", model_name="tiny", device="cpu", compute_type="int8")
         wrapper = ModelWrapper(settings)
 
         result = wrapper.transcribe(self.sample_audio, 16000)
@@ -251,9 +237,7 @@ class TestModelWrapperTranscribe:
         mock_model.transcribe.return_value = ([mock_segment], None)
         mock_whisper.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="whisper", model_name="tiny", device="cpu", compute_type="int8"
-        )
+        settings = MockSettings(model_type="whisper", model_name="tiny", device="cpu", compute_type="int8")
         wrapper = ModelWrapper(settings)
 
         result = wrapper.transcribe(self.sample_audio, 16000, language="fr")
@@ -271,9 +255,7 @@ class TestModelWrapperTranscribe:
         mock_model.transcribe.return_value = ([mock_segment], None)
         mock_whisper.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="whisper", model_name="tiny", device="cpu", compute_type="int8"
-        )
+        settings = MockSettings(model_type="whisper", model_name="tiny", device="cpu", compute_type="int8")
         wrapper = ModelWrapper(settings)
 
         wrapper.transcribe(self.sample_audio, 16000, language="auto")
@@ -290,9 +272,7 @@ class TestModelWrapperTranscribe:
         mock_model = MagicMock()
         mock_result = MagicMock(text="parakeet transcription")
         mock_model.transcribe.return_value = [mock_result]
-        mock_asr.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_asr.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="parakeet",
@@ -313,13 +293,9 @@ class TestModelWrapperTranscribe:
         mock_model = MagicMock()
         mock_output = MagicMock(text="canary translation")
         mock_model.transcribe.return_value = [mock_output]
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="canary", model_name="nvidia/canary-1b-v2", device="cuda"
-        )
+        settings = MockSettings(model_type="canary", model_name="nvidia/canary-1b-v2", device="cuda")
         wrapper = ModelWrapper(settings)
 
         result = wrapper.transcribe(self.sample_audio, 16000, language="en-de")
@@ -337,9 +313,7 @@ class TestModelWrapperTranscribe:
         mock_model = MagicMock()
         mock_output = MagicMock(text="canary translation")
         mock_model.transcribe.return_value = [mock_output]
-        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_encdec.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="canary",
@@ -365,9 +339,7 @@ class TestModelWrapperTranscribe:
         mock_model.device = "cuda"
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="voxtral",
@@ -377,9 +349,7 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        with patch.object(
-            wrapper, "_transcribe_voxtral", return_value="voxtral output"
-        ):
+        with patch.object(wrapper, "_transcribe_voxtral", return_value="voxtral output"):
             short_audio = np.random.randn(48000).astype(np.float32)  # 3 seconds
             result = wrapper.transcribe(short_audio, 16000)
 
@@ -396,9 +366,7 @@ class TestModelWrapperTranscribe:
         mock_model.device = "cuda"
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
-        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_voxtral.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         settings = MockSettings(
             model_type="voxtral",
@@ -430,9 +398,7 @@ class TestModelWrapperTranscribe:
         mock_model = MagicMock()
         mock_model.device = "cuda"
         mock_model.dtype = MagicMock()
-        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_cohere.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_feat_extractor = MagicMock()
         mock_processor_instance = MagicMock()
@@ -460,16 +426,12 @@ class TestModelWrapperTranscribe:
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_granite(
-        self, mock_check, mock_torch, mock_auto_model, mock_processor
-    ):
+    def test_transcribe_granite(self, mock_check, mock_torch, mock_auto_model, mock_processor):
         """Test granite transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -507,16 +469,12 @@ class TestModelWrapperTranscribe:
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_granite_empty_result(
-        self, mock_check, mock_torch, mock_auto_model, mock_processor
-    ):
+    def test_transcribe_granite_empty_result(self, mock_check, mock_torch, mock_auto_model, mock_processor):
         """Test granite with empty transcription result."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = (
-            mock_model
-        )
+        mock_auto_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
 
         mock_processor_instance = MagicMock()
         mock_processor.from_pretrained.return_value = mock_processor_instance
@@ -554,9 +512,7 @@ class TestModelWrapperTranscribe:
         mock_model.transcribe.side_effect = Exception("Transcription failed")
         mock_whisper.return_value = mock_model
 
-        settings = MockSettings(
-            model_type="whisper", model_name="tiny", device="cpu", compute_type="int8"
-        )
+        settings = MockSettings(model_type="whisper", model_name="tiny", device="cpu", compute_type="int8")
         wrapper = ModelWrapper(settings)
 
         result = wrapper.transcribe(self.sample_audio, 16000)

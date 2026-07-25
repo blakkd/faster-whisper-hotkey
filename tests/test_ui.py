@@ -77,9 +77,7 @@ class TestGetTextInput:
 
         columns = [call[0][1] for call in y_prompt_moves]
         cursor_after_prompt = len(prompt) + len(default_text)
-        assert cursor_after_prompt in columns, (
-            f"Cursor at prompt_len({len(prompt)}) + default_len({len(default_text)})"
-        )
+        assert cursor_after_prompt in columns, f"Cursor at prompt_len({len(prompt)}) + default_len({len(default_text)})"
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_backspace_from_end_of_default(self, mock_curses):
@@ -297,7 +295,5 @@ class TestCursesMenu:
         mock_stdscr.getmaxyx.return_value = (3, 20)
         mock_stdscr.getch.side_effect = [27]
 
-        result = curses_menu(
-            mock_stdscr, "Title", ["Opt1", "Opt2"], message="Very long message..."
-        )
+        result = curses_menu(mock_stdscr, "Title", ["Opt1", "Opt2"], message="Very long message...")
         assert result is None

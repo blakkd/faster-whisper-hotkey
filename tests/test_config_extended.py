@@ -63,9 +63,7 @@ class TestEnglishOnlyModelsWhisperExtended:
         )
 
         for model in english_only_models_whisper:
-            assert model in accepted_models_whisper, (
-                f"{model} should be in accepted_models_whisper"
-            )
+            assert model in accepted_models_whisper, f"{model} should be in accepted_models_whisper"
 
     def test_english_only_model_naming_patterns(self):
         """Test that English-only models follow naming conventions."""
@@ -131,9 +129,7 @@ class TestCanarySourceTargetLanguagesExtended:
         """Verify no duplicate source languages."""
         from faster_whisper_hotkey.config import canary_source_target_languages
 
-        assert len(canary_source_target_languages) == len(
-            set(canary_source_target_languages)
-        )
+        assert len(canary_source_target_languages) == len(set(canary_source_target_languages))
 
 
 class TestCanaryAllowedLanguagePairsExtended:
@@ -165,9 +161,7 @@ class TestCanaryAllowedLanguagePairsExtended:
         """Verify no duplicate pairs."""
         from faster_whisper_hotkey.config import canary_allowed_language_pairs
 
-        assert len(canary_allowed_language_pairs) == len(
-            set(canary_allowed_language_pairs)
-        )
+        assert len(canary_allowed_language_pairs) == len(set(canary_allowed_language_pairs))
 
     def test_self_translation_pairs_exist(self):
         """Test that self-translation pairs (e.g., en-en, de-de) exist for transcription."""
@@ -181,11 +175,7 @@ class TestCanaryAllowedLanguagePairsExtended:
         from faster_whisper_hotkey.config import canary_allowed_language_pairs
 
         source = "en"
-        targets = {
-            pair.split("-")[1]
-            for pair in canary_allowed_language_pairs
-            if pair.startswith(f"{source}-")
-        }
+        targets = {pair.split("-")[1] for pair in canary_allowed_language_pairs if pair.startswith(f"{source}-")}
         assert len(targets) > 0, f"No target languages found for source '{source}'"
         assert isinstance(targets, set)
 
@@ -215,9 +205,7 @@ class TestConfigLoadingEdgeCases:
         import importlib
 
         # Create a fresh module namespace
-        _ = importlib.util.spec_from_file_location(
-            "config_test", "src/faster_whisper_hotkey/config.py"
-        )
+        _ = importlib.util.spec_from_file_location("config_test", "src/faster_whisper_hotkey/config.py")
         # Just verify it doesn't crash with empty dict (will use empty list defaults)
 
     def test_config_loads_partial_data(self):

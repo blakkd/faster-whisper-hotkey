@@ -63,9 +63,7 @@ class ConfigData:
     llm_api_key: str = ""
 
 
-def curses_menu(
-    stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0, footer: str = ""
-):
+def curses_menu(stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0, footer: str = ""):
     """
     Display a scrollable list of `options` in a curses window.
     A `message` (e.g. "Source language") can be shown directly above the list.
@@ -238,18 +236,14 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> str | None:
             return current_text
         elif key == curses.KEY_BACKSPACE or key == 127:
             if cursor_pos > 0:
-                current_text = (
-                    current_text[: cursor_pos - 1] + current_text[cursor_pos:]
-                )
+                current_text = current_text[: cursor_pos - 1] + current_text[cursor_pos:]
                 cursor_pos -= 1
         elif key == curses.KEY_LEFT and cursor_pos > 0:
             cursor_pos -= 1
         elif key == curses.KEY_RIGHT and cursor_pos < len(current_text):
             cursor_pos += 1
         elif 32 <= key <= 126:
-            current_text = (
-                current_text[:cursor_pos] + chr(key) + current_text[cursor_pos:]
-            )
+            current_text = current_text[:cursor_pos] + chr(key) + current_text[cursor_pos:]
             cursor_pos += 1
 
         avail_width = max(1, w - 2)
@@ -707,11 +701,7 @@ def _screen_parakeet_device(stdscr, config: ConfigData):
 
 def _screen_parakeet_precision(stdscr, config: ConfigData):
     """Select precision for Parakeet."""
-    options = (
-        ["float32", "bfloat16", "int8", "int4"]
-        if config.device == "cuda"
-        else ["float32", "bfloat16"]
-    )
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
@@ -769,11 +759,7 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
 
     src = config.language  # Set in previous step
 
-    allowed_targets = {
-        p.split("-")[1]
-        for p in canary_allowed_language_pairs
-        if p.startswith(src + "-")
-    }
+    allowed_targets = {p.split("-")[1] for p in canary_allowed_language_pairs if p.startswith(src + "-")}
     target_options = sorted(allowed_targets)
 
     initial_idx = 0
@@ -822,11 +808,7 @@ def _screen_canary_device(stdscr, config: ConfigData):
 
 def _screen_canary_precision(stdscr, config: ConfigData):
     """Select precision for Canary."""
-    options = (
-        ["float32", "bfloat16", "int8", "int4"]
-        if config.device == "cuda"
-        else ["float32", "bfloat16"]
-    )
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
@@ -912,11 +894,7 @@ def _screen_cohere_device(stdscr, config: ConfigData):
 
 def _screen_cohere_precision(stdscr, config: ConfigData):
     """Select precision for Cohere."""
-    options = (
-        ["bfloat16", "float32", "int8", "int4"]
-        if config.device == "cuda"
-        else ["float32", "bfloat16"]
-    )
+    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
@@ -990,11 +968,7 @@ def _screen_granite_nar_device(stdscr, config: ConfigData):
 
 def _screen_granite_nar_precision(stdscr, config: ConfigData):
     """Select precision for Granite NAR."""
-    options = (
-        ["bfloat16", "float32", "int8", "int4"]
-        if config.device == "cuda"
-        else ["float32", "bfloat16"]
-    )
+    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
@@ -1069,11 +1043,7 @@ def _screen_granite_target_lang(stdscr, config: ConfigData):
 
     src = config.language
 
-    allowed_targets = {
-        p.split("-")[1]
-        for p in granite_allowed_language_pairs
-        if p.startswith(src + "-")
-    }
+    allowed_targets = {p.split("-")[1] for p in granite_allowed_language_pairs if p.startswith(src + "-")}
     target_options = sorted(allowed_targets)
 
     initial_idx = 0
@@ -1121,11 +1091,7 @@ def _screen_granite_device(stdscr, config: ConfigData):
 
 def _screen_granite_precision(stdscr, config: ConfigData):
     """Select precision for Granite AR."""
-    options = (
-        ["bfloat16", "float32", "int8", "int4"]
-        if config.device == "cuda"
-        else ["float32", "bfloat16"]
-    )
+    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"

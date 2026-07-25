@@ -5,9 +5,7 @@ import os
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Push-to-talk transcription tool for Linux"
-    )
+    parser = argparse.ArgumentParser(description="Push-to-talk transcription tool for Linux")
     parser.add_argument(
         "--debug",
         action="store_true",

@@ -61,9 +61,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         """Successful API response should return corrected text."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "This is corrected text."}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": "This is corrected text."}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -77,9 +75,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         original = "This is already perfect."
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": original}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": original}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -92,9 +88,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         """LLM response with surrounding whitespace should be stripped."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "  Corrected text with spaces  \n"}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": "  Corrected text with spaces  \n"}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -108,9 +102,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_value = "\"This has mismatched quotes'"
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": content_value}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": content_value}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -124,9 +116,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_val = '"Just a quote at start'
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": content_val}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": content_val}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -140,9 +130,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         content_val = 'Just a quote at end"'
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": content_val}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": content_val}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -160,10 +148,8 @@ class TestLLMCorrectorSuccessfulCorrection:
         """
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        content_val = '"He said, \"hello.\""'
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": content_val}}]
-        }
+        content_val = '"He said, "hello.""'
+        mock_response.json.return_value = {"choices": [{"message": {"content": content_val}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -176,9 +162,7 @@ class TestLLMCorrectorSuccessfulCorrection:
         """Should strip both whitespace and surrounding quotes."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": '  "Corrected text"  '}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": '  "Corrected text"  '}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -194,9 +178,7 @@ class TestLLMCorrectorSuccessfulCorrection:
 
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": corrected}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": corrected}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -308,9 +290,7 @@ class TestLLMCorrectorErrorHandling:
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
     def test_correct_handles_request_exception(self, mock_post):
         """Request exceptions should fall back to original text."""
-        mock_post.side_effect = requests.exceptions.RequestException(
-            "Connection failed"
-        )
+        mock_post.side_effect = requests.exceptions.RequestException("Connection failed")
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         original = "Original text that needs correction"
@@ -333,9 +313,7 @@ class TestLLMCorrectorErrorHandling:
     def test_correct_handles_http_error(self, mock_post):
         """HTTP errors should fall back to original text."""
         mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            "404 Not Found"
-        )
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
@@ -453,17 +431,13 @@ class TestLLMCorrectorLogging:
         """Should log when text is actually corrected."""
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "choices": [{"message": {"content": "Corrected version"}}]
-        }
+        mock_response.json.return_value = {"choices": [{"message": {"content": "Corrected version"}}]}
         mock_post.return_value = mock_response
 
         corrector = LLMCorrector("http://localhost:8080", "test-model")
         corrector.correct("Original version")
 
-        mock_logger.info.assert_called_once_with(
-            'LLM corrected text: "Corrected version"'
-        )
+        mock_logger.info.assert_called_once_with('LLM corrected text: "Corrected version"')
 
     @patch("faster_whisper_hotkey.llm_corrector.requests.post")
     @patch("faster_whisper_hotkey.llm_corrector.logger")

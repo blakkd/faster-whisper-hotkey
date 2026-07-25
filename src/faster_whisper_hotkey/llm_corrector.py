@@ -61,15 +61,11 @@ class LLMCorrector:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-            response = requests.post(
-                self.endpoint, json=payload, headers=headers, timeout=120
-            )
+            response = requests.post(self.endpoint, json=payload, headers=headers, timeout=120)
             response.raise_for_status()
 
             result = response.json()
-            content = (
-                result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            )
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
 
             if content:
                 corrected = content.strip()
