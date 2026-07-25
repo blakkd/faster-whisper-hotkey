@@ -172,7 +172,7 @@ class MicrophoneTranscriber:
             if transcribed_text.strip():
                 logger.info(f'Transcribed text: "{transcribed_text}"')
             else:
-                logger.info("No speech detected")
+                logger.info("Model returned empty transcription")
 
             # Apply LLM correction if enabled
             if self.llm_corrector and transcribed_text.strip():
@@ -240,7 +240,7 @@ class MicrophoneTranscriber:
                         )
                         self.buffer_index = 0
                         logger.info(
-                            f"Recording duration: {recording_duration:.2f}s - no speech detected, skipping transcription"
+                            f"Recording duration: {recording_duration:.2f}s - Silero VAD: no speech, skipping transcription"
                         )
                     else:
                         self.audio_buffer = np.zeros(
