@@ -13,6 +13,7 @@ class ConfigStep(Enum):
 
     INITIAL = auto()
     DEVICE = auto()
+    VAD_ENABLE = auto()
     MODEL_TYPE = auto()
     WHISPER_MODEL = auto()
     WHISPER_DEVICE = auto()
@@ -55,6 +56,7 @@ class ConfigData:
     language: str = ""
     language_src_target: str = ""
     hotkey: str = ""
+    vad_enabled: bool = True
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
     llm_model_name: str = ""
@@ -295,6 +297,7 @@ def config_screen_main(stdscr, settings_file: str | None = None):
         config.compute_type = last_settings.compute_type
         config.device = last_settings.device
         config.hotkey = last_settings.hotkey
+        config.vad_enabled = getattr(last_settings, "vad_enabled", True)
         config.llm_correction_enabled = last_settings.llm_correction_enabled
         config.llm_endpoint = last_settings.llm_endpoint
         config.llm_model_name = last_settings.llm_model_name
@@ -339,6 +342,9 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
 
     elif current_step == ConfigStep.DEVICE:
         return _screen_device(stdscr, config)
+
+    elif current_step == ConfigStep.VAD_ENABLE:
+        return _screen_vad_enable(stdscr, config)
 
     elif current_step == ConfigStep.MODEL_TYPE:
         return _screen_model_type(stdscr, config)
@@ -483,7 +489,27 @@ def _screen_device(stdscr, config: ConfigData):
             return _back_to_initial(config)
 
         config.device_name = source_map[selected_desc]
-        return (ConfigStep.MODEL_TYPE, config)
+        return (ConfigStep.VAD_ENABLE, config)
+
+
+def _screen_vad_enable(stdscr, config: ConfigData):
+    """Enable or disable Silero VAD speech detection."""
+    options = ["Yes", "No"]
+    initial_idx = 0 if config.vad_enabled else 1
+
+    selected = curses_menu(
+        stdscr,
+        "Enable Silero VAD (skip silent recordings)?",
+        options,
+        footer="Performant, but may miss very quiet whispers",
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.vad_enabled = selected == "Yes"
+    return (ConfigStep.MODEL_TYPE, config)
 
 
 def _screen_model_type(stdscr, config: ConfigData):
@@ -1241,6 +1267,7 @@ def _create_settings_from_config(
         "device": config.device,
         "language": config.language,
         "hotkey": config.hotkey,
+        "vad_enabled": config.vad_enabled,
         "llm_correction_enabled": config.llm_correction_enabled,
         "llm_endpoint": config.llm_endpoint,
         "llm_model_name": config.llm_model_name,

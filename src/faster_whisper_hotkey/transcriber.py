@@ -234,7 +234,9 @@ class MicrophoneTranscriber:
                 recording_duration = time.time() - self.recording_start_time
 
                 if recording_duration >= MIN_RECORDING_DURATION:
-                    if not self._has_speech(audio_data, self.sample_rate):
+                    if getattr(self.settings, "vad_enabled", True) and not self._has_speech(
+                        audio_data, self.sample_rate
+                    ):
                         self.audio_buffer = np.zeros(
                             self.max_buffer_length, dtype=np.float32
                         )

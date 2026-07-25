@@ -20,6 +20,7 @@ class Settings:
     device: str
     language: str
     hotkey: str = "pause"
+    vad_enabled: bool = True
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
     llm_model_name: str = ""
@@ -41,6 +42,7 @@ def load_settings(settings_file: str | None = None) -> Settings | None:
         with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
             data.setdefault("hotkey", "pause")
+            data.setdefault("vad_enabled", True)
             data.setdefault("model_type", "whisper")
             data.setdefault("model_name", "large-v3")
             data.setdefault("llm_correction_enabled", False)
