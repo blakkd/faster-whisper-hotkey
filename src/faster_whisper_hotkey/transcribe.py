@@ -1,4 +1,5 @@
 # src/faster_whisper_hotkey/transcribe.py
+import collections
 import curses
 import logging
 import warnings
@@ -49,11 +50,125 @@ _setup_logging()
 logger = logging.getLogger(__name__)
 
 
+def _read_pending_input() -> bytes:
+    """Read all keystrokes buffered in the tty before curses took over.
+
+    While the app is starting up (heavy imports), the terminal is still in the
+    shell's echo/cooked mode: any key the user presses is echoed and buffered
+    in the tty line queue. The bytes are read out here so they can be parsed
+    and replayed to the TUI once the first screen is up.
+    """
+    import fcntl
+    import os
+    import select
+    import sys
+
+    try:
+        fd = sys.stdin.fileno()
+        if not os.isatty(fd):
+            return b""
+
+        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    except (AttributeError, OSError):
+        return b""
+
+    data = bytearray()
+    try:
+        while select.select([fd], [], [], 0)[0]:
+            try:
+                chunk = os.read(fd, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            data.extend(chunk)
+    finally:
+        try:
+            fcntl.fcntl(fd, fcntl.F_SETFL, flags)
+        except OSError:
+            pass
+
+    return bytes(data)
+
+
+def _parse_key_sequence(data: bytes) -> list[int]:
+    """Translate raw pre-TUI input bytes into a list of curses key codes.
+
+    Handles bare keys (ESC, Enter, backspace, printables) and arrow-key
+    escape sequences in both cursor-key modes (ESC [ A-D and ESC O A-D).
+    Other escape sequences (home, delete, ...) are dropped as a whole so an
+    unknown or truncated sequence can never masquerade as a bare ESC.
+    """
+    keys: list[int] = []
+    arrow_map = {
+        ord("A"): curses.KEY_UP,
+        ord("B"): curses.KEY_DOWN,
+        ord("C"): curses.KEY_RIGHT,
+        ord("D"): curses.KEY_LEFT,
+    }
+    i, n = 0, len(data)
+
+    while i < n:
+        b = data[i]
+        if b != 27:
+            if b in (10, 13, 127) or 32 <= b <= 126:
+                keys.append(b)
+            i += 1
+            continue
+
+        if i + 1 < n and data[i + 1] in (ord("["), ord("O")):
+            j = i + 2
+            if data[i + 1] == ord("["):  # CSI: skip parameters/intermediates
+                while j < n and 0x30 <= data[j] <= 0x3F:
+                    j += 1
+                while j < n and 0x20 <= data[j] <= 0x2F:
+                    j += 1
+            if j < n and 0x40 <= data[j] <= 0x7E:
+                key = arrow_map.get(data[j])
+                if key is not None:
+                    keys.append(key)
+                i = j + 1
+            else:
+                break  # truncated sequence at end of buffer: drop it
+            continue
+
+        keys.append(27)
+        i += 1
+
+    return keys
+
+
+class _ReplayWindow:
+    """Curses window proxy that serves replayed pre-TUI keys before live input."""
+
+    def __init__(self, window, keys: list[int]):
+        self._window = window
+        self._keys = collections.deque(keys)
+
+    def getch(self):
+        if self._keys:
+            return self._keys.popleft()
+        return self._window.getch()
+
+    def __getattr__(self, name):
+        return getattr(self._window, name)
+
+
+def _run_config_screen(stdscr, settings_file: str | None):
+    """curses.wrapper callback: run the config TUI, replaying pre-TUI keystrokes first."""
+    from .ui import config_screen_main
+
+    stale_keys = _parse_key_sequence(_read_pending_input())
+    if stale_keys:
+        stdscr = _ReplayWindow(stdscr, stale_keys)
+    return config_screen_main(stdscr, settings_file)
+
+
 def main(headless: bool = False, settings_file: str | None = None):
     """Main entry point - runs config screen or starts headless with saved settings."""
     from .settings import Settings, load_settings
     from .transcriber import MicrophoneTranscriber
-    from .ui import config_screen_main
 
     settings: Settings | None = None
 
@@ -69,7 +184,7 @@ def main(headless: bool = False, settings_file: str | None = None):
     else:
         while True:
             try:
-                result = curses.wrapper(lambda scr: config_screen_main(scr, settings_file))
+                result = curses.wrapper(_run_config_screen, settings_file)
 
                 # result is either a Settings object (success) or None (aborted/cancelled)
                 if isinstance(result, Settings):
