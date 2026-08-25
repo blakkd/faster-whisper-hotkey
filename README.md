@@ -1,5 +1,7 @@
 # _faster-whisper Hotkey_
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/blakkd/faster-whisper-hotkey)
+
 a minimalist push-to-talk style transcription tool built upon **[cutting-edge ASR models](https://huggingface.co/spaces/hf-audio/open_asr_leaderboard)**.
 
 **Hold the hotkey, Speak, Release ==> And baamm in your text field!**
