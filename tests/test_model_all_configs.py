@@ -86,6 +86,11 @@ GRANITE = [("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec) for pre
     ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
+# qwen3-asr: weights natively bf16, CPU (bf16) + CUDA (bf16/int8/int4)
+QWEN3_ASR = [("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cpu", "bfloat16")] + [
+    ("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cuda", prec) for prec in ("bfloat16", "int8", "int4")
+]
+
 
 def _cuda_available():
     return torch.cuda.is_available()
@@ -294,6 +299,20 @@ class TestTranscribeGranite:
         results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request, None)
 
         block = _format_results("granite", results, skipped, errors, audio_data, sr)
+        print(f"\n{block}")
+
+        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
+        )
+
+
+class TestTranscribeQwen3ASR:
+    """Transcribe test audio with qwen3-asr configs."""
+
+    def test_qwen3_asr(self, audio, request, tmp_path):
+        results, skipped, errors, audio_data, sr = _run_configs(QWEN3_ASR, audio, request, None)
+
+        block = _format_results("qwen3-asr", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(

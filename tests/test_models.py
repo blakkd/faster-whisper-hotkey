@@ -188,6 +188,79 @@ class TestModelWrapperInitialization:
         assert call_kwargs["attn_implementation"] == "sdpa"
         assert call_kwargs["torch_dtype"] == torch.float32
 
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_qwen3_asr_model_cuda(self, mock_check, mock_mm_model, mock_processor):
+        """Test loading a qwen3-asr model on CUDA."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cuda",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "qwen3-asr"
+        mock_check.assert_called_once_with("5.13.0", "Qwen3-ASR")
+        call_kwargs = mock_mm_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.bfloat16
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_qwen3_asr_model_cpu(self, mock_check, mock_mm_model, mock_processor):
+        """Test loading a qwen3-asr model on CPU."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cpu",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "qwen3-asr"
+        call_kwargs = mock_mm_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.bfloat16
+        assert call_kwargs["low_cpu_mem_usage"] is False
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_qwen3_asr_model_int8(self, mock_check, mock_mm_model, mock_processor):
+        """Test loading a qwen3-asr model with int8 quantization."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cuda",
+            compute_type="int8",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "qwen3-asr"
+        call_kwargs = mock_mm_model.from_pretrained.call_args[1]
+        assert "quantization_config" in call_kwargs
+
     def test_init_unknown_model_type(self):
         """Test that unknown model type raises ValueError."""
         from faster_whisper_hotkey.models import ModelWrapper
@@ -496,6 +569,110 @@ class TestModelWrapperTranscribe:
             model_type="granite-nar",
             model_name="ibm-granite/granite-speech-4.1-2b-nar",
             device="cpu",
+        )
+        wrapper = ModelWrapper(settings)
+
+        result = wrapper.transcribe(self.sample_audio, 16000)
+
+        assert result == ""
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_transcribe_qwen3_asr(self, mock_check, mock_mm_model, mock_processor):
+        """Test qwen3-asr transcription."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.device = "cuda"
+        mock_model.dtype = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = mock_inputs
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.apply_transcription_request.return_value = mock_inputs
+        mock_processor_instance.decode.return_value = ["qwen3 transcription"]
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cuda",
+            compute_type="bfloat16",
+            language="en",
+        )
+        wrapper = ModelWrapper(settings)
+
+        result = wrapper.transcribe(self.sample_audio, 16000, language="en")
+
+        assert result == "qwen3 transcription"
+        mock_processor_instance.apply_transcription_request.assert_called_once_with(
+            audio=self.sample_audio, language="en"
+        )
+        generate_kwargs = mock_model.generate.call_args[1]
+        assert generate_kwargs["max_new_tokens"] == 512
+        assert generate_kwargs["do_sample"] is False
+        decode_kwargs = mock_processor_instance.decode.call_args[1]
+        assert decode_kwargs["return_format"] == "transcription_only"
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_transcribe_qwen3_asr_auto_language(self, mock_check, mock_mm_model, mock_processor):
+        """Test qwen3-asr transcription with auto language (None passed to processor)."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.device = "cuda"
+        mock_model.dtype = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = mock_inputs
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.apply_transcription_request.return_value = mock_inputs
+        mock_processor_instance.decode.return_value = ["qwen3 transcription"]
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cuda",
+            compute_type="bfloat16",
+        )
+        wrapper = ModelWrapper(settings)
+
+        wrapper.transcribe(self.sample_audio, 16000, language="auto")
+
+        mock_processor_instance.apply_transcription_request.assert_called_once_with(
+            audio=self.sample_audio, language=None
+        )
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_transcribe_qwen3_asr_empty_result(self, mock_check, mock_mm_model, mock_processor):
+        """Test qwen3-asr with empty transcription result."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.device = "cpu"
+        mock_model.dtype = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = mock_inputs
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.apply_transcription_request.return_value = mock_inputs
+        mock_processor_instance.decode.return_value = []
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cpu",
+            compute_type="bfloat16",
         )
         wrapper = ModelWrapper(settings)
 

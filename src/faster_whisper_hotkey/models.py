@@ -4,6 +4,7 @@ import os
 
 from transformers import (
     AutoModel,
+    AutoModelForMultimodalLM,
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
     BitsAndBytesConfig,
@@ -125,22 +126,23 @@ def _materialize_weights(model):
 # Optional types import (already available in Python 3.9+)
 
 
-def _check_transformers_version():
-    """Check that transformers version is compatible with granite model."""
+def _check_transformers_version(min_version: str, model_label: str):
+    """Check that the installed transformers version supports a model."""
     import transformers as tf_lib
     from packaging import version as pkg_version
 
-    if pkg_version.parse(tf_lib.__version__) < pkg_version.parse("5.5.3"):
+    if pkg_version.parse(tf_lib.__version__) < pkg_version.parse(min_version):
         raise ImportError(
-            f"Granite model requires transformers>=5.5.3, "
+            f"{model_label} model requires transformers>={min_version}, "
             f"but {tf_lib.__version__} is installed. "
-            f"Upgrade with: pip install 'transformers>=5.5.3'"
+            f"Upgrade with: pip install 'transformers>={min_version}'"
         )
 
 
 class ModelWrapper:
     """
-    Encapsulates loading and running different model types (whisper, parakeet, canary, voxtral, cohere).
+    Encapsulates loading and running different model types
+    (whisper, parakeet, canary, voxtral, cohere, granite, granite-nar, qwen3-asr).
     """
 
     def __init__(self, settings):
@@ -299,7 +301,7 @@ class ModelWrapper:
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
 
-            _check_transformers_version()
+            _check_transformers_version("5.5.3", "Granite")
 
             self.processor = AutoProcessor.from_pretrained(repo_id, trust_remote_code=True)
 
@@ -344,7 +346,7 @@ class ModelWrapper:
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
 
-            _check_transformers_version()
+            _check_transformers_version("5.5.3", "Granite")
 
             self.processor = AutoProcessor.from_pretrained(repo_id, trust_remote_code=True)
 
@@ -385,6 +387,41 @@ class ModelWrapper:
                         attn_implementation="flash_attention_2",
                         device_map=device_map,
                         torch_dtype=_dtype,
+                    )
+                self.model = self.model.eval()
+
+        elif mt == "qwen3-asr":
+            repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
+
+            _check_transformers_version("5.13.0", "Qwen3-ASR")
+
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+
+            if compute_type in ("int8", "int4") and device == "cuda":
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_8bit=(compute_type == "int8"),
+                    load_in_4bit=(compute_type == "int4"),
+                )
+                self.model = AutoModelForMultimodalLM.from_pretrained(
+                    repo_id,
+                    device_map=device_map,
+                    quantization_config=quant_cfg,
+                ).eval()
+            else:
+                # Weights are stored natively as bf16 (see HF repo config.json)
+                if device == "cpu":
+                    self.model = AutoModelForMultimodalLM.from_pretrained(
+                        repo_id,
+                        dtype=torch.bfloat16,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = AutoModelForMultimodalLM.from_pretrained(
+                        repo_id,
+                        dtype=torch.bfloat16,
+                        device_map=device_map,
                     )
                 self.model = self.model.eval()
 
@@ -504,6 +541,9 @@ class ModelWrapper:
                 transcriptions = self.processor.batch_decode(output.preds, skip_special_tokens=True)
                 return transcriptions[0] if transcriptions else ""
 
+            elif mt == "qwen3-asr":
+                return self._transcribe_qwen3_asr(audio_data, sample_rate, language)
+
             else:
                 raise ValueError(f"Unknown model type: {mt}")
 
@@ -555,3 +595,23 @@ class ModelWrapper:
         finally:
             with contextlib.suppress(Exception):
                 os.unlink(audio_path)
+
+    def _transcribe_qwen3_asr(self, audio_data, sample_rate: int, language: str | None) -> str:
+        """Transcribe audio using Qwen3-ASR via apply_transcription_request."""
+        inputs = self.processor.apply_transcription_request(
+            audio=audio_data,
+            language=language if language and language != "auto" else None,
+        )
+        inputs = inputs.to(self.model.device, dtype=self.model.dtype)
+
+        duration = len(audio_data) / sample_rate if sample_rate else 0
+        max_new_tokens = min(8192, max(512, int(duration * 8)))
+
+        with torch.no_grad():
+            output = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+
+        new_tokens = output[:, inputs["input_ids"].shape[1] :]
+        decoded = self.processor.decode(new_tokens, return_format="transcription_only")
+        if isinstance(decoded, list):
+            return decoded[0].strip() if decoded else ""
+        return decoded.strip() if decoded else ""

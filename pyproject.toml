@@ -20,7 +20,7 @@ keywords = [
     "keyboard", "recognition", "voice", "typing", "speech",
     "shortcut", "speech-to-text", "hotkey", "stt", "asr",
     "faster-whisper", "whisper", "parakeet", "canary", "voxtral",
-    "cohere", "granite",
+    "cohere", "granite", "qwen3-asr",
 ]
 
 # DEPENDENCIES
@@ -36,7 +36,7 @@ dependencies = [
     "requests==2.34.2",
     "importlib_resources==7.1.0",
     "mistral-common[audio]==1.11.3",
-    "transformers==5.12.1",
+    "transformers==5.15.0",
     "bitsandbytes>=0.46.1",
     "pyperclip==1.11.0",
     "soundfile==0.14.0",

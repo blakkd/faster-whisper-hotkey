@@ -37,6 +37,9 @@ class ConfigStep(Enum):
     GRANITE_TARGET_LANG = auto()
     GRANITE_DEVICE = auto()
     GRANITE_PRECISION = auto()
+    QWEN3_ASR_DEVICE = auto()
+    QWEN3_ASR_PRECISION = auto()
+    QWEN3_ASR_LANGUAGE = auto()
     HOTKEY = auto()
     LLM_ENABLE = auto()
     LLM_ENDPOINT = auto()
@@ -399,6 +402,14 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
     elif current_step == ConfigStep.GRANITE_PRECISION:
         return _screen_granite_precision(stdscr, config)
 
+    # Qwen3-ASR sub-steps
+    elif current_step == ConfigStep.QWEN3_ASR_DEVICE:
+        return _screen_qwen3_asr_device(stdscr, config)
+    elif current_step == ConfigStep.QWEN3_ASR_PRECISION:
+        return _screen_qwen3_asr_precision(stdscr, config)
+    elif current_step == ConfigStep.QWEN3_ASR_LANGUAGE:
+        return _screen_qwen3_asr_language(stdscr, config)
+
     # Common final steps
     elif current_step == ConfigStep.HOTKEY:
         return _screen_hotkey(stdscr, config)
@@ -516,6 +527,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026",
         "granite-speech-4.1-2b-nar",
         "granite-speech-4.1-2b",
+        "Qwen3-ASR-1.7B",
     ]
 
     initial_idx = 0
@@ -527,6 +539,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere": 4,
         "granite-nar": 5,
         "granite": 6,
+        "qwen3-asr": 7,
     }
     if config.model_type and config.model_type in type_mapping:
         initial_idx = type_mapping[config.model_type]
@@ -545,6 +558,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026": "cohere",
         "granite-speech-4.1-2b-nar": "granite-nar",
         "granite-speech-4.1-2b": "granite",
+        "Qwen3-ASR-1.7B": "qwen3-asr",
     }
 
     config.model_type = type_map[selected]
@@ -564,6 +578,8 @@ def _screen_model_type(stdscr, config: ConfigData):
         return (ConfigStep.GRANITE_NAR_DEVICE, config)
     elif config.model_type == "granite":
         return (ConfigStep.GRANITE_DEVICE, config)
+    elif config.model_type == "qwen3-asr":
+        return (ConfigStep.QWEN3_ASR_DEVICE, config)
 
     return _back_to_initial(config)
 
@@ -1109,6 +1125,74 @@ def _screen_granite_precision(stdscr, config: ConfigData):
 
     config.compute_type = selected
     return (ConfigStep.GRANITE_SOURCE_LANG, config)
+
+
+# ============================================================================
+# Qwen3-ASR Configuration Screens
+# ============================================================================
+
+
+def _screen_qwen3_asr_device(stdscr, config: ConfigData):
+    """Select compute device for Qwen3-ASR."""
+    options = ["cuda", "cpu"]
+
+    initial_idx = 0
+    if config.device == "cpu":
+        initial_idx = 1
+
+    selected = curses_menu(
+        stdscr,
+        "Compute Device",
+        options,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.model_name = "Qwen/Qwen3-ASR-1.7B-hf"
+    config.device = selected
+    return (ConfigStep.QWEN3_ASR_PRECISION, config)
+
+
+def _screen_qwen3_asr_precision(stdscr, config: ConfigData):
+    """Select precision for Qwen3-ASR (weights are natively bf16)."""
+    options = ["bfloat16", "int8", "int4"] if config.device == "cuda" else ["bfloat16"]
+
+    initial_idx = 0
+    if config.compute_type in options:
+        initial_idx = options.index(config.compute_type)
+
+    selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx)
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
+    return (ConfigStep.QWEN3_ASR_LANGUAGE, config)
+
+
+def _screen_qwen3_asr_language(stdscr, config: ConfigData):
+    """Select language for Qwen3-ASR."""
+    from .config import accepted_languages_qwen3_asr
+
+    initial_idx = 0
+    if config.language and config.language in accepted_languages_qwen3_asr:
+        initial_idx = accepted_languages_qwen3_asr.index(config.language)
+
+    selected = curses_menu(
+        stdscr,
+        "Language",
+        accepted_languages_qwen3_asr,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.language = selected
+
+    return (ConfigStep.HOTKEY, config)
 
 
 # ============================================================================
