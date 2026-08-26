@@ -203,5 +203,5 @@ def main(headless: bool = False, settings_file: str | None = None):
     transcriber = MicrophoneTranscriber(settings)
     try:
         transcriber.run()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error during transcription: {e}")

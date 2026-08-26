@@ -25,7 +25,7 @@ def get_active_window_class_x11() -> list[str]:
         win_id = raw_win_id.decode().strip()
         xprop_output = subprocess.check_output(["xprop", "-id", win_id, "WM_CLASS"])
         return re.findall(r'"([^"]+)"', xprop_output.decode())
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug(f"X11 active window detection failed: {e}")
         return []
 
@@ -38,7 +38,7 @@ def get_focused_container_wayland() -> dict | None:
     try:
         raw = subprocess.check_output(["swaymsg", "-t", "get_tree"])
         tree = json.loads(raw.decode())
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug(f"Wayland tree retrieval failed: {e}")
         return None
 

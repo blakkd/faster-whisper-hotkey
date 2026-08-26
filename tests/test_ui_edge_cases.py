@@ -109,7 +109,7 @@ class TestGetTextInputNarrowWidths:
 
         move_calls = mock_stdscr.move.call_args_list
         for call in move_calls:
-            y, x = call[0]
+            _, x = call[0]
             assert x >= 0, f"Cursor X should not be negative: {x}"
             assert x < 10, f"Cursor X should not exceed width-1: {x} >= 10"
 
@@ -127,7 +127,7 @@ class TestGetTextInputNarrowWidths:
 
         move_calls = mock_stdscr.move.call_args_list
         for call in move_calls:
-            y, x = call[0]
+            _, x = call[0]
             assert 0 <= x < 12, f"Cursor X out of bounds after typing: {x}"
 
 
@@ -290,7 +290,7 @@ class TestGetTextInputDisplayTruncation:
         get_text_input(mock_stdscr, "This is LONG: ", "this_is_also_a_very_long_value")
 
         for call in mock_stdscr.addstr.call_args_list:
-            y, x, text = call[0]
+            _, x, text = call[0]
             if text:
                 assert x >= 0, f"X position should be non-negative: {x}"
                 assert x < 15, f"X position should be within width: {x} >= 15"

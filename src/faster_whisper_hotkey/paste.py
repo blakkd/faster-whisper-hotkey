@@ -43,7 +43,7 @@ def _send_key_wayland(combo: str) -> bool:
     try:
         subprocess.run([wtype_path, combo], check=True)
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"wtype failed: {e}")
         return False
 

@@ -98,7 +98,7 @@ with suppress_output():
         try:
             if hasattr(self, "tokenizer") and self.tokenizer.piece_to_id("<|startoftranscript|>") == 4:
                 return 3  # CANARY_EOS = "<s>"
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return _original_eos_id.fget(self)
 
@@ -170,8 +170,8 @@ class ModelWrapper:
             with suppress_nemo():
                 if compute_type in ("int8", "int4") and device == "cuda":
                     quant_cfg = BitsAndBytesConfig(
-                        load_in_8bit=True if compute_type == "int8" else False,
-                        load_in_4bit=True if compute_type == "int4" else False,
+                        load_in_8bit=compute_type == "int8",
+                        load_in_4bit=compute_type == "int4",
                     )
                     self.model = ASRModel.from_pretrained(
                         model_name=self.settings.model_name,
@@ -195,8 +195,8 @@ class ModelWrapper:
             with suppress_nemo():
                 if compute_type in ("int8", "int4") and device == "cuda":
                     quant_cfg = BitsAndBytesConfig(
-                        load_in_8bit=True if compute_type == "int8" else False,
-                        load_in_4bit=True if compute_type == "int4" else False,
+                        load_in_8bit=compute_type == "int8",
+                        load_in_4bit=compute_type == "int4",
                     )
                     self.model = EncDecMultiTaskModel.from_pretrained(
                         self.settings.model_name, map_location=self.settings.device
@@ -265,8 +265,8 @@ class ModelWrapper:
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
-                    load_in_8bit=True if compute_type == "int8" else False,
-                    load_in_4bit=True if compute_type == "int4" else False,
+                    load_in_8bit=compute_type == "int8",
+                    load_in_4bit=compute_type == "int4",
                 )
                 self.model = CohereAsrForConditionalGeneration.from_pretrained(
                     repo_id,
@@ -307,8 +307,8 @@ class ModelWrapper:
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
-                    load_in_8bit=True if compute_type == "int8" else False,
-                    load_in_4bit=True if compute_type == "int4" else False,
+                    load_in_8bit=compute_type == "int8",
+                    load_in_4bit=compute_type == "int4",
                 )
                 self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                     repo_id,
@@ -352,8 +352,8 @@ class ModelWrapper:
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
-                    load_in_8bit=True if compute_type == "int8" else False,
-                    load_in_4bit=True if compute_type == "int4" else False,
+                    load_in_8bit=compute_type == "int8",
+                    load_in_4bit=compute_type == "int4",
                 )
                 self.model = AutoModel.from_pretrained(
                     repo_id,
@@ -547,7 +547,7 @@ class ModelWrapper:
             else:
                 raise ValueError(f"Unknown model type: {mt}")
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Error during model.transcribe: {e}")
             return ""
 

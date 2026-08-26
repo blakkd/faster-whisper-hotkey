@@ -83,7 +83,7 @@ class MicrophoneTranscriber:
                         logger.info(f"Default source set to: {source.name}")
                         return
                 logger.warning(f"Source '{self.device_name}' not found")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.debug(f"Failed to set default source: {e}")
 
     # ------------------------------------------------------------------
@@ -186,7 +186,7 @@ class MicrophoneTranscriber:
                 else:
                     self._type_text(transcribed_text)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f"Transcription error: {e}")
         finally:
             self.is_transcribing = False
@@ -226,8 +226,8 @@ class MicrophoneTranscriber:
             try:
                 self.stream.stop()
                 self.stream.close()
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Error stopping audio stream: {e}")
             if self.buffer_index > 0:
                 audio_data = self.audio_buffer[: self.buffer_index]
                 recording_duration = time.time() - self.recording_start_time
@@ -297,11 +297,9 @@ class MicrophoneTranscriber:
         # Define wrapper functions to satisfy type checker
         def _on_press(key):
             self.on_press(key)
-            return None
 
         def _on_release(key):
             self.on_release(key)
-            return None
 
         listener = keyboard.Listener(on_press=_on_press, on_release=_on_release)
         listener.start()

@@ -131,7 +131,7 @@ def curses_menu(stdscr, title: str, options: list[str], message: str = "", initi
 
         if max_visible < len(options) and h > 0 and w > 0:
             ratio = (current_row + 1) / len(options)
-            y_scroll = h - (2 if footer else 2)
+            y_scroll = h - 2
             x_start = w // 4
             length = w // 2
             x_start = max(0, min(x_start, w - 1))
@@ -675,7 +675,7 @@ def _screen_whisper_language(stdscr, config: ConfigData):
         stdscr,
         "Language",
         accepted_languages_whisper,
-        initial_idx=initial_idx if initial_idx >= 0 else 0,
+        initial_idx=max(initial_idx, 0),
     )
 
     if selected is None:

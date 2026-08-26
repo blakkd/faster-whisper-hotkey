@@ -79,7 +79,7 @@ class LLMCorrector:
                 logger.info("LLM correction: no correction needed")
                 return corrected
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"LLM correction failed: {e}. Using original text.")
 
         return text

@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import pyperclip
-except Exception:
+except Exception:  # noqa: BLE001
     pyperclip = None
     logger.error(
         "pyperclip not found - falling back to typing method - uppercase chars/symbols might fail in some text fields"
@@ -17,7 +17,7 @@ def backup_clipboard():
         return None
     try:
         return pyperclip.paste()
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug(f"Could not read clipboard: {e}")
         return None
 
@@ -29,7 +29,7 @@ def set_clipboard(text: str) -> bool:
     try:
         pyperclip.copy(text)
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Could not set clipboard: {e}")
         return False
 
@@ -41,5 +41,5 @@ def restore_clipboard(original_text: str | None):
         if original_text is None:
             return
         pyperclip.copy(original_text)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.debug(f"Could not restore clipboard: {e}")
