@@ -31,7 +31,7 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - No automatic language recognition
   - Non-autoregressive --> faster than the above AR variant
   - No capitalization in output
-  - CPU/GPU (requires FlashAttention on GPU)
+  - CPU/GPU
 
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
   - 14 languages
@@ -111,10 +111,6 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
   uv tool install .
   ```
 
-### For Nvidia GPU
-
-**FlashAttention** is required for GPU inference with the **granite-nar** model. Building it from source can take a while, so you can grab pre-built wheels from https://mjunya.com/flash-attention-prebuild-wheels/
-
 ## Usage
 
 1. Run the tool using one of these methods:
@@ -143,7 +139,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **granite-nar**: requires FlashAttention on GPU. No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
+- **granite-nar**: No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
 
 - Using window type detection to send appropriate key strokes, we unfortunately can't see "sub windows". So for example, the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 

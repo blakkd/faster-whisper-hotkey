@@ -160,7 +160,7 @@ class TestModelWrapperInitialization:
 
         assert wrapper.model_type == "granite-nar"
         call_kwargs = mock_auto_model.from_pretrained.call_args[1]
-        assert call_kwargs["attn_implementation"] == "flash_attention_2"
+        assert call_kwargs["attn_implementation"] == "sdpa"
         assert call_kwargs["torch_dtype"] == torch.bfloat16
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")

@@ -358,7 +358,7 @@ class ModelWrapper:
                 self.model = AutoModel.from_pretrained(
                     repo_id,
                     trust_remote_code=True,
-                    attn_implementation="flash_attention_2",
+                    attn_implementation="sdpa",
                     device_map=device_map,
                     quantization_config=quant_cfg,
                 ).eval()
@@ -384,7 +384,7 @@ class ModelWrapper:
                     self.model = AutoModel.from_pretrained(
                         repo_id,
                         trust_remote_code=True,
-                        attn_implementation="flash_attention_2",
+                        attn_implementation="sdpa",
                         device_map=device_map,
                         torch_dtype=_dtype,
                     )
