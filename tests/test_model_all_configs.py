@@ -23,6 +23,7 @@ from faster_whisper_hotkey.settings import Settings
 # ---------------------------------------------------------------------------
 
 AUDIO_PATH = "test_audio_data/test.mp3"
+RESULTS_FILE = "test_audio_data/transcription_results.txt"
 TARGET_SR = 16000
 
 
@@ -36,6 +37,18 @@ def audio():
         data = librosa.resample(data, orig_sr=sr, target_sr=TARGET_SR)
         sr = TARGET_SR
     return data.astype(np.float32), sr
+
+
+@pytest.fixture(scope="module")
+def results_file():
+    """Truncate the shared results file once per run; each test appends its block."""
+    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+        f.write(f"faster-whisper-hotkey transcription results — {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"audio: {AUDIO_PATH}\n")
+        f.write(f"cuda_available: {_cuda_available()}\n")
+        f.write("=" * 80 + "\n")
+        f.write("\n")
+    return RESULTS_FILE
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +114,7 @@ def _cuda_available():
 # ---------------------------------------------------------------------------
 
 
-def _run_configs(configs, audio, request, results_file):
+def _run_configs(configs, audio, request):
     """Run transcription for a list of configs. Returns (results, skipped, errors)."""
     force_cuda = request.config.getoption("--force-cuda")
     cuda_ok = _cuda_available() or force_cuda
@@ -211,11 +224,13 @@ def _format_results(model_label, results, skipped, errors, audio_data, sr):
 class TestTranscribeWhisper:
     """Transcribe test audio with faster-whisper configs."""
 
-    def test_whisper(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(WHISPER, audio, request, None)
+    def test_whisper(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(WHISPER, audio, request)
 
         block = _format_results("faster-whisper", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -225,11 +240,13 @@ class TestTranscribeWhisper:
 class TestTranscribeParakeet:
     """Transcribe test audio with parakeet configs."""
 
-    def test_parakeet(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET, audio, request, None)
+    def test_parakeet(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET, audio, request)
 
         block = _format_results("parakeet", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -239,11 +256,13 @@ class TestTranscribeParakeet:
 class TestTranscribeCanary:
     """Transcribe test audio with canary configs."""
 
-    def test_canary(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(CANARY, audio, request, None)
+    def test_canary(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(CANARY, audio, request)
 
         block = _format_results("canary", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -253,11 +272,13 @@ class TestTranscribeCanary:
 class TestTranscribeVoxtral:
     """Transcribe test audio with voxtral configs."""
 
-    def test_voxtral(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(VOXTRAL, audio, request, None)
+    def test_voxtral(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(VOXTRAL, audio, request)
 
         block = _format_results("voxtral", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -267,11 +288,13 @@ class TestTranscribeVoxtral:
 class TestTranscribeCohere:
     """Transcribe test audio with cohere configs."""
 
-    def test_cohere(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(COHERE, audio, request, None)
+    def test_cohere(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(COHERE, audio, request)
 
         block = _format_results("cohere", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -281,11 +304,13 @@ class TestTranscribeCohere:
 class TestTranscribeGraniteNAR:
     """Transcribe test audio with granite-nar configs."""
 
-    def test_granite_nar(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_NAR, audio, request, None)
+    def test_granite_nar(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_NAR, audio, request)
 
         block = _format_results("granite-nar", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -295,11 +320,13 @@ class TestTranscribeGraniteNAR:
 class TestTranscribeGranite:
     """Transcribe test audio with granite (AR) configs."""
 
-    def test_granite(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request, None)
+    def test_granite(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request)
 
         block = _format_results("granite", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
@@ -309,11 +336,13 @@ class TestTranscribeGranite:
 class TestTranscribeQwen3ASR:
     """Transcribe test audio with qwen3-asr configs."""
 
-    def test_qwen3_asr(self, audio, request, tmp_path):
-        results, skipped, errors, audio_data, sr = _run_configs(QWEN3_ASR, audio, request, None)
+    def test_qwen3_asr(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(QWEN3_ASR, audio, request)
 
         block = _format_results("qwen3-asr", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
 
         assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
             f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
