@@ -1,9 +1,14 @@
 import logging
+import os
 from typing import Any
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+# API keys may be stored as "env:VAR_NAME" so the secret itself never
+# ends up in the settings file; the variable is looked up at startup.
+ENV_KEY_PREFIX = "env:"
 
 
 class LLMCorrector:
@@ -14,7 +19,21 @@ class LLMCorrector:
     def __init__(self, endpoint: str, model_name: str, api_key: str = ""):
         self.endpoint = endpoint.rstrip("/") + "/chat/completions"
         self.model_name = model_name
-        self.api_key = api_key
+        self.api_key = self._resolve_api_key(api_key)
+
+    @staticmethod
+    def _resolve_api_key(api_key: str) -> str:
+        """Resolve an "env:VAR_NAME" reference to the variable's value; plain keys pass through."""
+        if api_key.startswith(ENV_KEY_PREFIX):
+            var_name = api_key[len(ENV_KEY_PREFIX) :].strip()
+            value = os.environ.get(var_name, "")
+            if not value:
+                logger.warning(
+                    f"API key environment variable '{var_name}' is not set; "
+                    "LLM correction requests will be sent unauthenticated"
+                )
+            return value
+        return api_key
 
     def correct(self, text: str) -> str:
         """

@@ -136,6 +136,31 @@ class TestLoadSettings:
 
         assert settings is None
 
+    def test_load_settings_preserves_env_prefixed_api_key(self, tmp_path):
+        """An env:VAR reference stored by the TUI must round-trip verbatim (secret stays out of the file)."""
+        test_file = str(tmp_path / "test_settings.json")
+        test_data = {
+            "device_name": "test_device",
+            "model_type": "whisper",
+            "model_name": "small",
+            "compute_type": "float16",
+            "device": "cuda",
+            "language": "en",
+            "llm_correction_enabled": True,
+            "llm_endpoint": "http://localhost:8080/v1",
+            "llm_model_name": "test-model",
+            "llm_api_key": "env:MY_API_KEY",
+        }
+        with open(test_file, "w") as f:
+            json.dump(test_data, f)
+
+        with patch("faster_whisper_hotkey.settings.SETTINGS_FILE", test_file):
+            settings = load_settings()
+
+        assert settings is not None
+        assert settings.llm_api_key == "env:MY_API_KEY"
+        assert settings.llm_correction_enabled is True
+
 
 class TestSettingsRoundTrip:
     def test_save_and_load(self, tmp_path):

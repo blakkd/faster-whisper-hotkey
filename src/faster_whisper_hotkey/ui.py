@@ -191,45 +191,51 @@ def curses_menu(stdscr, title: str, options: list[str], message: str = "", initi
         draw_menu()
 
 
-def get_text_input(stdscr, prompt: str, default: str = "") -> str | None:
+def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> str | None:
     """
     Prompt the user for text input using curses.
+    An optional `footer` hint line is shown just below the input.
     Returns the entered text, or None if ESC is pressed.
     """
-    stdscr.clear()
-    h, w = stdscr.getmaxyx()
-
-    h = max(1, h)
-    w = max(1, w)
-    y_prompt = max(0, min((h - 1) // 2, h - 1))
-
-    avail_width = max(1, w - 2)
-    prompt_to_show = prompt[:avail_width]
-    prompt_len = len(prompt_to_show)
-
-    stdscr.addstr(y_prompt, 0, prompt_to_show)
-
     current_text = default
     cursor_pos = len(current_text)
 
-    display_width = max(0, w - prompt_len - 1)
-    display_text = current_text[:display_width]
-    if display_width > 0:
-        stdscr.addstr(y_prompt, prompt_len, " " * display_width)
-        stdscr.addstr(y_prompt, prompt_len, display_text)
+    def draw():
+        stdscr.clear()
+        h, w = stdscr.getmaxyx()
 
-    safe_cursor = min(cursor_pos, max(0, display_width))
-    final_col = max(0, min(prompt_len + safe_cursor, w - 1))
-    final_row = max(0, min(y_prompt, h - 1))
-    stdscr.move(final_row, final_col)
+        h = max(1, h)
+        w = max(1, w)
+        y_prompt = max(0, min((h - 1) // 2, h - 1))
 
+        avail_width = max(1, w - 2)
+        prompt_to_show = prompt[:avail_width]
+        prompt_len = len(prompt_to_show)
+
+        stdscr.addstr(y_prompt, 0, prompt_to_show)
+
+        display_width = max(0, w - prompt_len - 1)
+        display_text = current_text[:display_width]
+        if display_width > 0:
+            stdscr.addstr(y_prompt, prompt_len, " " * display_width)
+            stdscr.addstr(y_prompt, prompt_len, display_text)
+
+        if footer:
+            y_footer = y_prompt + 1
+            if y_footer < h:
+                stdscr.addstr(y_footer, 0, footer[: w - 1])
+
+        safe_cursor = min(cursor_pos, max(0, display_width))
+        final_col = max(0, min(prompt_len + safe_cursor, w - 1))
+        final_row = max(0, min(y_prompt, h - 1))
+        stdscr.move(final_row, final_col)
+        stdscr.refresh()
+
+    draw()
     curses.curs_set(1)
-    stdscr.refresh()
 
     while True:
         key = stdscr.getch()
-
-        h, w = stdscr.getmaxyx()
 
         if key == 27:
             curses.curs_set(0)
@@ -249,22 +255,7 @@ def get_text_input(stdscr, prompt: str, default: str = "") -> str | None:
             current_text = current_text[:cursor_pos] + chr(key) + current_text[cursor_pos:]
             cursor_pos += 1
 
-        avail_width = max(1, w - 2)
-        prompt_to_show = prompt[:avail_width]
-        prompt_len = len(prompt_to_show)
-        stdscr.addstr(y_prompt, 0, prompt_to_show)
-
-        display_width = max(0, w - prompt_len - 1)
-        display_text = current_text[:display_width]
-        if display_width > 0:
-            stdscr.addstr(y_prompt, prompt_len, " " * display_width)
-            stdscr.addstr(y_prompt, prompt_len, display_text)
-
-        safe_cursor = min(cursor_pos, max(0, display_width))
-        final_col = max(0, min(prompt_len + safe_cursor, w - 1))
-        final_row = max(0, min(y_prompt, h - 1))
-        stdscr.move(final_row, final_col)
-        stdscr.refresh()
+        draw()
 
 
 def config_screen_main(stdscr, settings_file: str | None = None):
@@ -1282,10 +1273,11 @@ def _screen_llm_model(stdscr, config: ConfigData):
 
 
 def _screen_llm_api_key(stdscr, config: ConfigData):
-    """Enter LLM API key (masked input)."""
+    """Enter LLM API key (plain text, or "env:VAR" to read it from an environment variable)."""
     default = config.llm_api_key or ""
+    footer = "For environment variable, use this format 'env:OPENAI_API_KEY'"
 
-    result = get_text_input(stdscr, "API key: ", default)
+    result = get_text_input(stdscr, "API key: ", default, footer=footer)
 
     if result is None:
         return _back_to_initial(config)

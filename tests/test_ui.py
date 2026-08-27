@@ -239,6 +239,44 @@ class TestGetTextInput:
         result = get_text_input(mock_stdscr, "Enter:", "")
         assert result == "A"
 
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_footer_displayed_below_prompt(self, mock_curses):
+        """A footer hint should be drawn one line below the input line."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()  # 24x80 -> prompt at y=11, footer at y=12
+        mock_stdscr.getch.side_effect = [13]
+
+        get_text_input(mock_stdscr, "API key: ", "", footer="env: hint here")
+
+        assert (12, 0, "env: hint here") in [call.args for call in mock_stdscr.addstr.call_args_list]
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_no_footer_by_default(self, mock_curses):
+        """Without a footer, nothing should be drawn on the line below the prompt."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()  # 24x80 -> prompt at y=11
+        mock_stdscr.getch.side_effect = [13]
+
+        get_text_input(mock_stdscr, "API key: ", "value")
+
+        rows_used = {call.args[0] for call in mock_stdscr.addstr.call_args_list}
+        assert 12 not in rows_used
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_footer_not_drawn_offscreen(self, mock_curses):
+        """On a one-line terminal the footer line would be out of bounds and must be skipped."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr(height=1, width=80)
+        mock_stdscr.getch.side_effect = [13]
+
+        get_text_input(mock_stdscr, "Key: ", "", footer="hint")
+
+        for call in mock_stdscr.addstr.call_args_list:
+            assert 0 <= call.args[0] < 1
+
 
 class TestCursesMenu:
     """Test the curses_menu function."""
@@ -395,3 +433,77 @@ class TestWhisperPrecisionScreen:
         next_step, config = result
         assert next_step == ConfigStep.WHISPER_LANGUAGE
         assert config.compute_type == "int8"
+
+
+class TestLLMApiKeyScreen:
+    """Test the LLM API key screen (env: hint, prefill, save flow)."""
+
+    ENTER = 13
+    ESC = 27
+
+    def _make_stdscr(self, keys):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
+        mock_stdscr.getch.side_effect = list(keys)
+        return mock_stdscr
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_shows_env_hint_footer(self, mock_curses):
+        """The API key screen should hint at the env: prefix."""
+        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+
+        # Enter confirms the key input, Enter confirms the final save screen
+        mock_stdscr = self._make_stdscr([self.ENTER, self.ENTER])
+        config = ConfigData()
+
+        result = _screen_llm_api_key(mock_stdscr, config)
+
+        assert not isinstance(result, tuple)
+        assert result.llm_api_key == ""
+        footers = [
+            call.args[2]
+            for call in mock_stdscr.addstr.call_args_list
+            if len(call.args) == 3 and isinstance(call.args[2], str)
+        ]
+        assert any("env:" in f and "environment variable" in f for f in footers)
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_env_reference_saved_not_value(self, mock_curses):
+        """Typing env:VAR saves the variable name, never the value."""
+        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+
+        keys = [ord(c) for c in "env:MY_KEY"] + [self.ENTER, self.ENTER]
+        mock_stdscr = self._make_stdscr(keys)
+        config = ConfigData()
+
+        result = _screen_llm_api_key(mock_stdscr, config)
+
+        assert not isinstance(result, tuple)
+        assert result.llm_api_key == "env:MY_KEY"
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_saved_env_reference_prefilled(self, mock_curses):
+        """A previously saved env: reference is prefilled and displayed."""
+        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+
+        mock_stdscr = self._make_stdscr([self.ENTER, self.ENTER])
+        config = ConfigData()
+        config.llm_api_key = "env:MY_KEY"
+
+        result = _screen_llm_api_key(mock_stdscr, config)
+
+        assert "env:MY_KEY" in str(mock_stdscr.addstr.call_args_list)
+        assert not isinstance(result, tuple)
+        assert result.llm_api_key == "env:MY_KEY"
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_escape_returns_to_initial(self, mock_curses):
+        """ESC on the API key screen returns to the initial screen."""
+        from faster_whisper_hotkey.ui import ConfigData, ConfigStep, _screen_llm_api_key
+
+        mock_stdscr = self._make_stdscr([self.ESC])
+        config = ConfigData()
+
+        result = _screen_llm_api_key(mock_stdscr, config)
+
+        assert result == (ConfigStep.INITIAL, config)

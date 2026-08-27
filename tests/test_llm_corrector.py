@@ -30,6 +30,77 @@ class TestLLMCorrectorInit:
         corrector = LLMCorrector("http://localhost:8080", "my-special-model-v2")
         assert corrector.model_name == "my-special-model-v2"
 
+    def test_init_plain_api_key_stored_as_is(self):
+        """Plain API keys (no env: prefix) should be stored unchanged."""
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "sk-abc123")
+        assert corrector.api_key == "sk-abc123"
+
+
+class TestLLMCorrectorEnvVarKey:
+    """Tests for "env:VAR" API key references (secret kept out of the settings file)."""
+
+    def test_env_var_key_resolved_to_value(self, monkeypatch):
+        """An env:VAR key should be resolved to the variable's value at init."""
+        monkeypatch.setenv("TEST_LLM_API_KEY", "sekret-key-123")
+
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "env:TEST_LLM_API_KEY")
+
+        assert corrector.api_key == "sekret-key-123"
+
+    @patch("faster_whisper_hotkey.llm_corrector.requests.post")
+    def test_env_var_key_used_in_authorization_header(self, mock_post, monkeypatch):
+        """The resolved env var value should be sent as the Bearer token."""
+        monkeypatch.setenv("TEST_LLM_API_KEY", "sekret-key-123")
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {"choices": [{"message": {"content": "OK"}}]}
+        mock_post.return_value = mock_response
+
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "env:TEST_LLM_API_KEY")
+        corrector.correct("Test text")
+
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer sekret-key-123"
+
+    @patch("faster_whisper_hotkey.llm_corrector.requests.post")
+    @patch("faster_whisper_hotkey.llm_corrector.logger")
+    def test_env_var_key_unset_falls_back_to_empty(self, mock_logger, mock_post, monkeypatch):
+        """An unset env var should log a warning and produce no Authorization header."""
+        monkeypatch.delenv("UNSET_LLM_API_KEY", raising=False)
+
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "env:UNSET_LLM_API_KEY")
+
+        assert corrector.api_key == ""
+        mock_logger.warning.assert_called_once()
+        assert "UNSET_LLM_API_KEY" in mock_logger.warning.call_args.args[0]
+
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {"choices": [{"message": {"content": "OK"}}]}
+        mock_post.return_value = mock_response
+        corrector.correct("Test text")
+
+        headers = mock_post.call_args.kwargs["headers"]
+        assert "Authorization" not in headers
+
+    @patch("faster_whisper_hotkey.llm_corrector.logger")
+    def test_env_var_name_is_stripped(self, mock_logger, monkeypatch):
+        """Whitespace around the variable name should be tolerated."""
+        monkeypatch.setenv("TRIM_KEY", "trimmed-value")
+
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "env: TRIM_KEY ")
+
+        assert corrector.api_key == "trimmed-value"
+        mock_logger.warning.assert_not_called()
+
+    @patch("faster_whisper_hotkey.llm_corrector.logger")
+    def test_bare_env_prefix_is_empty_key(self, mock_logger):
+        """A bare 'env:' with no variable name should behave like an unset variable."""
+        corrector = LLMCorrector("http://localhost:8080", "test-model", "env:")
+
+        assert corrector.api_key == ""
+        mock_logger.warning.assert_called_once()
+
 
 class TestLLMCorrectorCorrectEmptyInput:
     """Tests for empty/whitespace input handling."""
