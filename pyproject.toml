@@ -32,7 +32,7 @@ dependencies = [
     "pulsectl==24.12.0",
     "torch==2.12.1",
     "torchaudio==2.11.0",
-    "nemo-toolkit[asr]==2.1.0",
+    "nemo-toolkit[asr]==3.0.0",
     "requests==2.34.2",
     "importlib_resources==7.1.0",
     "mistral-common[audio]==1.11.7",
