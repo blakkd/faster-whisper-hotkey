@@ -12,11 +12,17 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
-- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
+- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint. The API key can be given as `env:VAR` so the secret is never stored in the settings file.
 
 ## Current models
 
 _To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case._
+
+- **[Qwen/Qwen3-ASR-1.7B-hf](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf)**:
+  - 30 languages
+  - Transcription only
+  - Automatic language recognition
+  - CPU/GPU (a bit slow on CPU, as always, very fast on GPU)
 
 - **[ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
   - 6 source languages (en, de, es, fr, ja, pt)
@@ -159,6 +165,7 @@ Many thanks to:
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - **Cohere** for their cohere-transcribe-03-2026 model
 - **IBM** for their granite-speech-4.1 models
+- **Qwen** for their Qwen3-ASR-1.7B model
 - and to **all the contributors** of the libraries I used
 
 Also thanks to [wgabrys88](https://huggingface.co/spaces/WJ88/NVIDIA-Parakeet-TDT-0.6B-v2-INT8-Real-Time-Mic-Transcription) and [MohamedRashadthat](https://huggingface.co/spaces/MohamedRashad/Voxtral) for their huggingface spaces that have been helpful!
