@@ -38,6 +38,28 @@ class TestMainFlow:
         mock_transcriber_cls.assert_called_once_with(expected_settings)
         mock_transcriber.run.assert_called_once()
 
+    @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
+    @patch("faster_whisper_hotkey.transcribe.curses.wrapper")
+    def test_failed_transcriber_startup_exits_cleanly(self, mock_wrapper, mock_transcriber_cls):
+        """A transcriber construction error (e.g. unsupported compute type) logs and exits, no traceback."""
+        from faster_whisper_hotkey.settings import Settings
+        from faster_whisper_hotkey.transcribe import main
+
+        mock_wrapper.return_value = Settings(
+            device_name="test_dev",
+            model_type="whisper",
+            model_name="small",
+            compute_type="int8",
+            device="cuda",
+            language="en",
+            hotkey="pause",
+        )
+        mock_transcriber_cls.side_effect = ValueError("CUDA int8 is not supported on this GPU")
+
+        main()  # must not raise
+
+        mock_transcriber_cls.assert_called_once()
+
     @patch("faster_whisper_hotkey.transcribe.curses.wrapper")
     def test_cancelled_config_exits(self, mock_wrapper):
         """When config returns None (cancelled), main should return without error."""

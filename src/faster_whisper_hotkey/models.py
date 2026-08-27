@@ -126,6 +126,19 @@ def _materialize_weights(model):
 # Optional types import (already available in Python 3.9+)
 
 
+def _cuda_int8_supported() -> bool:
+    """
+    CTranslate2 int8 CUDA GEMM fails with CUBLAS_STATUS_NOT_SUPPORTED on Blackwell
+    (sm_120/121) when a dimension is not divisible by 4 (whisper vocab is 51865/51866) —
+    OpenNMT/CTranslate2#1865. Upstream only auto-selects a different type (PR #1937);
+    an explicit int8 request still loads but fails at inference, so fall back.
+    """
+    if not torch.cuda.is_available():
+        return True
+    major, _minor = torch.cuda.get_device_capability()
+    return major < 12
+
+
 def _check_transformers_version(min_version: str, model_label: str):
     """Check that the installed transformers version supports a model."""
     import transformers as tf_lib
@@ -160,6 +173,12 @@ class ModelWrapper:
         compute_type = getattr(self.settings, "compute_type", None)
 
         if mt == "whisper":
+            if device == "cuda" and compute_type == "int8" and not _cuda_int8_supported():
+                raise ValueError(
+                    "CUDA int8 is not supported on this GPU (Blackwell sm_120/121, "
+                    "CTranslate2/cuBLAS limitation). Pick a different whisper precision "
+                    "(e.g. float16) in the settings screen."
+                )
             self.model = WhisperModel(
                 model_size_or_path=self.settings.model_name,
                 device=device,
@@ -547,8 +566,11 @@ class ModelWrapper:
             else:
                 raise ValueError(f"Unknown model type: {mt}")
 
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Error during model.transcribe: {e}")
+        except Exception:
+            logger.exception(
+                f"Error during model.transcribe for {self.model_type}/{self.settings.model_name} "
+                f"({self.settings.device}/{getattr(self.settings, 'compute_type', None)})"
+            )
             return ""
 
     def _transcribe_cohere(self, audio_data, sample_rate: int, language: str | None) -> str:
@@ -581,7 +603,7 @@ class ModelWrapper:
                 language=language if language and language != "auto" else None,
                 return_tensors="pt",
             )
-            inputs = inputs.to(self.model.device)
+            inputs = inputs.to(self.model.device, dtype=self.model.dtype)
 
             with torch.no_grad():
                 output = self.model.generate(

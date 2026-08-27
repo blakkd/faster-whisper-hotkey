@@ -636,21 +636,30 @@ def _screen_whisper_device(stdscr, config: ConfigData):
 def _screen_whisper_precision(stdscr, config: ConfigData):
     """Select precision for Whisper."""
     from .config import english_only_models_whisper
+    from .models import _cuda_int8_supported
 
     options = ["int8"] if config.device == "cpu" else ["float16", "int8"]
 
     initial_idx = 0
     if config.compute_type == "int8" and config.device != "cpu":
         initial_idx = 1
-    selected = curses_menu(
-        stdscr,
-        "Precision",
-        options,
-        initial_idx=initial_idx,
-    )
 
-    if selected is None:
-        return _back_to_initial(config)
+    warning = ""
+    while True:
+        selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, footer=warning)
+
+        if selected is None:
+            return _back_to_initial(config)
+
+        if selected == "int8" and config.device == "cuda" and not _cuda_int8_supported():
+            initial_idx = 1
+            warning = (
+                "int8 is not supported on this CUDA GPU (Blackwell sm_120/121, CTranslate2/cuBLAS "
+                "limitation). Select a different precision to continue."
+            )
+            continue
+
+        break
 
     config.compute_type = selected
 

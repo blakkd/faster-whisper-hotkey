@@ -4,5 +4,7 @@ src/faster_whisper_hotkey.egg-info/
 src/faster_whisper_hotkey/__pycache__/
 dist/
 tests/__pycache__/
-TODO.md
+TODO
+AGENTS
+speed.txt
 test_audio_data/transcription_results.txt

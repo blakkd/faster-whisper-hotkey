@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 import torch
 
-from faster_whisper_hotkey.models import ModelWrapper
+from faster_whisper_hotkey.models import ModelWrapper, _cuda_int8_supported
 from faster_whisper_hotkey.settings import Settings
 
 # ---------------------------------------------------------------------------
@@ -52,8 +52,21 @@ def results_file():
 
 
 # ---------------------------------------------------------------------------
-# Config matrix  (language = "en" for every config)
+# Config matrix
 # ---------------------------------------------------------------------------
+# Language the config TUI saves for each model type (mirrors the ui.py screens):
+# parakeet has no language step ("" = auto), voxtral is always "auto" (LID),
+# canary/granite are src-tgt pairs, the rest are plain codes.
+UI_LANGUAGE_BY_MODEL = {
+    "whisper": "en",
+    "parakeet": "",
+    "canary": "en-en",
+    "voxtral": "auto",
+    "cohere": "en",
+    "granite-nar": "en",
+    "granite": "en-en",
+    "qwen3-asr": "en",
+}
 # Each tuple: (model_type, model_name, device, compute_type)
 
 WHISPER_MODELS = ["small"]
@@ -127,7 +140,12 @@ def _run_configs(configs, audio, request):
 
     for model_type, model_name, device, compute_type in configs:
         if device == "cuda" and not cuda_ok:
-            skipped.append((model_type, model_name, device, compute_type))
+            skipped.append((model_type, model_name, device, compute_type, "CUDA not available"))
+            continue
+        if model_type == "whisper" and device == "cuda" and compute_type == "int8" and not _cuda_int8_supported():
+            skipped.append(
+                (model_type, model_name, device, compute_type, "int8 not supported on this CUDA GPU (Blackwell sm_12x)")
+            )
             continue
 
         print(f"\n>>> Testing: {model_type}/{model_name} ({device}/{compute_type})")
@@ -138,7 +156,7 @@ def _run_configs(configs, audio, request):
                 model_name=model_name,
                 compute_type=compute_type,
                 device=device,
-                language="en",
+                language=UI_LANGUAGE_BY_MODEL[model_type],
             )
 
             t0 = time.monotonic()
@@ -146,7 +164,7 @@ def _run_configs(configs, audio, request):
             load_time = round(time.monotonic() - t0, 2)
 
             t1 = time.monotonic()
-            text = wrapper.transcribe(audio_data, sample_rate=sr)
+            text = wrapper.transcribe(audio_data, sample_rate=sr, language=settings.language)
             transcribe_time = round(time.monotonic() - t1, 2)
 
             del wrapper
@@ -181,6 +199,15 @@ def _run_configs(configs, audio, request):
     return results, skipped, errors, audio_data, sr
 
 
+def _assert_ok(results, errors):
+    """Fail if any config raised or returned an empty transcription."""
+    assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
+        f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
+    )
+    empty = [f"{r[0]}/{r[1]} ({r[2]}/{r[3]})" for r in results if not r[7].strip()]
+    assert not empty, "empty transcription for:\n" + "\n".join(f"  - {c}" for c in empty)
+
+
 def _format_results(model_label, results, skipped, errors, audio_data, sr):
     """Format results for a single model test."""
     lines = [
@@ -199,9 +226,9 @@ def _format_results(model_label, results, skipped, errors, audio_data, sr):
         lines.append("")
 
     if skipped:
-        lines.append("SKIPPED (CUDA not available)")
+        lines.append("SKIPPED")
         for s in skipped:
-            lines.append(f"  {s[0]}/{s[1]} ({s[2]}/{s[3]})")
+            lines.append(f"  {s[0]}/{s[1]} ({s[2]}/{s[3]}): {s[4]}")
         lines.append("")
 
     if errors:
@@ -232,9 +259,7 @@ class TestTranscribeWhisper:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeParakeet:
@@ -248,9 +273,7 @@ class TestTranscribeParakeet:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeCanary:
@@ -264,9 +287,7 @@ class TestTranscribeCanary:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeVoxtral:
@@ -280,9 +301,7 @@ class TestTranscribeVoxtral:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeCohere:
@@ -296,9 +315,7 @@ class TestTranscribeCohere:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeGraniteNAR:
@@ -312,9 +329,7 @@ class TestTranscribeGraniteNAR:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeGranite:
@@ -328,9 +343,7 @@ class TestTranscribeGranite:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)
 
 
 class TestTranscribeQwen3ASR:
@@ -344,6 +357,4 @@ class TestTranscribeQwen3ASR:
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")
 
-        assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-            f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
-        )
+        _assert_ok(results, errors)

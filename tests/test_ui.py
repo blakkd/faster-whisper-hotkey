@@ -297,3 +297,101 @@ class TestCursesMenu:
 
         result = curses_menu(mock_stdscr, "Title", ["Opt1", "Opt2"], message="Very long message...")
         assert result is None
+
+
+class TestWhisperPrecisionScreen:
+    """Test the whisper precision screen int8/CUDA guard (Blackwell sm_12x)."""
+
+    KEY_DOWN = 258
+    KEY_UP = 259
+    ENTER = 13
+    ESC = 27
+
+    def _make_stdscr(self, keys):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
+        mock_stdscr.getch.side_effect = list(keys)
+        return mock_stdscr
+
+    def _config(self, device="cuda", compute_type=""):
+        from faster_whisper_hotkey.ui import ConfigData
+
+        config = ConfigData()
+        config.device = device
+        config.compute_type = compute_type
+        config.model_name = "small"
+        return config
+
+    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_int8_blocked_on_unsupported_cuda(self, mock_curses, mock_supported):
+        """Picking int8 on an unsupported CUDA GPU shows a warning and stays on the screen."""
+        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+
+        mock_curses.KEY_DOWN = self.KEY_DOWN
+        mock_curses.KEY_UP = self.KEY_UP
+        # down -> int8, Enter (blocked); up -> float16, Enter (accepted)
+        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER, self.KEY_UP, self.ENTER])
+
+        config = self._config(device="cuda")
+        result = _screen_whisper_precision(mock_stdscr, config)
+
+        assert result is not None
+        next_step, config = result
+        assert next_step == ConfigStep.WHISPER_LANGUAGE
+        assert config.compute_type == "float16"
+        assert "not supported on this CUDA GPU" in str(mock_stdscr.addstr.call_args_list)
+
+    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_int8_blocked_until_escalated_choice(self, mock_curses, mock_supported):
+        """Repeated int8 selections keep showing the warning; ESC still aborts."""
+        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+
+        mock_curses.KEY_DOWN = self.KEY_DOWN
+        mock_curses.KEY_UP = self.KEY_UP
+        # down -> int8, Enter (blocked); down stays, Enter (blocked again); ESC
+        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER, self.KEY_DOWN, self.ENTER, self.ESC])
+
+        config = self._config(device="cuda")
+        result = _screen_whisper_precision(mock_stdscr, config)
+
+        assert result == (ConfigStep.INITIAL, config)
+        assert config.compute_type == ""
+        warnings_shown = str(mock_stdscr.addstr.call_args_list).count("not supported on this CUDA GPU")
+        assert warnings_shown >= 2
+
+    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=True)
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_int8_allowed_when_supported(self, mock_curses, mock_supported):
+        """int8 is accepted without warning when the GPU supports it."""
+        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+
+        mock_curses.KEY_DOWN = self.KEY_DOWN
+        mock_curses.KEY_UP = self.KEY_UP
+        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER])
+
+        config = self._config(device="cuda")
+        result = _screen_whisper_precision(mock_stdscr, config)
+
+        next_step, config = result
+        assert next_step == ConfigStep.WHISPER_LANGUAGE
+        assert config.compute_type == "int8"
+        assert "not supported" not in str(mock_stdscr.addstr.call_args_list)
+
+    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_int8_on_cpu_never_blocked(self, mock_curses, mock_supported):
+        """The GPU guard only applies to CUDA; CPU int8 is always accepted."""
+        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+
+        mock_curses.KEY_DOWN = self.KEY_DOWN
+        mock_curses.KEY_UP = self.KEY_UP
+        mock_stdscr = self._make_stdscr([self.ENTER])
+
+        config = self._config(device="cpu")
+        result = _screen_whisper_precision(mock_stdscr, config)
+
+        next_step, config = result
+        assert next_step == ConfigStep.WHISPER_LANGUAGE
+        assert config.compute_type == "int8"

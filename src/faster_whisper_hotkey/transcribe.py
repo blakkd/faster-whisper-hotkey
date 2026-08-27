@@ -200,7 +200,11 @@ def main(headless: bool = False, settings_file: str | None = None):
 
     # Launch the transcriber with configured settings
     assert settings is not None
-    transcriber = MicrophoneTranscriber(settings)
+    try:
+        transcriber = MicrophoneTranscriber(settings)
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Failed to start transcriber: {e}")
+        return
     try:
         transcriber.run()
     except Exception as e:  # noqa: BLE001

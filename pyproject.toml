@@ -35,7 +35,7 @@ dependencies = [
     "nemo-toolkit[asr]==2.1.0",
     "requests==2.34.2",
     "importlib_resources==7.1.0",
-    "mistral-common[audio]==1.11.3",
+    "mistral-common[audio]==1.11.7",
     "transformers==5.15.0",
     "bitsandbytes>=0.46.1",
     "pyperclip==1.11.0",
@@ -46,6 +46,14 @@ dependencies = [
     "onnx==1.22.0",
     "accelerate==1.14.0",
     "silero-vad>=6.2.1",
+]
+
+# DEV TOOLS (kept in the lock so `uv sync` doesn't prune them)
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.16.3",
+    "pyright==1.1.411",
 ]
 
 # SCRIPTS
