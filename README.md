@@ -12,7 +12,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
-- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint. The API key can be given as `env:VAR` so the secret is never stored in the settings file.
+- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
 
