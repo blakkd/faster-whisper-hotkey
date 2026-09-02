@@ -518,7 +518,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026",
         "granite-speech-4.1-2b-nar",
         "granite-speech-4.1-2b",
-        "Qwen3-ASR-1.7B",
+        "Qwen3-ASR-1.7B-hf",
     ]
 
     initial_idx = 0
@@ -549,7 +549,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026": "cohere",
         "granite-speech-4.1-2b-nar": "granite-nar",
         "granite-speech-4.1-2b": "granite",
-        "Qwen3-ASR-1.7B": "qwen3-asr",
+        "Qwen3-ASR-1.7B-hf": "qwen3-asr",
     }
 
     config.model_type = type_map[selected]
