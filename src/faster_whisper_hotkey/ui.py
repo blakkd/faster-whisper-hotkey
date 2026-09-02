@@ -66,13 +66,22 @@ class ConfigData:
     llm_api_key: str = ""
 
 
-def curses_menu(stdscr, title: str, options: list[str], message: str = "", initial_idx: int = 0, footer: str = ""):
+def curses_menu(
+    stdscr,
+    title: str,
+    options: list[str],
+    message: str = "",
+    initial_idx: int = 0,
+    footer: str = "",
+    native: str = "",
+):
     """
     Display a scrollable list of `options` in a curses window.
     A `message` (e.g. "Source language") can be shown directly above the list.
     A `footer` is shown at the bottom of the screen.
+    If `native` matches one of the options, it is shown with a " (native)" suffix.
 
-    Returns the selected option, or None if the user aborts with ESC.
+    Returns the selected option (without any suffix), or None if the user aborts with ESC.
     """
     current_row = initial_idx
     h, w = stdscr.getmaxyx()
@@ -116,6 +125,8 @@ def curses_menu(stdscr, title: str, options: list[str], message: str = "", initi
 
         for i in range(start, end):
             text = options[i]
+            if native and text == native:
+                text = f"{text} (native)"
             x = w // 2 - len(text) // 2
             x = max(0, min(x, w - 1)) if w > 0 else 0
             y = options_y_start + (i - start)
@@ -256,6 +267,15 @@ def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> 
             cursor_pos += 1
 
         draw()
+
+
+def _initial_precision_idx(options: list[str], current: str, native: str) -> int:
+    """Preselect the saved precision if still offered, else the native one, else the first option."""
+    if current in options:
+        return options.index(current)
+    if native in options:
+        return options.index(native)
+    return 0
 
 
 def config_screen_main(stdscr, settings_file: str | None = None):
@@ -630,14 +650,11 @@ def _screen_whisper_precision(stdscr, config: ConfigData):
     from .models import _cuda_int8_supported
 
     options = ["int8"] if config.device == "cpu" else ["float16", "int8"]
-
-    initial_idx = 0
-    if config.compute_type == "int8" and config.device != "cpu":
-        initial_idx = 1
+    initial_idx = _initial_precision_idx(options, config.compute_type, "float16")
 
     warning = ""
     while True:
-        selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, footer=warning)
+        selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, footer=warning, native="float16")
 
         if selected is None:
             return _back_to_initial(config)
@@ -724,11 +741,9 @@ def _screen_parakeet_precision(stdscr, config: ConfigData):
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="float32")
 
     if selected is None:
         return _back_to_initial(config)
@@ -831,11 +846,9 @@ def _screen_canary_precision(stdscr, config: ConfigData):
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="float32")
 
     if selected is None:
         return _back_to_initial(config)
@@ -866,11 +879,9 @@ def _screen_voxtral_precision(stdscr, config: ConfigData):
     """Select precision for Voxtral."""
     options = ["float32", "bfloat16", "int8", "int4"]
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
 
-    selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, native="float32")
 
     if selected is None:
         return _back_to_initial(config)
@@ -910,18 +921,16 @@ def _screen_cohere_device(stdscr, config: ConfigData):
 
 def _screen_cohere_precision(stdscr, config: ConfigData):
     """Select precision for Cohere."""
-    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
 
     if selected is None:
         return _back_to_initial(config)
@@ -984,18 +993,16 @@ def _screen_granite_nar_device(stdscr, config: ConfigData):
 
 def _screen_granite_nar_precision(stdscr, config: ConfigData):
     """Select precision for Granite NAR."""
-    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
 
     if selected is None:
         return _back_to_initial(config)
@@ -1107,18 +1114,16 @@ def _screen_granite_device(stdscr, config: ConfigData):
 
 def _screen_granite_precision(stdscr, config: ConfigData):
     """Select precision for Granite AR."""
-    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
 
     if selected is None:
         return _back_to_initial(config)
@@ -1157,18 +1162,16 @@ def _screen_qwen3_asr_device(stdscr, config: ConfigData):
 
 def _screen_qwen3_asr_precision(stdscr, config: ConfigData):
     """Select precision for Qwen3-ASR (weights are natively bf16)."""
-    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["bfloat16", "float32"]
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
     footer = (
         ""
         if config.device == "cuda"
         else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
     )
 
-    initial_idx = 0
-    if config.compute_type in options:
-        initial_idx = options.index(config.compute_type)
+    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
 
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
 
     if selected is None:
         return _back_to_initial(config)

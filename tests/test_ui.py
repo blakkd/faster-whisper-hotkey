@@ -5,6 +5,8 @@ Tests for curses-based TUI components in ui.py
 import curses
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 class TestGetTextInput:
     """Test the get_text_input function for various scenarios."""
@@ -433,6 +435,98 @@ class TestWhisperPrecisionScreen:
         next_step, config = result
         assert next_step == ConfigStep.WHISPER_LANGUAGE
         assert config.compute_type == "int8"
+
+
+class TestCursesMenuNativeHint:
+    """Test the ' (native)' hint rendered next to the model's native precision."""
+
+    def _make_stdscr(self, keys):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
+        mock_stdscr.getch.side_effect = list(keys)
+        return mock_stdscr
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_native_option_shows_hint(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        mock_stdscr = self._make_stdscr([13])  # Enter on the first option
+
+        result = curses_menu(mock_stdscr, "Precision", ["float32", "bfloat16", "int8", "int4"], native="bfloat16")
+
+        assert result == "float32"
+        assert "bfloat16 (native)" in str(mock_stdscr.addstr.call_args_list)
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_no_hint_when_native_not_offered(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        mock_stdscr = self._make_stdscr([13])
+
+        result = curses_menu(mock_stdscr, "Precision", ["int8"], native="float16")
+
+        assert result == "int8"
+        assert "(native)" not in str(mock_stdscr.addstr.call_args_list)
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_no_hint_without_native(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        mock_stdscr = self._make_stdscr([13])
+
+        result = curses_menu(mock_stdscr, "Precision", ["float32", "bfloat16", "int8", "int4"])
+
+        assert result == "float32"
+        assert "(native)" not in str(mock_stdscr.addstr.call_args_list)
+
+
+class TestPrecisionScreensUniformOrder:
+    """Precision screens list options in the same order for every model and mark the native one."""
+
+    CANONICAL_ORDER = ("float32", "bfloat16", "float16", "int8", "int4")
+
+    @pytest.mark.parametrize(
+        ("screen_name", "device", "expected_options", "native"),
+        [
+            ("_screen_whisper_precision", "cuda", ["float16", "int8"], "float16"),
+            ("_screen_whisper_precision", "cpu", ["int8"], "float16"),
+            ("_screen_parakeet_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
+            ("_screen_parakeet_precision", "cpu", ["float32", "bfloat16"], "float32"),
+            ("_screen_canary_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
+            ("_screen_canary_precision", "cpu", ["float32", "bfloat16"], "float32"),
+            ("_screen_voxtral_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
+            ("_screen_cohere_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
+            ("_screen_cohere_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+            ("_screen_granite_nar_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
+            ("_screen_granite_nar_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+            ("_screen_granite_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
+            ("_screen_granite_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+            ("_screen_qwen3_asr_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
+            ("_screen_qwen3_asr_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+        ],
+    )
+    def test_options_follow_canonical_order_and_mark_native(self, screen_name, device, expected_options, native):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData()
+        config.device = device
+
+        captured = {}
+
+        def fake_menu(stdscr, title, options, **kwargs):
+            captured["options"] = options
+            captured["native"] = kwargs.get("native")
+            return options[0]
+
+        with patch.object(ui, "curses_menu", fake_menu):
+            result = getattr(ui, screen_name)(MagicMock(), config)
+
+        assert result is not None
+        assert captured["options"] == expected_options
+        assert expected_options == [p for p in self.CANONICAL_ORDER if p in expected_options]
+        assert captured["native"] == native
+        # The raw precision (no "(native)" suffix) is what gets stored
+        assert config.compute_type == expected_options[0]
 
 
 class TestLLMApiKeyScreen:
