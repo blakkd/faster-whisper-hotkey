@@ -116,14 +116,69 @@ class TestGetTextInput:
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_escape_returns_none(self, mock_curses):
-        """Test ESC key returns None."""
+        """Test a bare ESC (nothing following within the window) returns None."""
         from faster_whisper_hotkey.ui import get_text_input
 
         mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27]
+        mock_stdscr.getch.side_effect = [27, -1]  # ESC, then nothing follows
 
         result = get_text_input(mock_stdscr, "Enter:", "default")
         assert result is None
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_alt_backspace_deletes_previous_word(self, mock_curses):
+        """Alt+Backspace (ESC + backspace) deletes the whole previous word, not the screen."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()
+        mock_stdscr.getch.side_effect = [27, 127, 13]
+
+        result = get_text_input(mock_stdscr, "Enter:", "hello world")
+        assert result == "hello"
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_alt_backspace_without_space_clears_before_cursor(self, mock_curses):
+        """With no space before the cursor, Alt+Backspace clears everything before it."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()
+        mock_stdscr.getch.side_effect = [27, 127, 13]
+
+        result = get_text_input(mock_stdscr, "Enter:", "s1-mini-GGUF")
+        assert result == ""
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_alt_backspace_on_empty_input_does_not_cancel(self, mock_curses):
+        """Alt+Backspace with nothing to delete keeps the field open instead of cancelling."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()
+        mock_stdscr.getch.side_effect = [27, 127, 13]
+
+        result = get_text_input(mock_stdscr, "Enter:", "")
+        assert result == ""
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_alt_backspace_repeated_deletes_word_by_word(self, mock_curses):
+        """Repeated Alt+Backspace removes one whole word per press."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()
+        mock_stdscr.getch.side_effect = [27, 127, 27, 127, 13]
+
+        result = get_text_input(mock_stdscr, "Enter:", "hello world foo")
+        assert result == "hello"
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_escape_plus_other_key_does_not_cancel(self, mock_curses):
+        """ESC followed by a regular key is treated as that key, not as a cancel."""
+        from faster_whisper_hotkey.ui import get_text_input
+
+        mock_stdscr = self._create_mock_stdscr()
+        mock_stdscr.getch.side_effect = [27, 97, 13]  # ESC, 'a', Enter
+
+        result = get_text_input(mock_stdscr, "Enter:", "")
+        assert result == "a"
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_typing_after_default(self, mock_curses):
@@ -595,9 +650,36 @@ class TestLLMApiKeyScreen:
         """ESC on the API key screen returns to the initial screen."""
         from faster_whisper_hotkey.ui import ConfigData, ConfigStep, _screen_llm_api_key
 
-        mock_stdscr = self._make_stdscr([self.ESC])
+        mock_stdscr = self._make_stdscr([self.ESC, -1])  # bare ESC
         config = ConfigData()
 
         result = _screen_llm_api_key(mock_stdscr, config)
 
         assert result == (ConfigStep.INITIAL, config)
+
+
+class TestLLMModelScreen:
+    """Test the LLM model name screen (the original ALT+BACKSPACE bug scenario)."""
+
+    ENTER = 13
+
+    def _make_stdscr(self, keys):
+        mock_stdscr = MagicMock()
+        mock_stdscr.getmaxyx.return_value = (24, 80)
+        mock_stdscr.getch.side_effect = list(keys)
+        return mock_stdscr
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_alt_backspace_erases_prefilled_name(self, mock_curses):
+        """ALT+BACKSPACE on the model name screen erases the prefilled name instead of exiting."""
+        from faster_whisper_hotkey.ui import ConfigData, ConfigStep, _screen_llm_model
+
+        mock_stdscr = self._make_stdscr([27, 127, self.ENTER])  # Alt+Backspace, then Enter
+        config = ConfigData()
+        config.llm_model_name = "qwen3-asr"
+
+        result = _screen_llm_model(mock_stdscr, config)
+
+        assert result is not None
+        assert result == (ConfigStep.LLM_API_KEY, config)
+        assert config.llm_model_name == ""

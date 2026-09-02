@@ -202,11 +202,27 @@ def curses_menu(
         draw_menu()
 
 
+# How long (ms) to wait for a byte following an ESC before treating it as a bare ESC.
+# Terminals send Alt+<key> as ESC + <key>, so without this window a bare ESC (cancel)
+# and e.g. Alt+Backspace are indistinguishable on the first byte.
+ESC_FOLLOWUP_TIMEOUT_MS = 50
+
+
+def _delete_previous_word(text: str, cursor_pos: int) -> tuple[str, int]:
+    """Delete the word before the cursor (and any space preceding it)."""
+    if cursor_pos == 0:
+        return text, cursor_pos
+    space_idx = text[:cursor_pos].rfind(" ")
+    word_start = 0 if space_idx == -1 else space_idx
+    return text[:word_start] + text[cursor_pos:], word_start
+
+
 def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> str | None:
     """
     Prompt the user for text input using curses.
     An optional `footer` hint line is shown just below the input.
-    Returns the entered text, or None if ESC is pressed.
+    Returns the entered text, or None if a bare ESC is pressed.
+    Alt+Backspace (ESC + backspace) deletes the previous word instead of cancelling.
     """
     current_text = default
     cursor_pos = len(current_text)
@@ -249,20 +265,32 @@ def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> 
         key = stdscr.getch()
 
         if key == 27:
-            curses.curs_set(0)
-            return None
-        elif key in [curses.KEY_ENTER, 10, 13]:
+            # Distinguish a bare ESC (cancel) from an ESC-prefixed combo such as
+            # Alt+Backspace: only a bare ESC cancels.
+            stdscr.timeout(ESC_FOLLOWUP_TIMEOUT_MS)
+            next_key = stdscr.getch()
+            stdscr.timeout(-1)
+            if next_key == -1:
+                curses.curs_set(0)
+                return None
+            if next_key in (curses.KEY_BACKSPACE, 127):
+                # Alt+Backspace: delete the previous word (and the space before it)
+                current_text, cursor_pos = _delete_previous_word(current_text, cursor_pos)
+                draw()
+                continue
+            # Other ESC+key combos (e.g. Alt+letter): treat as the key itself
+            key = next_key
+        if key in (curses.KEY_ENTER, 10, 13):
             curses.curs_set(0)
             return current_text
-        elif key == curses.KEY_BACKSPACE or key == 127:
-            if cursor_pos > 0:
-                current_text = current_text[: cursor_pos - 1] + current_text[cursor_pos:]
-                cursor_pos -= 1
-        elif key == curses.KEY_LEFT and cursor_pos > 0:
+        if key in (curses.KEY_BACKSPACE, 127) and cursor_pos > 0:
+            current_text = current_text[: cursor_pos - 1] + current_text[cursor_pos:]
             cursor_pos -= 1
-        elif key == curses.KEY_RIGHT and cursor_pos < len(current_text):
+        if key == curses.KEY_LEFT and cursor_pos > 0:
+            cursor_pos -= 1
+        if key == curses.KEY_RIGHT and cursor_pos < len(current_text):
             cursor_pos += 1
-        elif 32 <= key <= 126:
+        if 32 <= key <= 126:
             current_text = current_text[:cursor_pos] + chr(key) + current_text[cursor_pos:]
             cursor_pos += 1
 
