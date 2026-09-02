@@ -1157,13 +1157,18 @@ def _screen_qwen3_asr_device(stdscr, config: ConfigData):
 
 def _screen_qwen3_asr_precision(stdscr, config: ConfigData):
     """Select precision for Qwen3-ASR (weights are natively bf16)."""
-    options = ["bfloat16", "int8", "int4"] if config.device == "cuda" else ["bfloat16"]
+    options = ["bfloat16", "float32", "int8", "int4"] if config.device == "cuda" else ["bfloat16", "float32"]
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
 
     initial_idx = 0
     if config.compute_type in options:
         initial_idx = options.index(config.compute_type)
 
-    selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx)
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx)
 
     if selected is None:
         return _back_to_initial(config)

@@ -261,6 +261,57 @@ class TestModelWrapperInitialization:
         call_kwargs = mock_mm_model.from_pretrained.call_args[1]
         assert "quantization_config" in call_kwargs
 
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_qwen3_asr_model_cuda_float32(self, mock_check, mock_mm_model, mock_processor):
+        """Test loading a qwen3-asr model on CUDA in float32."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cuda",
+            compute_type="float32",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "qwen3-asr"
+        call_kwargs = mock_mm_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.float32
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_qwen3_asr_model_cpu_float32(self, mock_check, mock_mm_model, mock_processor):
+        """Test loading a qwen3-asr model on CPU in float32."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_mm_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="qwen3-asr",
+            model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cpu",
+            compute_type="float32",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "qwen3-asr"
+        call_kwargs = mock_mm_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.float32
+        assert call_kwargs["low_cpu_mem_usage"] is False
+
     def test_init_unknown_model_type(self):
         """Test that unknown model type raises ValueError."""
         from faster_whisper_hotkey.models import ModelWrapper

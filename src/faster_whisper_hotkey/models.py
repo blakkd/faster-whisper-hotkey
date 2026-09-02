@@ -433,17 +433,19 @@ class ModelWrapper:
                 ).eval()
             else:
                 # Weights are stored natively as bf16 (see HF repo config.json)
+                _dtype = {"bfloat16": torch.bfloat16, "float32": torch.float32}.get(compute_type, torch.bfloat16)
+
                 if device == "cpu":
                     self.model = AutoModelForMultimodalLM.from_pretrained(
                         repo_id,
-                        dtype=torch.bfloat16,
+                        dtype=_dtype,
                         low_cpu_mem_usage=False,
                     )
                     _materialize_weights(self.model)
                 else:
                     self.model = AutoModelForMultimodalLM.from_pretrained(
                         repo_id,
-                        dtype=torch.bfloat16,
+                        dtype=_dtype,
                         device_map=device_map,
                     )
                 self.model = self.model.eval()
