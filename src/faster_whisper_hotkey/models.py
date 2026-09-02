@@ -12,6 +12,8 @@ from transformers import (
     VoxtralForConditionalGeneration,
 )
 
+from .hf_offline import enable_offline_if_unreachable
+
 
 @contextlib.contextmanager
 def suppress_output():
@@ -168,6 +170,8 @@ class ModelWrapper:
         self._load_model()
 
     def _load_model(self):
+        enable_offline_if_unreachable(self.settings.model_name)
+
         mt = self.model_type
         device = self.settings.device
         compute_type = getattr(self.settings, "compute_type", None)
