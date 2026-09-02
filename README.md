@@ -155,6 +155,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
+- For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions feel slow on CPU, try float32.
 
 ## Acknowledgements
 
