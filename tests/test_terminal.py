@@ -17,7 +17,7 @@ class TestTerminalIdentifiers:
         assert len(TERMINAL_IDENTIFIERS) > 0
 
     def test_common_terminals_present(self):
-        common = ["kitty", "alacritty", "xterm"]
+        common = ["kitty", "alacritty", "ghostty", "xterm"]
         for terminal in common:
             assert terminal in TERMINAL_IDENTIFIERS
 
@@ -33,6 +33,16 @@ class TestIsActiveTerminalWindowX11:
 
     def test_is_terminal_window_with_xterm(self):
         classes = ["xterm", "XTerm"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_ghostty(self):
+        # Ghostty X11 WM_CLASS (see src/apprt/gtk/winproto/x11.zig in ghostty-org/ghostty):
+        # WM_CLASS(STRING) = "ghostty", "com.mitchellh.ghostty"
+        classes = ["ghostty", "com.mitchellh.ghostty"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_ghostty_debug_build(self):
+        classes = ["ghostty-debug", "com.mitchellh.ghostty-debug"]
         assert is_terminal_window_x11(classes) is True
 
     def test_is_terminal_window_with_term_substring(self):
@@ -77,6 +87,17 @@ class TestGetActiveWindowClassX11:
         result = get_active_window_class_x11()
 
         assert len(result) == 2
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_get_active_window_class_ghostty(self, mock_check_output):
+        mock_check_output.side_effect = [
+            b"99999999",
+            b'WM_CLASS(STRING) = "ghostty", "com.mitchellh.ghostty"',
+        ]
+
+        result = get_active_window_class_x11()
+
+        assert result == ["ghostty", "com.mitchellh.ghostty"]
 
 
 class TestGetFocusedContainerWayland:
@@ -167,6 +188,11 @@ class TestIsTerminalWindowWayland:
         container = {"app_id": "", "name": "Alacritty"}
         assert is_terminal_window_wayland(container) is True
 
+    def test_is_terminal_with_ghostty_app_id(self):
+        # Ghostty Wayland app_id comes from its `class` config option (default: com.mitchellh.ghostty)
+        container = {"app_id": "com.mitchellh.ghostty", "name": "Ghostty"}
+        assert is_terminal_window_wayland(container) is True
+
     def test_is_not_terminal(self):
         container = {"app_id": "firefox", "name": "Web Browser"}
         assert is_terminal_window_wayland(container) is False
@@ -200,6 +226,32 @@ class TestTerminalDetectionWorkflow:
         }
         mock_check_output.return_value = (
             b'{"type": "root", "nodes": [{"type": "window", "app_id": "kitty", "focused": true}]}'
+        )
+
+        container = get_focused_container_wayland()
+        is_terminal = is_terminal_window_wayland(container)
+
+        assert is_terminal is True
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_x11_ghostty_detection_workflow(self, mock_check_output):
+        # Full detection path for a focused Ghostty window on X11
+        mock_check_output.side_effect = [
+            b"12345",
+            b'WM_CLASS(STRING) = "ghostty", "com.mitchellh.ghostty"',
+        ]
+
+        classes = get_active_window_class_x11()
+        is_terminal = is_terminal_window_x11(classes)
+
+        assert is_terminal is True
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_wayland_ghostty_detection_workflow(self, mock_check_output):
+        # Full detection path for a focused Ghostty window on Wayland (Sway)
+        mock_check_output.return_value = (
+            b'{"type": "root", "nodes": [{"type": "window", '
+            b'"app_id": "com.mitchellh.ghostty", "name": "Ghostty", "focused": true}]}'
         )
 
         container = get_focused_container_wayland()

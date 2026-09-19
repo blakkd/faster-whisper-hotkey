@@ -15,6 +15,7 @@ TERMINAL_IDENTIFIERS = [
     "urxvt",
     "kitty",
     "alacritty",
+    "ghostty",
     "terminator",
 ]
 
