@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from faster_whisper_hotkey.terminal import (
+    TERMINAL_EXACT_IDENTIFIERS,
     TERMINAL_IDENTIFIERS,
     get_active_window_class_x11,
     get_focused_container_wayland,
@@ -17,9 +18,15 @@ class TestTerminalIdentifiers:
         assert len(TERMINAL_IDENTIFIERS) > 0
 
     def test_common_terminals_present(self):
-        common = ["kitty", "alacritty", "ghostty", "xterm"]
+        common = ["kitty", "alacritty", "ghostty", "xterm", "putty", "sakura"]
         for terminal in common:
             assert terminal in TERMINAL_IDENTIFIERS
+
+    def test_short_identifiers_are_word_tiered(self):
+        # Short names must be in the word-boundary tier, not the substring tier
+        for terminal in ["st", "foot", "tabby", "hyper", "rio"]:
+            assert terminal in TERMINAL_EXACT_IDENTIFIERS
+            assert terminal not in TERMINAL_IDENTIFIERS
 
 
 class TestIsActiveTerminalWindowX11:
@@ -49,8 +56,58 @@ class TestIsActiveTerminalWindowX11:
         classes = ["gnome-terminal-server", "Gnome-terminal"]
         assert is_terminal_window_x11(classes) is True
 
+    def test_is_terminal_window_with_st(self):
+        classes = ["st", "st"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_st_does_not_match_studio(self):
+        classes = ["Studio", "com.obsproject.Studio"]
+        assert is_terminal_window_x11(classes) is False
+
+    def test_is_terminal_window_with_foot(self):
+        classes = ["foot", "foot"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_foot_does_not_match_footnotes(self):
+        classes = ["footnotes", "Footnotes"]
+        assert is_terminal_window_x11(classes) is False
+
+    def test_is_terminal_window_with_putty(self):
+        classes = ["putty", "PuTTY"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_tabby(self):
+        classes = ["tabby", "Tabby"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_hyper(self):
+        classes = ["hyper", "Hyper"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_sakura(self):
+        classes = ["sakura", "Sakura"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_black_box(self):
+        classes = ["blackbox", "Black Box"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_is_terminal_window_with_rio(self):
+        # Rio X11 WM_CLASS (rio sets instance=lowercased app id, class="Rio")
+        classes = ["rio", "Rio"]
+        assert is_terminal_window_x11(classes) is True
+
+    def test_rio_does_not_match_riotclient(self):
+        classes = ["riotclient", "RiotClient"]
+        assert is_terminal_window_x11(classes) is False
+
     def test_is_not_terminal_window(self):
         classes = ["firefox", "Google-chrome"]
+        assert is_terminal_window_x11(classes) is False
+
+    def test_vscode_window_is_not_terminal(self):
+        # WM_CLASS only carries the app class, never the project/file name
+        classes = ["codium", "VSCodium"]
         assert is_terminal_window_x11(classes) is False
 
     def test_empty_classes_list(self):
@@ -184,14 +241,45 @@ class TestIsTerminalWindowWayland:
         container = {"app_id": "kitty", "name": ""}
         assert is_terminal_window_wayland(container) is True
 
-    def test_is_terminal_with_alacritty_name(self):
-        container = {"app_id": "", "name": "Alacritty"}
+    def test_is_terminal_with_alacritty_app_id(self):
+        container = {"app_id": "alacritty", "name": ""}
         assert is_terminal_window_wayland(container) is True
 
     def test_is_terminal_with_ghostty_app_id(self):
         # Ghostty Wayland app_id comes from its `class` config option (default: com.mitchellh.ghostty)
         container = {"app_id": "com.mitchellh.ghostty", "name": "Ghostty"}
         assert is_terminal_window_wayland(container) is True
+
+    def test_is_terminal_with_gnome_terminal_app_id(self):
+        container = {"app_id": "org.gnome.Terminal", "name": "user@host: /home"}
+        assert is_terminal_window_wayland(container) is True
+
+    def test_is_terminal_with_st_app_id(self):
+        container = {"app_id": "st", "name": "bash"}
+        assert is_terminal_window_wayland(container) is True
+
+    def test_is_terminal_with_rio_app_id(self):
+        # Rio Wayland app_id is "Rio" (rio-window's with_name instance, general)
+        container = {"app_id": "Rio", "name": "bash"}
+        assert is_terminal_window_wayland(container) is True
+
+    def test_rio_does_not_match_riotclient_app_id(self):
+        container = {"app_id": "riotclient", "name": "Riot Client"}
+        assert is_terminal_window_wayland(container) is False
+
+    def test_st_does_not_match_studio_app_id(self):
+        container = {"app_id": "com.obsproject.Studio", "name": "OBS Studio"}
+        assert is_terminal_window_wayland(container) is False
+
+    def test_foot_does_not_match_footnotes_app_id(self):
+        container = {"app_id": "com.example.footnotes", "name": "Notes"}
+        assert is_terminal_window_wayland(container) is False
+
+    def test_window_title_alone_is_never_matched(self):
+        # A non-terminal app whose title contains a terminal word (VSCode on a
+        # project called "term-calc") must not be detected as a terminal
+        container = {"app_id": "com.vscodium.codium", "name": "term-calc - VSCodium"}
+        assert is_terminal_window_wayland(container) is False
 
     def test_is_not_terminal(self):
         container = {"app_id": "firefox", "name": "Web Browser"}
@@ -202,6 +290,34 @@ class TestIsTerminalWindowWayland:
 
     def test_empty_container(self):
         container = {}
+        assert is_terminal_window_wayland(container) is False
+
+
+class TestIsTerminalWindowWaylandXWayland:
+    """XWayland containers carry the underlying X11 window ID in 'window'."""
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_xwayland_xterm(self, mock_check_output):
+        mock_check_output.return_value = b'WM_CLASS(STRING) = "xterm", "XTerm"'
+        container = {"app_id": "xwayland", "name": "user@host: /home", "window": 62914569}
+        assert is_terminal_window_wayland(container) is True
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_xwayland_ghostty(self, mock_check_output):
+        mock_check_output.return_value = b'WM_CLASS(STRING) = "ghostty", "com.mitchellh.ghostty"'
+        container = {"app_id": "xwayland", "name": "ghostty", "window": 62914570}
+        assert is_terminal_window_wayland(container) is True
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_xwayland_vscode_is_not_terminal(self, mock_check_output):
+        mock_check_output.return_value = b'WM_CLASS(STRING) = "codium", "VSCodium"'
+        container = {"app_id": "xwayland", "name": "term-calc - VSCodium", "window": 62914571}
+        assert is_terminal_window_wayland(container) is False
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_xwayland_xprop_failure(self, mock_check_output):
+        mock_check_output.side_effect = Exception("xprop not found")
+        container = {"app_id": "xwayland", "name": "user@host", "window": 62914572}
         assert is_terminal_window_wayland(container) is False
 
 
@@ -227,6 +343,22 @@ class TestTerminalDetectionWorkflow:
         mock_check_output.return_value = (
             b'{"type": "root", "nodes": [{"type": "window", "app_id": "kitty", "focused": true}]}'
         )
+
+        container = get_focused_container_wayland()
+        is_terminal = is_terminal_window_wayland(container)
+
+        assert is_terminal is True
+
+    @patch("faster_whisper_hotkey.terminal.subprocess.check_output")
+    def test_xwayland_terminal_detection_workflow(self, mock_check_output):
+        # Focused XWayland window: sway tree first, then xprop WM_CLASS
+        mock_check_output.side_effect = [
+            (
+                b'{"type": "root", "nodes": [{"type": "window", "app_id": "xwayland", '
+                b'"name": "user@host: /home", "window": 62914569, "focused": true}]}'
+            ),
+            b'WM_CLASS(STRING) = "kitty", "Kitty"',
+        ]
 
         container = get_focused_container_wayland()
         is_terminal = is_terminal_window_wayland(container)
