@@ -65,6 +65,7 @@ UI_LANGUAGE_BY_MODEL = {
     "cohere": "en",
     "granite-nar": "en",
     "granite": "en-en",
+    "granite-turboctc": "en",
     "qwen3-asr": "en",
 }
 # Each tuple: (model_type, model_name, device, compute_type)
@@ -110,6 +111,15 @@ GRANITE_NAR = [
 # granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE = [("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec) for prec in ("float32", "bfloat16")] + [
     ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
+]
+
+# granite-turboctc: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
+GRANITE_TURBOCTC = [
+    ("granite-turboctc", "ibm-granite/granite-speech-5.0-470m-turboctc-nc", "cpu", prec)
+    for prec in ("float32", "bfloat16")
+] + [
+    ("granite-turboctc", "ibm-granite/granite-speech-5.0-470m-turboctc-nc", "cuda", prec)
+    for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
 # qwen3-asr: weights natively bf16, CPU (bf16/f32) + CUDA (bf16/f32/int8/int4)
@@ -339,6 +349,20 @@ class TestTranscribeGranite:
         results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request)
 
         block = _format_results("granite", results, skipped, errors, audio_data, sr)
+        print(f"\n{block}")
+        with open(results_file, "a", encoding="utf-8") as f:
+            f.write(block + "\n")
+
+        _assert_ok(results, errors)
+
+
+class TestTranscribeGraniteTurboCTC:
+    """Transcribe test audio with granite-turboctc configs."""
+
+    def test_granite_turboctc(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_TURBOCTC, audio, request)
+
+        block = _format_results("granite-turboctc", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")

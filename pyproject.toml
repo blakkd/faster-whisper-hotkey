@@ -36,7 +36,7 @@ dependencies = [
     "requests==2.34.2",
     "importlib_resources==7.1.0",
     "mistral-common[audio]==1.11.7",
-    "transformers==5.15.0",
+    "transformers==5.17.0",
     "bitsandbytes>=0.46.1",
     "pyperclip==1.11.0",
     "soundfile==0.14.0",

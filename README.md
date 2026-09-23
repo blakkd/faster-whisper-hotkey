@@ -39,6 +39,12 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - No capitalization in output
   - CPU/GPU
 
+- **[ibm-granite/granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc)**:
+  - English only
+  - Transcription only
+  - Non-autoregressive --> very fast
+  - CPU/GPU
+
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
   - 14 languages
   - Transcription only

@@ -37,6 +37,8 @@ class ConfigStep(Enum):
     GRANITE_TARGET_LANG = auto()
     GRANITE_DEVICE = auto()
     GRANITE_PRECISION = auto()
+    GRANITE_TURBOCTC_DEVICE = auto()
+    GRANITE_TURBOCTC_PRECISION = auto()
     QWEN3_ASR_DEVICE = auto()
     QWEN3_ASR_PRECISION = auto()
     QWEN3_ASR_LANGUAGE = auto()
@@ -442,6 +444,12 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_granite_precision(stdscr, config)
 
     # Qwen3-ASR sub-steps
+    elif current_step == ConfigStep.GRANITE_TURBOCTC_DEVICE:
+        return _screen_granite_turboctc_device(stdscr, config)
+    elif current_step == ConfigStep.GRANITE_TURBOCTC_PRECISION:
+        return _screen_granite_turboctc_precision(stdscr, config)
+
+    # Qwen3-ASR sub-steps
     elif current_step == ConfigStep.QWEN3_ASR_DEVICE:
         return _screen_qwen3_asr_device(stdscr, config)
     elif current_step == ConfigStep.QWEN3_ASR_PRECISION:
@@ -566,6 +574,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026",
         "granite-speech-4.1-2b-nar",
         "granite-speech-4.1-2b",
+        "granite-speech-5.0-470m-turboctc-nc",
         "Qwen3-ASR-1.7B-hf",
     ]
 
@@ -578,7 +587,8 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere": 4,
         "granite-nar": 5,
         "granite": 6,
-        "qwen3-asr": 7,
+        "granite-turboctc": 7,
+        "qwen3-asr": 8,
     }
     if config.model_type and config.model_type in type_mapping:
         initial_idx = type_mapping[config.model_type]
@@ -597,6 +607,7 @@ def _screen_model_type(stdscr, config: ConfigData):
         "cohere-transcribe-03-2026": "cohere",
         "granite-speech-4.1-2b-nar": "granite-nar",
         "granite-speech-4.1-2b": "granite",
+        "granite-speech-5.0-470m-turboctc-nc": "granite-turboctc",
         "Qwen3-ASR-1.7B-hf": "qwen3-asr",
     }
 
@@ -617,6 +628,8 @@ def _screen_model_type(stdscr, config: ConfigData):
         return (ConfigStep.GRANITE_NAR_DEVICE, config)
     elif config.model_type == "granite":
         return (ConfigStep.GRANITE_DEVICE, config)
+    elif config.model_type == "granite-turboctc":
+        return (ConfigStep.GRANITE_TURBOCTC_DEVICE, config)
     elif config.model_type == "qwen3-asr":
         return (ConfigStep.QWEN3_ASR_DEVICE, config)
 
@@ -1158,6 +1171,55 @@ def _screen_granite_precision(stdscr, config: ConfigData):
 
     config.compute_type = selected
     return (ConfigStep.GRANITE_SOURCE_LANG, config)
+
+
+# ============================================================================
+# Granite Speech 5.0 TurboCTC Configuration Screens
+# ============================================================================
+
+
+def _screen_granite_turboctc_device(stdscr, config: ConfigData):
+    """Select compute device for Granite Speech 5.0 TurboCTC."""
+    options = ["cuda", "cpu"]
+
+    initial_idx = 0
+    if config.device == "cpu":
+        initial_idx = 1
+
+    selected = curses_menu(
+        stdscr,
+        "Compute Device",
+        options,
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.model_name = "ibm-granite/granite-speech-5.0-470m-turboctc-nc"
+    config.device = selected
+    return (ConfigStep.GRANITE_TURBOCTC_PRECISION, config)
+
+
+def _screen_granite_turboctc_precision(stdscr, config: ConfigData):
+    """Select precision for Granite Speech 5.0 TurboCTC (weights are natively bf16)."""
+    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
+    footer = (
+        ""
+        if config.device == "cuda"
+        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
+    )
+
+    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
+
+    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
+    config.language = "en"  # English-only model, no language screen
+    return (ConfigStep.HOTKEY, config)
 
 
 # ============================================================================

@@ -556,6 +556,8 @@ class TestPrecisionScreensUniformOrder:
             ("_screen_granite_nar_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
             ("_screen_granite_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
             ("_screen_granite_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+            ("_screen_granite_turboctc_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
+            ("_screen_granite_turboctc_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
             ("_screen_qwen3_asr_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
             ("_screen_qwen3_asr_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
         ],

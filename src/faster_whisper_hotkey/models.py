@@ -4,6 +4,7 @@ import os
 
 from transformers import (
     AutoModel,
+    AutoModelForCTC,
     AutoModelForMultimodalLM,
     AutoModelForSpeechSeq2Seq,
     AutoProcessor,
@@ -157,7 +158,7 @@ def _check_transformers_version(min_version: str, model_label: str):
 class ModelWrapper:
     """
     Encapsulates loading and running different model types
-    (whisper, parakeet, canary, voxtral, cohere, granite, granite-nar, qwen3-asr).
+    (whisper, parakeet, canary, voxtral, cohere, granite, granite-nar, granite-turboctc, qwen3-asr).
     """
 
     def __init__(self, settings):
@@ -413,6 +414,43 @@ class ModelWrapper:
                     )
                 self.model = self.model.eval()
 
+        elif mt == "granite-turboctc":
+            repo_id = self.settings.model_name
+            device_map = {"": self.settings.device}
+
+            _check_transformers_version("5.16.0", "Granite Speech 5.0 TurboCTC")
+
+            self.processor = AutoProcessor.from_pretrained(repo_id)
+
+            if compute_type in ("int8", "int4") and device == "cuda":
+                quant_cfg = BitsAndBytesConfig(
+                    load_in_8bit=(compute_type == "int8"),
+                    load_in_4bit=(compute_type == "int4"),
+                )
+                self.model = AutoModelForCTC.from_pretrained(
+                    repo_id,
+                    device_map=device_map,
+                    quantization_config=quant_cfg,
+                ).eval()
+            else:
+                # Weights are stored natively as bf16 (see HF repo config.json)
+                _dtype = {"bfloat16": torch.bfloat16, "float32": torch.float32}.get(compute_type, torch.bfloat16)
+
+                if device == "cpu":
+                    self.model = AutoModelForCTC.from_pretrained(
+                        repo_id,
+                        dtype=_dtype,
+                        low_cpu_mem_usage=False,
+                    )
+                    _materialize_weights(self.model)
+                else:
+                    self.model = AutoModelForCTC.from_pretrained(
+                        repo_id,
+                        dtype=_dtype,
+                        device_map=device_map,
+                    )
+                self.model = self.model.eval()
+
         elif mt == "qwen3-asr":
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
@@ -564,6 +602,15 @@ class ModelWrapper:
                 with torch.no_grad():
                     output = self.model.transcribe(**inputs)
                 transcriptions = self.processor.batch_decode(output.preds, skip_special_tokens=True)
+                return transcriptions[0] if transcriptions else ""
+
+            elif mt == "granite-turboctc":
+                device = self.settings.device
+                inputs = self.processor(audio_data, sampling_rate=sample_rate, device=device, return_tensors="pt")
+                inputs = inputs.to(device, dtype=self.model.dtype)
+                with torch.no_grad():
+                    outputs = self.model.generate(**inputs)
+                transcriptions = self.processor.batch_decode(outputs, skip_special_tokens=True)
                 return transcriptions[0] if transcriptions else ""
 
             elif mt == "qwen3-asr":

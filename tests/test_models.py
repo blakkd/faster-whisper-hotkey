@@ -312,6 +312,130 @@ class TestModelWrapperInitialization:
         assert call_kwargs["dtype"] == torch.float32
         assert call_kwargs["low_cpu_mem_usage"] is False
 
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_turboctc_model_cuda(self, mock_check, mock_ctc_model, mock_processor):
+        """Test loading a granite-turboctc model on CUDA."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "granite-turboctc"
+        mock_check.assert_called_once_with("5.16.0", "Granite Speech 5.0 TurboCTC")
+        call_kwargs = mock_ctc_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.bfloat16
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_turboctc_model_cpu(self, mock_check, mock_ctc_model, mock_processor):
+        """Test loading a granite-turboctc model on CPU."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cpu",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "granite-turboctc"
+        call_kwargs = mock_ctc_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.bfloat16
+        assert call_kwargs["low_cpu_mem_usage"] is False
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_turboctc_model_int8(self, mock_check, mock_ctc_model, mock_processor):
+        """Test loading a granite-turboctc model with int8 quantization."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+            compute_type="int8",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "granite-turboctc"
+        call_kwargs = mock_ctc_model.from_pretrained.call_args[1]
+        assert "quantization_config" in call_kwargs
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_turboctc_model_cuda_float32(self, mock_check, mock_ctc_model, mock_processor):
+        """Test loading a granite-turboctc model on CUDA in float32."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+            compute_type="float32",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "granite-turboctc"
+        call_kwargs = mock_ctc_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.float32
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_init_granite_turboctc_model_cpu_float32(self, mock_check, mock_ctc_model, mock_processor):
+        """Test loading a granite-turboctc model on CPU in float32."""
+        import torch
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cpu",
+            compute_type="float32",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "granite-turboctc"
+        call_kwargs = mock_ctc_model.from_pretrained.call_args[1]
+        assert call_kwargs["dtype"] == torch.float32
+        assert call_kwargs["low_cpu_mem_usage"] is False
+
     def test_init_unknown_model_type(self):
         """Test that unknown model type raises ValueError."""
         from faster_whisper_hotkey.models import ModelWrapper
@@ -722,6 +846,75 @@ class TestModelWrapperTranscribe:
         settings = MockSettings(
             model_type="qwen3-asr",
             model_name="Qwen/Qwen3-ASR-1.7B-hf",
+            device="cpu",
+            compute_type="bfloat16",
+        )
+        wrapper = ModelWrapper(settings)
+
+        result = wrapper.transcribe(self.sample_audio, 16000)
+
+        assert result == ""
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_transcribe_granite_turboctc(self, mock_check, mock_ctc_model, mock_processor):
+        """Test granite-turboctc transcription."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.device = "cuda"
+        mock_model.dtype = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = mock_inputs
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.return_value = mock_inputs
+        mock_processor_instance.batch_decode.return_value = ["granite turboctc transcription"]
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+            compute_type="bfloat16",
+            language="en",
+        )
+        wrapper = ModelWrapper(settings)
+
+        result = wrapper.transcribe(self.sample_audio, 16000, language="en")
+
+        assert result == "granite turboctc transcription"
+        mock_processor_instance.assert_called_once_with(
+            self.sample_audio, sampling_rate=16000, device="cuda", return_tensors="pt"
+        )
+        mock_processor_instance.batch_decode.assert_called_once()
+        decode_kwargs = mock_processor_instance.batch_decode.call_args[1]
+        assert decode_kwargs["skip_special_tokens"] is True
+
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_transcribe_granite_turboctc_empty_result(self, mock_check, mock_ctc_model, mock_processor):
+        """Test granite-turboctc with empty transcription result."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_model.device = "cpu"
+        mock_model.dtype = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+
+        mock_inputs = MagicMock()
+        mock_inputs.to.return_value = mock_inputs
+        mock_processor_instance = MagicMock()
+        mock_processor_instance.return_value = mock_inputs
+        mock_processor_instance.batch_decode.return_value = []
+        mock_processor.from_pretrained.return_value = mock_processor_instance
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
             device="cpu",
             compute_type="bfloat16",
         )
