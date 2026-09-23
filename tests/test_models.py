@@ -9,7 +9,7 @@ import pytest
 class MockSettings:
     """Simple mock settings object for testing."""
 
-    def __init__(self, model_type, model_name, device, compute_type=None, language="auto"):
+    def __init__(self, model_type, model_name, device, compute_type=None, language: str | None = "auto"):
         self.model_type = model_type
         self.model_name = model_name
         self.device = device
@@ -597,12 +597,12 @@ class TestModelWrapperTranscribe:
         )
         wrapper = ModelWrapper(settings)
 
-        with patch.object(wrapper, "_transcribe_voxtral", return_value="voxtral output"):
+        with patch.object(wrapper, "_transcribe_voxtral", return_value="voxtral output") as mock_fn:
             short_audio = np.random.randn(48000).astype(np.float32)  # 3 seconds
             result = wrapper.transcribe(short_audio, 16000)
 
             assert result == "voxtral output"
-            wrapper._transcribe_voxtral.assert_called_once()
+            mock_fn.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
@@ -628,14 +628,14 @@ class TestModelWrapperTranscribe:
             wrapper,
             "_transcribe_voxtral",
             return_value="long audio transcription result",
-        ):
+        ) as mock_fn:
             long_audio = np.random.randn(1000000).astype(np.float32)  # ~62 seconds
 
             result = wrapper.transcribe(long_audio, 16000)
 
             assert result == "long audio transcription result"
             # Single call - native chunking handles long audio internally
-            wrapper._transcribe_voxtral.assert_called_once()
+            mock_fn.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")

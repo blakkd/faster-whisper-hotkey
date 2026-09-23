@@ -202,7 +202,7 @@ class TestConfigLoadingEdgeCases:
     @patch("faster_whisper_hotkey.config.json.load", return_value={})
     def test_config_loads_empty_dict_with_defaults(self, mock_load, mock_open):
         """Test that empty config uses default values."""
-        import importlib
+        import importlib.util
 
         # Create a fresh module namespace
         _ = importlib.util.spec_from_file_location("config_test", "src/faster_whisper_hotkey/config.py")

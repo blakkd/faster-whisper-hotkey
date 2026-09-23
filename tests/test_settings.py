@@ -115,6 +115,7 @@ class TestLoadSettings:
         with patch("faster_whisper_hotkey.settings.SETTINGS_FILE", test_file):
             settings = load_settings()
 
+        assert settings is not None
         assert settings.hotkey == "f4"
 
     def test_load_settings_not_found(self):

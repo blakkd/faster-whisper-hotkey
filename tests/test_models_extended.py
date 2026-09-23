@@ -9,7 +9,7 @@ import pytest
 class MockSettings:
     """Simple mock settings object for testing."""
 
-    def __init__(self, model_type, model_name, device, compute_type=None, language="auto"):
+    def __init__(self, model_type, model_name, device, compute_type=None, language: str | None = "auto"):
         self.model_type = model_type
         self.model_name = model_name
         self.device = device
@@ -201,14 +201,14 @@ class TestVoxtralNativeChunking:
             wrapper,
             "_transcribe_voxtral",
             return_value="long audio transcription",
-        ):
+        ) as mock_fn:
             # 60+ seconds - previously would have been manually chunked
             long_audio = np.random.randn(1200000).astype(np.float32)
             result = wrapper.transcribe(long_audio, 16000)
 
             assert result == "long audio transcription"
             # Single call - native chunking handles all lengths internally
-            wrapper._transcribe_voxtral.assert_called_once()
+            mock_fn.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.VoxtralForConditionalGeneration")
