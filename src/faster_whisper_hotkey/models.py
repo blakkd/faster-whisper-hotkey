@@ -309,7 +309,7 @@ class ModelWrapper:
                 if device == "cpu":
                     self.model = CohereAsrForConditionalGeneration.from_pretrained(
                         repo_id,
-                        torch_dtype=_dtype,
+                        dtype=_dtype,
                         low_cpu_mem_usage=False,
                     )
                     _materialize_weights(self.model)
@@ -325,9 +325,10 @@ class ModelWrapper:
             repo_id = self.settings.model_name
             device_map = {"": self.settings.device}
 
-            _check_transformers_version("5.5.3", "Granite")
+            # granite_speech loads natively (no remote code) from transformers 5.17 on
+            _check_transformers_version("5.17.0", "Granite")
 
-            self.processor = AutoProcessor.from_pretrained(repo_id, trust_remote_code=True)
+            self.processor = AutoProcessor.from_pretrained(repo_id)
 
             if compute_type in ("int8", "int4") and device == "cuda":
                 quant_cfg = BitsAndBytesConfig(
@@ -338,7 +339,6 @@ class ModelWrapper:
                     repo_id,
                     device_map=device_map,
                     quantization_config=quant_cfg,
-                    trust_remote_code=True,
                 ).eval()
             else:
                 _dtype = (
@@ -352,8 +352,7 @@ class ModelWrapper:
                 if device == "cpu":
                     self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                         repo_id,
-                        torch_dtype=_dtype,
-                        trust_remote_code=True,
+                        dtype=_dtype,
                         low_cpu_mem_usage=False,
                     )
                     _materialize_weights(self.model)
@@ -361,8 +360,7 @@ class ModelWrapper:
                     self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                         repo_id,
                         device_map=device_map,
-                        torch_dtype=_dtype,
-                        trust_remote_code=True,
+                        dtype=_dtype,
                     )
                 self.model = self.model.eval()
 
@@ -400,7 +398,7 @@ class ModelWrapper:
                         repo_id,
                         trust_remote_code=True,
                         attn_implementation="sdpa",
-                        torch_dtype=_dtype,
+                        dtype=_dtype,
                         low_cpu_mem_usage=False,
                     )
                     _materialize_weights(self.model)
@@ -410,7 +408,7 @@ class ModelWrapper:
                         trust_remote_code=True,
                         attn_implementation="sdpa",
                         device_map=device_map,
-                        torch_dtype=_dtype,
+                        dtype=_dtype,
                     )
                 self.model = self.model.eval()
 

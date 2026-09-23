@@ -161,7 +161,7 @@ class TestModelWrapperInitialization:
         assert wrapper.model_type == "granite-nar"
         call_kwargs = mock_auto_model.from_pretrained.call_args[1]
         assert call_kwargs["attn_implementation"] == "sdpa"
-        assert call_kwargs["torch_dtype"] == torch.bfloat16
+        assert call_kwargs["dtype"] == torch.bfloat16
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
@@ -186,7 +186,7 @@ class TestModelWrapperInitialization:
         assert wrapper.model_type == "granite-nar"
         call_kwargs = mock_auto_model.from_pretrained.call_args[1]
         assert call_kwargs["attn_implementation"] == "sdpa"
-        assert call_kwargs["torch_dtype"] == torch.float32
+        assert call_kwargs["dtype"] == torch.float32
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
