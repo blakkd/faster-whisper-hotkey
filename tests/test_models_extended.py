@@ -721,9 +721,10 @@ class TestCohereTranscription:
 
         assert result == ""
 
+    @patch("faster_whisper_hotkey.models.ModelWrapper._warmup_cuda")
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
-    def test_cohere_language_default(self, mock_cohere, mock_processor):
+    def test_cohere_language_default(self, mock_cohere, mock_processor, mock_warmup):
         """Test Cohere with default language parameter."""
         from faster_whisper_hotkey.models import ModelWrapper
 

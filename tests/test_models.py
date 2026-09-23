@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+import torch
 
 
 class MockSettings:
@@ -670,11 +671,12 @@ class TestModelWrapperTranscribe:
 
         assert result == "cohere transcription"
 
+    @patch("faster_whisper_hotkey.models.ModelWrapper._warmup_cuda")
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")
     @patch("faster_whisper_hotkey.models.torch")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_granite(self, mock_check, mock_torch, mock_auto_model, mock_processor):
+    def test_transcribe_granite(self, mock_check, mock_torch, mock_auto_model, mock_processor, mock_warmup):
         """Test granite transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
@@ -751,10 +753,11 @@ class TestModelWrapperTranscribe:
 
         assert result == ""
 
+    @patch("faster_whisper_hotkey.models.ModelWrapper._warmup_cuda")
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_qwen3_asr(self, mock_check, mock_mm_model, mock_processor):
+    def test_transcribe_qwen3_asr(self, mock_check, mock_mm_model, mock_processor, mock_warmup):
         """Test qwen3-asr transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
@@ -791,10 +794,11 @@ class TestModelWrapperTranscribe:
         decode_kwargs = mock_processor_instance.decode.call_args[1]
         assert decode_kwargs["return_format"] == "transcription_only"
 
+    @patch("faster_whisper_hotkey.models.ModelWrapper._warmup_cuda")
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModelForMultimodalLM")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_qwen3_asr_auto_language(self, mock_check, mock_mm_model, mock_processor):
+    def test_transcribe_qwen3_asr_auto_language(self, mock_check, mock_mm_model, mock_processor, mock_warmup):
         """Test qwen3-asr transcription with auto language (None passed to processor)."""
         from faster_whisper_hotkey.models import ModelWrapper
 
@@ -855,10 +859,11 @@ class TestModelWrapperTranscribe:
 
         assert result == ""
 
+    @patch("faster_whisper_hotkey.models.ModelWrapper._warmup_cuda")
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModelForCTC")
     @patch("faster_whisper_hotkey.models._check_transformers_version")
-    def test_transcribe_granite_turboctc(self, mock_check, mock_ctc_model, mock_processor):
+    def test_transcribe_granite_turboctc(self, mock_check, mock_ctc_model, mock_processor, mock_warmup):
         """Test granite-turboctc transcription."""
         from faster_whisper_hotkey.models import ModelWrapper
 
@@ -940,3 +945,88 @@ class TestModelWrapperTranscribe:
 
         # Should return empty string on error
         assert result == ""
+
+
+class TestCudaWarmup:
+    """Test the one-time CUDA warmup run at model load time."""
+
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for the load-time warmup")
+    @patch("faster_whisper_hotkey.models.ModelWrapper.transcribe")
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_warmup_runs_on_cuda(self, mock_check, mock_ctc_model, mock_processor, mock_transcribe):
+        """A short silent clip is transcribed once after loading on CUDA."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+        mock_processor.from_pretrained.return_value = MagicMock()
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+            compute_type="bfloat16",
+            language="en",
+        )
+
+        ModelWrapper(settings)
+
+        mock_transcribe.assert_called_once()
+        dummy = mock_transcribe.call_args[0][0]
+        assert dummy.shape == (32000,)
+        assert dummy.dtype == np.float32
+        assert not dummy.any()
+        assert mock_transcribe.call_args[1] == {"sample_rate": 16000, "language": "en"}
+
+    @patch("faster_whisper_hotkey.models.ModelWrapper.transcribe")
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_warmup_skipped_on_cpu(self, mock_check, mock_ctc_model, mock_processor, mock_transcribe):
+        """No warmup for CPU loads."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+        mock_processor.from_pretrained.return_value = MagicMock()
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cpu",
+            compute_type="bfloat16",
+        )
+
+        ModelWrapper(settings)
+
+        mock_transcribe.assert_not_called()
+
+    @patch("faster_whisper_hotkey.models.torch.cuda.is_available")
+    @patch("faster_whisper_hotkey.models.ModelWrapper.transcribe")
+    @patch("faster_whisper_hotkey.models.AutoProcessor")
+    @patch("faster_whisper_hotkey.models.AutoModelForCTC")
+    @patch("faster_whisper_hotkey.models._check_transformers_version")
+    def test_warmup_skipped_when_cuda_unavailable(
+        self, mock_check, mock_ctc_model, mock_processor, mock_transcribe, mock_is_available
+    ):
+        """device=cuda without a CUDA runtime: no warmup."""
+        mock_is_available.return_value = False
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_ctc_model.from_pretrained.return_value = mock_model.eval.return_value = mock_model
+        mock_processor.from_pretrained.return_value = MagicMock()
+
+        settings = MockSettings(
+            model_type="granite-turboctc",
+            model_name="ibm-granite/granite-speech-5.0-470m-turboctc-nc",
+            device="cuda",
+            compute_type="bfloat16",
+        )
+
+        ModelWrapper(settings)
+
+        mock_transcribe.assert_not_called()

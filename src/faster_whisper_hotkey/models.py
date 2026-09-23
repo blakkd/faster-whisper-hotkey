@@ -1,7 +1,9 @@
 import contextlib
 import logging
 import os
+import time
 
+import numpy as np
 from transformers import (
     AutoModel,
     AutoModelForCTC,
@@ -108,6 +110,15 @@ with suppress_output():
     SentencePieceTokenizer.eos_id = _patched_eos_id
 
 logger = logging.getLogger(__name__)
+
+# The first forward on a fresh CUDA context pays a one-time cost (lazy CUDA
+# kernel loading, cuBLAS/cuDNN handle init, SDPA backend selection/autotune,
+# bitsandbytes init for int8/int4). Pay it at load time with a short silent
+# clip so the first real recording isn't slowed down. This is most visible for
+# models whose whole inference is a single forward pass (e.g. granite-turboctc),
+# where the warmup cost otherwise IS the transcription delay; for
+# autoregressive models it is amortized over the decode loop.
+CUDA_WARMUP_DURATION_S = 2.0
 
 
 def _materialize_weights(model):
@@ -488,6 +499,16 @@ class ModelWrapper:
 
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
+
+        if device == "cuda" and torch.cuda.is_available():
+            self._warmup_cuda()
+
+    def _warmup_cuda(self):
+        """Run one short silent transcription through the production path to pay the one-time CUDA warmup cost."""
+        dummy = np.zeros(int(CUDA_WARMUP_DURATION_S * 16000), dtype=np.float32)
+        start = time.perf_counter()
+        self.transcribe(dummy, sample_rate=16000, language=self.settings.language)
+        logger.info(f"CUDA warmup finished in {time.perf_counter() - start:.1f} s")
 
     def transcribe(self, audio_data, sample_rate: int = 16000, language: str | None = None) -> str:
         """
