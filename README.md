@@ -11,7 +11,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) is currently the fastest, and you get almost instant transcription, even on CPU. [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2) come pretty close behind.
+- **Fast**: [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) gives instant transcription, [canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2) and [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) come pretty close.
 - **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
