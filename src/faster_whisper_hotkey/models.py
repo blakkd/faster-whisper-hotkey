@@ -166,7 +166,7 @@ def _patch_bnb_int8_noncontiguous():
     """
     import bitsandbytes.nn as bnb_nn
 
-    cls = getattr(bnb_nn, "Linear8bitLt")
+    cls = bnb_nn.Linear8bitLt
     if getattr(cls, "_fwh_contiguous_patched", False):
         return
     orig = cls.forward
