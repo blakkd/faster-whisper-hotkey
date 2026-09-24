@@ -435,6 +435,12 @@ class ModelWrapper:
                 quant_cfg = BitsAndBytesConfig(
                     load_in_8bit=(compute_type == "int8"),
                     load_in_4bit=(compute_type == "int4"),
+                    # GraniteSpeech5Encoder casts mel features to input_linear.weight.dtype
+                    # before projecting. A bnb-quantized input_linear has an int8/uint8
+                    # weight dtype, which crashes bitsandbytes (bias cast to a non-float
+                    # dtype). An explicit skip list replaces the defaults, so the tied
+                    # ctc_head/encoder.out pair is kept in float too, as the defaults do.
+                    llm_int8_skip_modules=["input_linear", "ctc_head", r"encoder\.out$"],
                 )
                 self.model = AutoModelForCTC.from_pretrained(
                     repo_id,
