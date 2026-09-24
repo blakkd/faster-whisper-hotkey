@@ -36,13 +36,14 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - Transcription only
   - No automatic language recognition
   - Non-autoregressive --> faster than the above AR variant
-  - Emits punctuation, but no capitalization - a post-processing pass adds sentence capitalization and the English "I" (proper nouns stay lowercase)
+  - No capitalization for proper nouns
   - CPU/GPU
 
 - **[ibm-granite/granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc)**:
   - English only
   - Transcription only
   - Non-autoregressive --> very fast
+  - No capitalization or punctuation in output --> LLM-correction can be helpful
   - CPU/GPU
 
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
