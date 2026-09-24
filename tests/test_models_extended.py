@@ -144,7 +144,7 @@ class TestModelWrapperInitEdgeCases:
         wrapper = ModelWrapper(settings)
         assert wrapper.model_type == "canary"
         call_kwargs = mock_encdec.from_pretrained.call_args[1]
-        assert call_kwargs["map_location"] == "cuda"
+        assert call_kwargs["map_location"] == torch.device("cuda")
 
 
 class TestVoxtralNativeChunking:

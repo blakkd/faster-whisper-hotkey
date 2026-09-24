@@ -76,7 +76,6 @@ line-length = 120
 [tool.pyright]
 pythonVersion = "3.11"
 include = ["src"]
-exclude = ["src/faster_whisper_hotkey/models.py"]
 typeCheckingMode = "standard"
 reportMissingImports = "warning"
 reportMissingTypeStubs = "none"

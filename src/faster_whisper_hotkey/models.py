@@ -2,6 +2,7 @@ import contextlib
 import logging
 import os
 import time
+from typing import Any, cast
 
 import numpy as np
 from transformers import (
@@ -17,6 +18,7 @@ from transformers import (
 
 from .capitalization import add_capitalization
 from .hf_offline import enable_offline_if_unreachable
+from .settings import Settings
 
 
 @contextlib.contextmanager
@@ -48,13 +50,15 @@ def suppress_nemo():
     devnull_fd = os.open(os.devnull, os.O_WRONLY)
     old_stdout_fd = os.dup(1)
     old_stderr_fd = os.dup(2)
+    # Declared before the try: the finally block must be able to see it even
+    # if an exception fires before the logger patching below.
+    patched: list[tuple] = []
 
     try:
         os.dup2(devnull_fd, 1)
         os.dup2(devnull_fd, 2)
 
         # Also patch Python-level logger functions
-        patched: list[tuple] = []
         try:
             from nemo.utils import logging as nemo_logging
         except ImportError:
@@ -99,16 +103,17 @@ with suppress_output():
 
     _original_eos_id = SentencePieceTokenizer.eos_id
 
-    @property  # type: ignore[misc]
+    @property
     def _patched_eos_id(self):
         try:
             if hasattr(self, "tokenizer") and self.tokenizer.piece_to_id("<|startoftranscript|>") == 4:
                 return 3  # CANARY_EOS = "<s>"
         except Exception:  # noqa: BLE001, S110
             pass
-        return _original_eos_id.fget(self)
+        original_fget = _original_eos_id.fget
+        return original_fget(self) if original_fget is not None else None
 
-    SentencePieceTokenizer.eos_id = _patched_eos_id
+    setattr(SentencePieceTokenizer, "eos_id", _patched_eos_id)  # noqa: B010
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +170,9 @@ def _patch_bnb_int8_noncontiguous():
     it were row-major. The result is garbage activations and, for CTC models, an
     all-pad transcription. Contiguifying is a no-op for already-contiguous inputs.
     """
-    import bitsandbytes.nn as bnb_nn
+    # Import from the defining module: pyright flags Linear8bitLt as "not
+    # exported" from bitsandbytes.nn despite the re-export in its __init__.
+    import bitsandbytes.nn.modules as bnb_nn
 
     cls = bnb_nn.Linear8bitLt
     if getattr(cls, "_fwh_contiguous_patched", False):
@@ -178,7 +185,7 @@ def _patch_bnb_int8_noncontiguous():
         return orig(self, x)
 
     cls.forward = forward
-    cls._fwh_contiguous_patched = True
+    setattr(cls, "_fwh_contiguous_patched", True)  # noqa: B010
 
 
 @contextlib.contextmanager
@@ -203,11 +210,11 @@ def _nemo_restore_on(device: str):
             map_location = target
         return original(cls, restore_path, *args, map_location=map_location, **kwargs)
 
-    ModelPT.restore_from = classmethod(restore_from)
+    setattr(ModelPT, "restore_from", classmethod(restore_from))  # noqa: B010
     try:
         yield
     finally:
-        ModelPT.restore_from = classmethod(original)
+        setattr(ModelPT, "restore_from", classmethod(original))  # noqa: B010
 
 
 def _check_transformers_version(min_version: str, model_label: str):
@@ -229,13 +236,13 @@ class ModelWrapper:
     (whisper, parakeet, canary, voxtral, cohere, granite, granite-nar, granite-turboctc, qwen3-asr).
     """
 
-    def __init__(self, settings):
+    def __init__(self, settings: Settings):
         self.settings = settings
         self.model_type = settings.model_type.lower()
-        self.model = None
-        self.processor = None
-        self.TranscriptionRequest = None
-        self._model_ref = None
+        # Heterogeneous third-party model objects (whisper, NeMo, transformers
+        # families) with no common interface: deliberately untyped.
+        self.model: Any = None
+        self.processor: Any = None
         self._load_model()
 
     def _load_model(self):
@@ -243,7 +250,7 @@ class ModelWrapper:
 
         mt = self.model_type
         device = self.settings.device
-        compute_type = getattr(self.settings, "compute_type", None)
+        compute_type = self.settings.compute_type
 
         if mt != "whisper" and device == "cuda" and compute_type == "int8":
             _patch_bnb_int8_noncontiguous()
@@ -263,21 +270,14 @@ class ModelWrapper:
 
         elif mt == "parakeet":
             with suppress_nemo(), _nemo_restore_on(device):
-                if compute_type in ("int8", "int4") and device == "cuda":
-                    quant_cfg = BitsAndBytesConfig(
-                        load_in_8bit=compute_type == "int8",
-                        load_in_4bit=compute_type == "int4",
-                    )
-                    self.model = ASRModel.from_pretrained(
-                        model_name=self.settings.model_name,
-                        map_location=self.settings.device,
-                    ).eval()
-                else:
-                    self.model = ASRModel.from_pretrained(
-                        model_name=self.settings.model_name,
-                        map_location=self.settings.device,
-                    ).eval()
-                self._model_ref = self.model
+                # NeMo's from_pretrained can also return the cached .nemo path
+                # (return_model_file); here it always returns a model.
+                self.model = cast(
+                    ASRModel,
+                    ASRModel.from_pretrained(
+                        model_name=self.settings.model_name, map_location=torch.device(self.settings.device)
+                    ),
+                ).eval()
 
             if compute_type and compute_type not in ("int8", "int4"):
                 self.model = self.model.to(
@@ -288,19 +288,14 @@ class ModelWrapper:
 
         elif mt == "canary":
             with suppress_nemo(), _nemo_restore_on(device):
-                if compute_type in ("int8", "int4") and device == "cuda":
-                    quant_cfg = BitsAndBytesConfig(
-                        load_in_8bit=compute_type == "int8",
-                        load_in_4bit=compute_type == "int4",
-                    )
-                    self.model = EncDecMultiTaskModel.from_pretrained(
-                        self.settings.model_name, map_location=self.settings.device
-                    ).eval()
-                else:
-                    self.model = EncDecMultiTaskModel.from_pretrained(
-                        self.settings.model_name, map_location=self.settings.device
-                    ).eval()
-                self._model_ref = self.model
+                # NeMo's from_pretrained can also return the cached .nemo path
+                # (return_model_file); here it always returns a model.
+                self.model = cast(
+                    EncDecMultiTaskModel,
+                    EncDecMultiTaskModel.from_pretrained(
+                        self.settings.model_name, map_location=torch.device(self.settings.device)
+                    ),
+                ).eval()
 
             if compute_type and compute_type not in ("int8", "int4"):
                 self.model = self.model.to(
