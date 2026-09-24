@@ -153,6 +153,33 @@ def _cuda_int8_supported() -> bool:
     return major < 12
 
 
+def _patch_bnb_int8_noncontiguous():
+    """Work around a bitsandbytes bug: Linear8bitLt returns wrong results for
+    non-contiguous (strided) inputs.
+
+    MatMul8bitLt reshapes 3-D inputs with ``A.reshape(-1, K)``; for batch size 1
+    that reshape is a view (no copy), so strided layouts — e.g. the
+    ``hidden_states.transpose(1, 2)`` fed to GraniteSpeech5's encoder conv block
+    (pointwise_lin2) — reach the int8 GEMM kernel, which reads the memory as if
+    it were row-major. The result is garbage activations and, for CTC models, an
+    all-pad transcription. Contiguifying is a no-op for already-contiguous inputs.
+    """
+    import bitsandbytes.nn as bnb_nn
+
+    cls = getattr(bnb_nn, "Linear8bitLt")
+    if getattr(cls, "_fwh_contiguous_patched", False):
+        return
+    orig = cls.forward
+
+    def forward(self, x):
+        if not x.is_contiguous():
+            x = x.contiguous()
+        return orig(self, x)
+
+    cls.forward = forward
+    cls._fwh_contiguous_patched = True
+
+
 def _check_transformers_version(min_version: str, model_label: str):
     """Check that the installed transformers version supports a model."""
     import transformers as tf_lib
@@ -187,6 +214,9 @@ class ModelWrapper:
         mt = self.model_type
         device = self.settings.device
         compute_type = getattr(self.settings, "compute_type", None)
+
+        if mt != "whisper" and device == "cuda" and compute_type == "int8":
+            _patch_bnb_int8_noncontiguous()
 
         if mt == "whisper":
             if device == "cuda" and compute_type == "int8" and not _cuda_int8_supported():
