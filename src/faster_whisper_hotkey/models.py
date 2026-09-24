@@ -181,6 +181,35 @@ def _patch_bnb_int8_noncontiguous():
     cls._fwh_contiguous_patched = True
 
 
+@contextlib.contextmanager
+def _nemo_restore_on(device: str):
+    """Force NeMo ``restore_from`` calls that omit ``map_location`` to restore on ``device``.
+
+    NeMo's ``SaveRestoreConnector`` defaults a missing ``map_location`` to CUDA whenever a
+    GPU is available (nemo/core/connectors/save_restore_connector.py). Canary relies on that
+    default when it restores its bundled timestamps ASR submodel inside ``__init__``
+    (aed_multitask_models.py ``__restore_timestamps_asr_model``), so with a CPU selection the
+    submodel would still land on the GPU (and OOM on a busy one). While this context is active,
+    the wrapper forwards the requested device instead; explicit ``map_location`` arguments
+    (e.g. the top-level ``from_pretrained`` call) pass through unchanged.
+    """
+    from nemo.core.classes.modelPT import ModelPT
+
+    target = torch.device(device)
+    original = ModelPT.restore_from.__func__
+
+    def restore_from(cls, restore_path, *args, map_location=None, **kwargs):
+        if map_location is None:
+            map_location = target
+        return original(cls, restore_path, *args, map_location=map_location, **kwargs)
+
+    ModelPT.restore_from = classmethod(restore_from)
+    try:
+        yield
+    finally:
+        ModelPT.restore_from = classmethod(original)
+
+
 def _check_transformers_version(min_version: str, model_label: str):
     """Check that the installed transformers version supports a model."""
     import transformers as tf_lib
@@ -233,7 +262,7 @@ class ModelWrapper:
             )
 
         elif mt == "parakeet":
-            with suppress_nemo():
+            with suppress_nemo(), _nemo_restore_on(device):
                 if compute_type in ("int8", "int4") and device == "cuda":
                     quant_cfg = BitsAndBytesConfig(
                         load_in_8bit=compute_type == "int8",
@@ -258,7 +287,7 @@ class ModelWrapper:
                 )
 
         elif mt == "canary":
-            with suppress_nemo():
+            with suppress_nemo(), _nemo_restore_on(device):
                 if compute_type in ("int8", "int4") and device == "cuda":
                     quant_cfg = BitsAndBytesConfig(
                         load_in_8bit=compute_type == "int8",

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+import torch
 
 
 class MockSettings:
@@ -613,6 +614,63 @@ class TestSuppressOutputContextManager:
         # Verify os operations happened
         assert mock_os.open.called
         assert mock_os.dup.called
+
+
+class TestNemoRestoreOnContextManager:
+    """Test the _nemo_restore_on context manager (keeps canary's timestamps submodel on the chosen device)."""
+
+    def test_defaults_map_location_to_requested_device(self):
+        """Calls omitting map_location get the requested device; explicit values pass through; the
+        original restore_from is restored afterwards."""
+        from nemo.core.classes.modelPT import ModelPT
+
+        from faster_whisper_hotkey.models import _nemo_restore_on
+
+        recorded = []
+
+        def fake(cls, restore_path, *args, map_location=None, **kwargs):
+            recorded.append(map_location)
+
+        original_func = ModelPT.restore_from.__func__
+        ModelPT.restore_from = classmethod(fake)
+        try:
+            with _nemo_restore_on("cpu"):
+                ModelPT.restore_from("model.nemo")
+                ModelPT.restore_from("model.nemo", map_location=torch.device("cuda"))
+        finally:
+            ModelPT.restore_from = classmethod(original_func)
+
+        assert recorded == [torch.device("cpu"), torch.device("cuda")]
+        assert ModelPT.restore_from.__func__ is original_func
+
+    @patch("faster_whisper_hotkey.models.EncDecMultiTaskModel")
+    def test_canary_load_patches_nemo_restore_from(self, mock_canary_cls):
+        """ModelWrapper must wrap the canary load so NeMo internal restores honor the chosen device."""
+        from nemo.core.classes.modelPT import ModelPT
+
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_model = MagicMock()
+        mock_canary_cls.from_pretrained.return_value = mock_model
+        captured = []
+
+        def capture(*args, **kwargs):
+            captured.append(ModelPT.restore_from.__func__.__module__)
+            return mock_model
+
+        mock_canary_cls.from_pretrained.side_effect = capture
+
+        settings = MockSettings(
+            model_type="canary",
+            model_name="nvidia/canary-1b-v2",
+            device="cpu",
+        )
+
+        ModelWrapper(settings)
+
+        mock_canary_cls.from_pretrained.assert_called_once()
+        assert captured == ["faster_whisper_hotkey.models"]
+        assert ModelPT.restore_from.__func__.__module__ == "nemo.core.classes.modelPT"
 
 
 class TestModelWrapperErrorHandling:
