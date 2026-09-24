@@ -15,6 +15,7 @@ from transformers import (
     VoxtralForConditionalGeneration,
 )
 
+from .capitalization import add_capitalization
 from .hf_offline import enable_offline_if_unreachable
 
 
@@ -657,7 +658,8 @@ class ModelWrapper:
                 with torch.no_grad():
                     output = self.model.transcribe(**inputs)
                 transcriptions = self.processor.batch_decode(output.preds, skip_special_tokens=True)
-                return transcriptions[0] if transcriptions else ""
+                text = transcriptions[0] if transcriptions else ""
+                return add_capitalization(text, language or "en")
 
             elif mt == "granite-turboctc":
                 device = self.settings.device

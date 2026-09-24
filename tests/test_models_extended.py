@@ -801,7 +801,7 @@ class TestGraniteTranscription:
         sample_audio = np.random.randn(16000).astype(np.float32)
         result = wrapper.transcribe(sample_audio, 16000)
 
-        assert result == "transcribed text"
+        assert result == "Transcribed text"
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")
     @patch("faster_whisper_hotkey.models.AutoModel")

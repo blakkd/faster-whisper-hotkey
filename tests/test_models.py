@@ -700,7 +700,7 @@ class TestModelWrapperTranscribe:
         mock_output.preds = [0, 1, 2]
         mock_model.transcribe.return_value = mock_output
 
-        mock_processor_instance.batch_decode.return_value = ["granite transcription"]
+        mock_processor_instance.batch_decode.return_value = ["granite transcription. how is it going"]
 
         settings = MockSettings(
             model_type="granite-nar",
@@ -712,7 +712,8 @@ class TestModelWrapperTranscribe:
 
         result = wrapper.transcribe(self.sample_audio, 16000)
 
-        assert result == "granite transcription"
+        # granite-nar emits no capitalization; a post-processing pass restores it
+        assert result == "Granite transcription. How is it going"
         mock_model.transcribe.assert_called_once()
 
     @patch("faster_whisper_hotkey.models.AutoProcessor")

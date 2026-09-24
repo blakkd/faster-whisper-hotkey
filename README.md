@@ -11,7 +11,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: [*granite-speech-5.0-470m-turboctc-nc*](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) is currently the fastest, and you get almost instant transcription, even on CPU. [*parakeet-tdt-0.6b-v3*](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [*canary-1b-v2*](https://huggingface.co/nvidia/canary-1b-v2) come pretty close behind. 
+- **Fast**: [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) is currently the fastest, and you get almost instant transcription, even on CPU. [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2) come pretty close behind.
 - **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
@@ -32,11 +32,11 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - CPU/GPU
 
 - **[ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
-  - 5 languages
+  - 5 languages (en, de, es, fr, pt)
   - Transcription only
   - No automatic language recognition
   - Non-autoregressive --> faster than the above AR variant
-  - No capitalization in output
+  - Emits punctuation, but no capitalization - a post-processing pass adds sentence capitalization and the English "I" (proper nouns stay lowercase)
   - CPU/GPU
 
 - **[ibm-granite/granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc)**:
@@ -151,7 +151,10 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **granite-nar** and **granite-turboctc**: No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
+- **granite-nar**: punctuation comes from the model, but capitalization is a post-processing pass (sentence starts + English "I"), so proper nouns like names stay lowercase.
+- **granite-turboctc**: no punctuation or capitalization in output (by design of the non-autoregressive architecture).
+
+  Use the autoregressive `granite` variant if you need full capitalization, or the LLM correction option to fix proper nouns.
 
 - Using window type detection to send appropriate key strokes, we unfortunately can't see "sub windows". So for example, the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
