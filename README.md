@@ -11,7 +11,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: Almost instant transcription, even on CPU when picking parakeet or canary.
+- **Fast**: [*granite-speech-5.0-470m-turboctc-nc*](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) is currently the fastest, and you get almost instant transcription, even on CPU. [*parakeet-tdt-0.6b-v3*](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [*canary-1b-v2*](https://huggingface.co/nvidia/canary-1b-v2) come pretty close behind. 
 - **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
@@ -161,7 +161,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
-- For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions feel slow on CPU, try float32.
+- For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions are slow, try float32.
 
 ## Acknowledgements
 
