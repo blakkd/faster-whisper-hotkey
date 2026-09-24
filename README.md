@@ -151,7 +151,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
-- **granite-nar**: No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
+- **granite-nar** and **granite-turboctc**: No punctuation or capitalization in output (by design of the non-autoregressive architecture). Use the autoregressive `granite` variant if you need punctuation.
 
 - Using window type detection to send appropriate key strokes, we unfortunately can't see "sub windows". So for example, the VSCodium/VSCode terminal isn't supported for now. No clue if we can workaround this.
 
@@ -171,7 +171,7 @@ Many thanks to:
 - **NVIDIA** for their blazing fast parakeet and canary models
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - **Cohere** for their cohere-transcribe-03-2026 model
-- **IBM** for their granite-speech-4.1 models
+- **IBM** for their granite-speech models
 - **Qwen** for their Qwen3-ASR-1.7B model
 - and to **all the contributors** of the libraries I used
 
