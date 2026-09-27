@@ -18,6 +18,7 @@ from transformers import (
 
 from .capitalization import add_capitalization
 from .hf_offline import enable_offline_if_unreachable
+from .photon_no_telemetry import apply as disable_photon_telemetry
 from .settings import Settings
 
 
@@ -272,6 +273,9 @@ class ModelWrapper:
         elif mt == "parakeet-ultra":
             # Moondream Photon: compiled per-chip engine (kestrel), no user-selectable
             # precision — compute_type is ignored. Runs on CUDA or CPU.
+            # Photon sends usage telemetry to Moondream with no official opt-out;
+            # install the no-op reporter before the engine is created.
+            disable_photon_telemetry()
             with suppress_output():
                 self.model = md.photon(self.settings.model_name, device=device)
 
