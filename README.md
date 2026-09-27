@@ -20,17 +20,17 @@ _To help with choosing your model, you can look at [AA-AgentTalk score](https://
 
 **CPU speed** for a 40 s clip (best compute type per model, see _Tips_):
 
-| Model                                           | Compute |     Time | Speed |
-| ----------------------------------------------- | ------- | -------: | ----: |
-| moondream/parakeet-ultra                        | —       |    2.6 s | 15.7× |
-| Systran/faster-whisper (small)                  | int8    |    4.1 s |  9.7× |
-| ibm-granite/granite-speech-5.0-470m-turboctc-nc | float32 |    4.7 s |  8.4× |
-| CohereLabs/cohere-transcribe-03-2026            | float32 |   33.2 s |  1.2× |
-| ibm-granite/granite-speech-4.1-2b-nar           | float32 |   35.7 s |  1.1× |
-| Qwen/Qwen3-ASR-1.7B-hf                          | float32 |   48.3 s |  0.8× |
-| ibm-granite/granite-speech-4.1-2b               | float32 |   55.2 s |  0.7× |
-| nvidia/canary-1b-v2                             | float32 |   55.7 s |  0.7× |
-| mistralai/Voxtral-Mini-3B-2507                  | —       | GPU only |     — |
+| Model                                           | Engine       | Compute |     Time | Speed |
+| ----------------------------------------------- | ------------ | ------- | -------: | ----: |
+| moondream/parakeet-ultra                        | Photon       | —       |    2.6 s | 15.7× |
+| Systran/faster-whisper (small)                  | CTranslate2  | int8    |    4.1 s |  9.7× |
+| ibm-granite/granite-speech-5.0-470m-turboctc-nc | Transformers | float32 |    4.7 s |  8.4× |
+| CohereLabs/cohere-transcribe-03-2026            | Transformers | float32 |   33.2 s |  1.2× |
+| ibm-granite/granite-speech-4.1-2b-nar           | Transformers | float32 |   35.7 s |  1.1× |
+| Qwen/Qwen3-ASR-1.7B-hf                          | Transformers | float32 |   48.3 s |  0.8× |
+| ibm-granite/granite-speech-4.1-2b               | Transformers | float32 |   55.2 s |  0.7× |
+| nvidia/canary-1b-v2                             | NeMo         | float32 |   55.7 s |  0.7× |
+| mistralai/Voxtral-Mini-3B-2507                  | Transformers | —       | GPU only |     — |
 
 On GPU every model is super fast (all < 3.5 s for the same clip), so that's not particularly useful to benchmark that. But anyway, detailed evaluation results can be found in [`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
 
