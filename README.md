@@ -11,20 +11,20 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) gives instant transcription, [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar) come pretty close.
+- **Fast**: [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) gives instant transcription, [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) comes pretty close.
 - **LLM correction**: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
 
-_To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case._
+_To help with choosing your model, you can look at [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming)._
 
 **CPU speed** for a 40 s clip (best compute type per model, see _Tips_):
 
 | Model                                           | Compute |     Time | Speed |
 | ----------------------------------------------- | ------- | -------: | ----: |
+| moondream/parakeet-ultra                        | —       |   2.6 s | 15.7× |
 | Systran/faster-whisper (small)                  | int8    |    4.1 s |  9.7× |
 | ibm-granite/granite-speech-5.0-470m-turboctc-nc | float32 |    4.7 s |  8.4× |
-| nvidia/parakeet-tdt-0.6b-v3                     | float32 |    6.9 s |  5.8× |
 | CohereLabs/cohere-transcribe-03-2026            | float32 |   33.2 s |  1.2× |
 | ibm-granite/granite-speech-4.1-2b-nar           | float32 |   35.7 s |  1.1× |
 | Qwen/Qwen3-ASR-1.7B-hf                          | float32 |   48.3 s |  0.8× |
@@ -32,7 +32,15 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
 | nvidia/canary-1b-v2                             | float32 |   55.7 s |  0.7× |
 | mistralai/Voxtral-Mini-3B-2507                  | —       | GPU only |     — |
 
-On GPU every model is super fast (all < 3.5 s for the same clip), so no point benchmarking them there. Detailed evaluation results can be found in [`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
+On GPU every model is super fast (all < 3.5 s for the same clip), so that's not particularly useful to benchmark that. But anyway, detailed evaluation results can be found in [`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
+
+- **(NEW) [moondream/parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra)**:
+  - 25 languages
+  - Transcription only
+  - Post-trained version of nvidia/parakeet-tdt-0.6b-v3: same 0.6B architecture, but:
+    - Lower word error rate on every benchmark
+    - Runs with Moondream's [Photon](https://moondream.ai/photon) engine --> 3x faster!
+  - CPU/GPU (I let GPU as option, but there is no point using it... Anyway!)
 
 - **[Qwen/Qwen3-ASR-1.7B-hf](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf)**:
   - 30 languages
@@ -44,7 +52,7 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so no point be
   - 6 source languages (en, de, es, fr, ja, pt)
   - Transcription and translation (bidirectional to/from English, plus English→Italian and English→Mandarin)
   - No automatic language recognition
-  - Autoregressive with punctuation and capitalization
+  - Punctuation and capitalization
   - CPU/GPU
 
 - **[ibm-granite/granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar)**:
@@ -71,12 +79,6 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so no point be
   - 25 languages
   - Transcription and translation (bidirectional to/from English)
   - No automatic language recognition
-  - CPU/GPU
-
-- **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
-  - 25 languages
-  - Transcription only
-  - Officially, no automatic language recognition, but it still works pretty great
   - CPU/GPU
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
@@ -178,7 +180,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 ## Tips
 
 - If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
-- If you pick parakeet-tdt-0.6b-v3, you can even use multiple languages during your recording!
+- If you pick parakeet-ultra, you can even use multiple languages during your recording!
 - For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions are slow, try float32.
 
 ## Acknowledgements
@@ -187,6 +189,7 @@ Many thanks to:
 
 - **the developers of faster-whisper** for providing such an efficient transcription inference engine
 - **NVIDIA** for their blazing fast parakeet and canary models
+- **Moondream** for parakeet-ultra and their Photon local inference engine
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - **Cohere** for their cohere-transcribe-03-2026 model
 - **IBM** for their granite-speech models

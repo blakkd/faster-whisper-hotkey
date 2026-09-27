@@ -4,12 +4,6 @@ Audio: `test.mp3` — 40.05 s
 Hardware: NVIDIA RTX PRO 4500 Blackwell (32 GB) · AMD Ryzen 9 5950X (16 cores / 32 threads) · DDR4-3000 MT/s RAM
 Speed = `40.05 / transcribe_time` (× realtime).
 
-## TL;DR
-
-- CUDA crushes CPU: best configs finish the 40 s clip in < 1 s vs 30 s–7 min.
-- Fastest on CUDA: granite-turboctc / granite-nar / parakeet (NAR/CTC) — all ≤ 0.09 s.
-- Fastest on CPU: faster-whisper int8 (4.1 s) and granite-turboctc float32 (4.7 s); the rest is a bit slow (~0.7–1.2× realtime) but still usable.
-
 ## faster-whisper — `whisper/small`
 
 | Device | Compute | Load (s) | Transcribe (s) |     Speed | Status                                           |
@@ -19,16 +13,13 @@ Speed = `40.05 / transcribe_time` (× realtime).
 | cuda   | float32 |     7.71 |       **0.64** | **62.6×** | OK                                               |
 | cuda   | int8    |        — |              — |         — | ⚠ skipped (int8 unsupported on Blackwell sm_12x) |
 
-## parakeet — `parakeet-tdt-0.6b-v3`
+## parakeet-ultra — `moondream/parakeet-ultra` (Moondream Photon)
 
-| Device | Compute  | Load (s) | Transcribe (s) |     Speed | Status |
-| ------ | -------- | -------: | -------------: | --------: | ------ |
-| cpu    | float32  |    11.32 |       **6.90** |  **5.8×** | OK     |
-| cpu    | bfloat16 |     9.78 |          73.35 |      0.5× | OK     |
-| cuda   | float32  |    13.98 |           0.09 |     ~445× | OK     |
-| cuda   | bfloat16 |    10.17 |       **0.08** | **~500×** | OK     |
-| cuda   | int8     |     9.77 |       **0.08** | **~500×** | OK     |
-| cuda   | int4     |     9.66 |       **0.08** | **~500×** | OK     |
+| Device | Compute | Load (s) | Transcribe (s) |     Speed | Status |
+| ------ | ------- | -------: | -------------: | --------: | ------ |
+| cpu    | —       |     1.00 |       **2.55** | **15.7×** | OK     |
+
+No CUDA row: not benchmarked — GPU inference for this model class is well below 1 s and not relevant for our use case (the GPU was also fully occupied during the run).
 
 ## canary — `canary-1b-v2`
 
