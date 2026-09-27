@@ -586,6 +586,62 @@ class TestPrecisionScreensUniformOrder:
         assert config.compute_type == expected_options[0]
 
 
+class TestParakeetUltraDeviceScreen:
+    """Parakeet Ultra (Moondream Photon) device screen: no precision step."""
+
+    ENTER = 13
+    ESC = 27
+
+    def _run_screen(self, choice: str | None, device: str = ""):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData()
+        config.device = device
+
+        captured = {}
+
+        def fake_menu(stdscr, title, options, **kwargs):
+            captured["title"] = title
+            captured["options"] = options
+            captured["footer"] = kwargs.get("footer", "")
+            captured["initial_idx"] = kwargs.get("initial_idx", 0)
+            return choice
+
+        with patch.object(ui, "curses_menu", fake_menu):
+            result = ui._screen_parakeet_ultra_device(MagicMock(), config)
+
+        return result, config, captured
+
+    def test_cuda_selection(self):
+        from faster_whisper_hotkey import ui
+
+        result, config, captured = self._run_screen("cuda")
+
+        assert result == (ui.ConfigStep.HOTKEY, config)
+        assert config.model_name == "moondream/parakeet-ultra"
+        assert config.device == "cuda"
+        assert config.compute_type == ""  # Photon: no user-selectable precision
+        assert config.language == ""  # automatic language detection
+        assert captured["options"] == ["cuda", "cpu"]
+        assert captured["initial_idx"] == 0
+
+    def test_cpu_selection_and_preselect(self):
+        from faster_whisper_hotkey import ui
+
+        result, config, captured = self._run_screen("cpu", device="cpu")
+
+        assert result == (ui.ConfigStep.HOTKEY, config)
+        assert config.device == "cpu"
+        assert captured["initial_idx"] == 1
+
+    def test_esc_returns_to_initial(self):
+        from faster_whisper_hotkey import ui
+
+        result, config, _ = self._run_screen(None)
+
+        assert result == (ui.ConfigStep.INITIAL, config)
+
+
 class TestLLMApiKeyScreen:
     """Test the LLM API key screen (env: hint, prefill, save flow)."""
 

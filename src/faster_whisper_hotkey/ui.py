@@ -21,6 +21,7 @@ class ConfigStep(Enum):
     WHISPER_LANGUAGE = auto()
     PARAKEET_DEVICE = auto()
     PARAKEET_PRECISION = auto()
+    PARAKEET_ULTRA_DEVICE = auto()
     CANARY_SOURCE_LANG = auto()
     CANARY_TARGET_LANG = auto()
     CANARY_DEVICE = auto()
@@ -402,6 +403,8 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_parakeet_device(stdscr, config)
     elif current_step == ConfigStep.PARAKEET_PRECISION:
         return _screen_parakeet_precision(stdscr, config)
+    elif current_step == ConfigStep.PARAKEET_ULTRA_DEVICE:
+        return _screen_parakeet_ultra_device(stdscr, config)
 
     # Canary sub-steps
     elif current_step == ConfigStep.CANARY_SOURCE_LANG:
@@ -568,7 +571,7 @@ def _screen_model_type(stdscr, config: ConfigData):
     """Select model type."""
     model_options = [
         "faster-whisper",
-        "parakeet-tdt-0.6b-v3",
+        "parakeet-ultra",
         "canary-1b-v2",
         "Voxtral-Mini-3B-2507",
         "cohere-transcribe-03-2026",
@@ -582,6 +585,7 @@ def _screen_model_type(stdscr, config: ConfigData):
     type_mapping = {
         "whisper": 0,
         "parakeet": 1,
+        "parakeet-ultra": 1,
         "canary": 2,
         "voxtral": 3,
         "cohere": 4,
@@ -601,7 +605,7 @@ def _screen_model_type(stdscr, config: ConfigData):
     # Map display name to internal type
     type_map = {
         "faster-whisper": "whisper",
-        "parakeet-tdt-0.6b-v3": "parakeet",
+        "parakeet-ultra": "parakeet-ultra",
         "canary-1b-v2": "canary",
         "Voxtral-Mini-3B-2507": "voxtral",
         "cohere-transcribe-03-2026": "cohere",
@@ -616,8 +620,10 @@ def _screen_model_type(stdscr, config: ConfigData):
     # Route to model-specific configuration
     if config.model_type == "whisper":
         return (ConfigStep.WHISPER_MODEL, config)
+    elif config.model_type == "parakeet-ultra":
+        return (ConfigStep.PARAKEET_ULTRA_DEVICE, config)
     elif config.model_type == "parakeet":
-        return (ConfigStep.PARAKEET_DEVICE, config)
+        return (ConfigStep.PARAKEET_DEVICE, config)  # legacy saved settings (NeMo path)
     elif config.model_type == "canary":
         return (ConfigStep.CANARY_DEVICE, config)
     elif config.model_type == "voxtral":
@@ -771,6 +777,33 @@ def _screen_parakeet_device(stdscr, config: ConfigData):
     config.language = ""  # Parakeet supports auto-detection
 
     return (ConfigStep.PARAKEET_PRECISION, config)
+
+
+def _screen_parakeet_ultra_device(stdscr, config: ConfigData):
+    """Select compute device for Parakeet Ultra (Moondream Photon)."""
+    options = ["cuda", "cpu"]
+
+    initial_idx = 0
+    if config.device == "cpu":
+        initial_idx = 1
+
+    selected = curses_menu(
+        stdscr,
+        "Compute Device",
+        options,
+        footer="Moondream Photon engine: no precision choice (compiled kernels)",
+        initial_idx=initial_idx,
+    )
+
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.model_name = "moondream/parakeet-ultra"
+    config.device = selected
+    config.compute_type = ""  # Photon has no user-selectable precision
+    config.language = ""  # automatic language detection (25 languages)
+
+    return (ConfigStep.HOTKEY, config)
 
 
 def _screen_parakeet_precision(stdscr, config: ConfigData):

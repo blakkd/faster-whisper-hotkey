@@ -59,7 +59,7 @@ def results_file():
 # canary/granite are src-tgt pairs, the rest are plain codes.
 UI_LANGUAGE_BY_MODEL = {
     "whisper": "en",
-    "parakeet": "",
+    "parakeet-ultra": "",
     "canary": "en-en",
     "voxtral": "auto",
     "cohere": "en",
@@ -80,9 +80,10 @@ _configs = [(m, "cpu", prec) for m in WHISPER_MODELS for prec in ("int8",)] + [
 
 WHISPER = [("whisper", m, dev, prec) for m, dev, prec in _configs]
 
-# parakeet: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
-PARAKEET = [("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cpu", prec) for prec in ("float32", "bfloat16")] + [
-    ("parakeet", "nvidia/parakeet-tdt-0.6b-v3", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
+# parakeet-ultra (Moondream Photon): no user-selectable precision ("" = n/a)
+PARAKEET_ULTRA = [
+    ("parakeet-ultra", "moondream/parakeet-ultra", "cpu", ""),
+    ("parakeet-ultra", "moondream/parakeet-ultra", "cuda", ""),
 ]
 
 # canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
@@ -272,13 +273,13 @@ class TestTranscribeWhisper:
         _assert_ok(results, errors)
 
 
-class TestTranscribeParakeet:
-    """Transcribe test audio with parakeet configs."""
+class TestTranscribeParakeetUltra:
+    """Transcribe test audio with parakeet-ultra configs (Moondream Photon)."""
 
-    def test_parakeet(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET, audio, request)
+    def test_parakeet_ultra(self, audio, request, results_file):
+        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET_ULTRA, audio, request)
 
-        block = _format_results("parakeet", results, skipped, errors, audio_data, sr)
+        block = _format_results("parakeet-ultra", results, skipped, errors, audio_data, sr)
         print(f"\n{block}")
         with open(results_file, "a", encoding="utf-8") as f:
             f.write(block + "\n")

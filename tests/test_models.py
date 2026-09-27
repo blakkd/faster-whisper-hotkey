@@ -57,6 +57,25 @@ class TestModelWrapperInitialization:
         assert wrapper.model_type == "parakeet"
         mock_asr.from_pretrained.assert_called_once()
 
+    @patch("faster_whisper_hotkey.models.md")
+    def test_init_parakeet_ultra_model(self, mock_md):
+        """Test loading a parakeet-ultra model (Moondream Photon)."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_md.photon.return_value = MagicMock()
+
+        settings = MockSettings(
+            model_type="parakeet-ultra",
+            model_name="moondream/parakeet-ultra",
+            device="cpu",
+            compute_type="",
+        )
+
+        wrapper = ModelWrapper(settings)
+
+        assert wrapper.model_type == "parakeet-ultra"
+        mock_md.photon.assert_called_once_with("moondream/parakeet-ultra", device="cpu")
+
     @patch("faster_whisper_hotkey.models.EncDecMultiTaskModel")
     def test_init_canary_model(self, mock_encdec):
         """Test loading a canary model."""
@@ -533,6 +552,28 @@ class TestModelWrapperTranscribe:
         result = wrapper.transcribe(self.sample_audio, 16000)
 
         assert result == "parakeet transcription"
+
+    @patch("faster_whisper_hotkey.models.md")
+    def test_transcribe_parakeet_ultra(self, mock_md):
+        """Test parakeet-ultra transcription (in-memory PCM, dict result, language ignored)."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_client = MagicMock()
+        mock_client.transcribe.return_value = {"text": "  parakeet ultra transcription  "}
+        mock_md.photon.return_value = mock_client
+
+        settings = MockSettings(
+            model_type="parakeet-ultra",
+            model_name="moondream/parakeet-ultra",
+            device="cpu",
+            compute_type="",
+        )
+        wrapper = ModelWrapper(settings)
+
+        result = wrapper.transcribe(self.sample_audio, 16000, language="")
+
+        assert result == "parakeet ultra transcription"
+        mock_client.transcribe.assert_called_once_with(audio=self.sample_audio, sample_rate=16000)
 
     @patch("faster_whisper_hotkey.models.EncDecMultiTaskModel")
     def test_transcribe_canary(self, mock_encdec):

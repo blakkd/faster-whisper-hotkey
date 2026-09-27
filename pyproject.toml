@@ -46,6 +46,7 @@ dependencies = [
     "onnx==1.22.0",
     "accelerate==1.14.0",
     "silero-vad>=6.2.1",
+    "moondream==2.5.0",
 ]
 
 # DEV TOOLS (kept in the lock so `uv sync` doesn't prune them)
@@ -79,3 +80,11 @@ include = ["src"]
 typeCheckingMode = "standard"
 reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
+
+# UV
+# Absolute cutoff so the lockfile stays valid despite the machine-global
+# "exclude-newer = 7 days" setting (relative windows would exclude freshly
+# published packages like moondream). Bump this date when adding a package
+# published after it.
+[tool.uv]
+exclude-newer = "2026-09-25T00:00:00Z"

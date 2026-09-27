@@ -578,6 +578,28 @@ class TestTranscriptionOutputHandling:
 
         assert result == ""
 
+    @patch("faster_whisper_hotkey.models.md")
+    def test_parakeet_ultra_empty_result(self, mock_md):
+        """Test Parakeet Ultra with empty transcription result."""
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        mock_client = MagicMock()
+        mock_client.transcribe.return_value = {"text": ""}
+        mock_md.photon.return_value = mock_client
+
+        settings = MockSettings(
+            model_type="parakeet-ultra",
+            model_name="moondream/parakeet-ultra",
+            device="cpu",
+            compute_type="",
+        )
+
+        wrapper = ModelWrapper(settings)
+        sample_audio = np.random.randn(16000).astype(np.float32)
+        result = wrapper.transcribe(sample_audio, 16000)
+
+        assert result == ""
+
     @patch("faster_whisper_hotkey.models.EncDecMultiTaskModel")
     def test_canary_empty_result(self, mock_encdec):
         """Test Canary with empty transcription result."""

@@ -87,6 +87,7 @@ def suppress_nemo():
 with suppress_output():
     import tempfile
 
+    import moondream as md
     import soundfile as sf
     import torch
     from faster_whisper import WhisperModel
@@ -233,7 +234,7 @@ def _check_transformers_version(min_version: str, model_label: str):
 class ModelWrapper:
     """
     Encapsulates loading and running different model types
-    (whisper, parakeet, canary, voxtral, cohere, granite, granite-nar, granite-turboctc, qwen3-asr).
+    (whisper, parakeet, parakeet-ultra, canary, voxtral, cohere, granite, granite-nar, granite-turboctc, qwen3-asr).
     """
 
     def __init__(self, settings: Settings):
@@ -267,6 +268,12 @@ class ModelWrapper:
                 device=device,
                 compute_type=compute_type,
             )
+
+        elif mt == "parakeet-ultra":
+            # Moondream Photon: compiled per-chip engine (kestrel), no user-selectable
+            # precision — compute_type is ignored. Runs on CUDA or CPU.
+            with suppress_output():
+                self.model = md.photon(self.settings.model_name, device=device)
 
         elif mt == "parakeet":
             with suppress_nemo(), _nemo_restore_on(device):
@@ -587,6 +594,13 @@ class ModelWrapper:
                     language=(language if language and language != "auto" else None),
                 )
                 return " ".join(segment.text.strip() for segment in segments)
+
+            elif mt == "parakeet-ultra":
+                # Takes in-memory mono PCM directly; auto language detection (25 languages).
+                result = self.model.transcribe(audio=audio_data, sample_rate=sample_rate)
+                if not isinstance(result, dict):
+                    return ""
+                return (result.get("text") or "").strip()
 
             elif mt == "parakeet":
                 with torch.inference_mode():
