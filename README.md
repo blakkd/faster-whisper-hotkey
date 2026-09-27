@@ -11,7 +11,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) gives instant transcription, [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) comes pretty close.
+- **CPU-friendly**: [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) gives instant transcription, on any CPU.
 - **LLM correction**: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
@@ -22,7 +22,7 @@ _To help with choosing your model, you can look at [AA-AgentTalk score](https://
 
 | Model                                           | Engine       | Compute |     Time | Speed |
 | ----------------------------------------------- | ------------ | ------- | -------: | ----: |
-| moondream/parakeet-ultra                        | Photon       | —       |    2.6 s | 15.7× |
+| moondream/parakeet-ultra                        | Photon       | float32 |    2.6 s | 15.7× |
 | Systran/faster-whisper (small)                  | CTranslate2  | int8    |    4.1 s |  9.7× |
 | ibm-granite/granite-speech-5.0-470m-turboctc-nc | Transformers | float32 |    4.7 s |  8.4× |
 | CohereLabs/cohere-transcribe-03-2026            | Transformers | float32 |   33.2 s |  1.2× |
@@ -38,9 +38,9 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so that's not 
   - 25 languages
   - Transcription only
   - Post-trained version of nvidia/parakeet-tdt-0.6b-v3: same 0.6B architecture, but:
-    - Lower word error rate on every benchmark
-    - Runs with Moondream's [Photon](https://moondream.ai/photon) engine --> 3x faster!
-  - CPU/GPU (I let GPU as option, but there is no point using it... Anyway!)
+    - **lower word error rate** on every benchmark
+    - **3x faster** than nvidia/parakeet-tdt-0.6b-v3, thanks to Moondream's [Photon](https://moondream.ai/photon) engine
+  - CPU/GPU (GPU is left as option, but there is no point using it... Anyway!)
 
 - **[Qwen/Qwen3-ASR-1.7B-hf](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf)**:
   - 30 languages

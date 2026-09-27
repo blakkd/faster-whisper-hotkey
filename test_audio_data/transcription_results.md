@@ -17,7 +17,9 @@ Speed = `40.05 / transcribe_time` (× realtime).
 
 | Device | Compute | Load (s) | Transcribe (s) |     Speed | Status |
 | ------ | ------- | -------: | -------------: | --------: | ------ |
-| cpu    | —       |     1.00 |       **2.55** | **15.7×** | OK     |
+| cpu    | float32 |     1.00 |       **2.55** | **15.7×** | OK     |
+
+Compute is auto-selected by Photon (no user choice): bf16 only when the CPU has native BF16 support (AVX512-BF16/AMX), float32 otherwise — this machine (Zen 3) ran float32. On CUDA the fast path requires bf16, which is the default.
 
 No CUDA row: not benchmarked — GPU inference for this model class is well below 1 s and not relevant for our use case (the GPU was also fully occupied during the run).
 
