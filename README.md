@@ -22,7 +22,7 @@ _To help with choosing your model, you can look at [AA-AgentTalk score](https://
 
 | Model                                           | Compute |     Time | Speed |
 | ----------------------------------------------- | ------- | -------: | ----: |
-| moondream/parakeet-ultra                        | —       |   2.6 s | 15.7× |
+| moondream/parakeet-ultra                        | —       |    2.6 s | 15.7× |
 | Systran/faster-whisper (small)                  | int8    |    4.1 s |  9.7× |
 | ibm-granite/granite-speech-5.0-470m-turboctc-nc | float32 |    4.7 s |  8.4× |
 | CohereLabs/cohere-transcribe-03-2026            | float32 |   33.2 s |  1.2× |
