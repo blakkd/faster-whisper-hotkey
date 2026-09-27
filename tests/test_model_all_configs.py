@@ -122,8 +122,8 @@ GRANITE_TURBOCTC = [
     for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 
-# qwen3-asr: weights natively bf16, CPU (bf16/f32) + CUDA (bf16/f32/int8/int4)
-QWEN3_ASR = [("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cpu", prec) for prec in ("bfloat16", "float32")] + [
+# qwen3-asr: weights natively bf16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
+QWEN3_ASR = [("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cpu", prec) for prec in ("float32", "bfloat16")] + [
     ("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
 ]
 

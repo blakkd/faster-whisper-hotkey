@@ -11,18 +11,34 @@ In the terminal, in a text editor, or even in the text chat of your online video
 ## Features
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
-- **Fast**: [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) gives instant transcription, [canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2) and [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) come pretty close.
-- **LLM correction** _(experimental)_: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
+- **Fast**: [granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc) gives instant transcription, [parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) and [granite-speech-4.1-2b-nar](https://huggingface.co/ibm-granite/granite-speech-4.1-2b-nar) come pretty close.
+- **LLM correction**: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
 
 _To help with choosing your model, you can see their [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming#error-rate-by-dataset-tabs) which is particularly relevant for our use case._
 
+**CPU speed** for a 40 s clip (best compute type per model, see _Tips_):
+
+| Model                                           | Compute |     Time | Speed |
+| ----------------------------------------------- | ------- | -------: | ----: |
+| Systran/faster-whisper (small)                  | int8    |    4.1 s |  9.7× |
+| ibm-granite/granite-speech-5.0-470m-turboctc-nc | float32 |    4.7 s |  8.4× |
+| nvidia/parakeet-tdt-0.6b-v3                     | float32 |    6.9 s |  5.8× |
+| CohereLabs/cohere-transcribe-03-2026            | float32 |   33.2 s |  1.2× |
+| ibm-granite/granite-speech-4.1-2b-nar           | float32 |   35.7 s |  1.1× |
+| Qwen/Qwen3-ASR-1.7B-hf                          | float32 |   48.3 s |  0.8× |
+| ibm-granite/granite-speech-4.1-2b               | float32 |   55.2 s |  0.7× |
+| nvidia/canary-1b-v2                             | float32 |   55.7 s |  0.7× |
+| mistralai/Voxtral-Mini-3B-2507                  | —       | GPU only |     — |
+
+On GPU every model is super fast (all < 3.5 s for the same clip), so no point benchmarking them there. Detailed evaluation results can be found in [`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
+
 - **[Qwen/Qwen3-ASR-1.7B-hf](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf)**:
   - 30 languages
   - Transcription only
   - Automatic language recognition
-  - CPU/GPU (a bit slow on CPU, as always, very fast on GPU)
+  - CPU/GPU
 
 - **[ibm-granite/granite-speech-4.1-2b](https://huggingface.co/ibm-granite/granite-speech-4.1-2b)**:
   - 6 source languages (en, de, es, fr, ja, pt)
@@ -35,14 +51,12 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - 5 languages (en, de, es, fr, pt)
   - Transcription only
   - No automatic language recognition
-  - Non-autoregressive --> faster than the above AR variant
   - No capitalization for proper nouns
   - CPU/GPU
 
 - **[ibm-granite/granite-speech-5.0-470m-turboctc-nc](https://huggingface.co/ibm-granite/granite-speech-5.0-470m-turboctc-nc)**:
   - English only
   - Transcription only
-  - Non-autoregressive --> very fast
   - No capitalization or punctuation in output --> LLM-correction can be helpful
   - CPU/GPU
 
@@ -50,20 +64,20 @@ _To help with choosing your model, you can see their [AA-AgentTalk score](https:
   - 14 languages
   - Transcription only
   - Officially, no automatic language recognition, but it still works pretty great
-  - Runs well on CPU
+  - CPU/GPU
   - Quite smart, deals well with hesitation and stutters
 
 - **[nvidia/canary-1b-v2](https://huggingface.co/nvidia/canary-1b-v2)**:
   - 25 languages
   - Transcription and translation (bidirectional to/from English)
   - No automatic language recognition
-  - CPU/GPU Still usable on CPU
+  - CPU/GPU
 
 - **[nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)**:
   - 25 languages
   - Transcription only
   - Officially, no automatic language recognition, but it still works pretty great
-  - Crazy fast even on CPU
+  - CPU/GPU
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
   - 8 languages
