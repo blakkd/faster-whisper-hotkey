@@ -1,0 +1,35 @@
+name: CPU inference matrix
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  cpu-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          cache: true
+
+      - name: Cache Hugging Face model downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ hashFiles('tests/test_model_all_configs.py', 'uv.lock') }}
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
+      - name: Run CPU inference matrix
+        run: uv run pytest tests/test_model_all_configs.py -v --tb=short
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transcription-results
+          path: test_audio_data/transcription_results.txt
