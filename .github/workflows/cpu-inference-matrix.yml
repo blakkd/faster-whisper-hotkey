@@ -8,28 +8,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
-      - uses: actions/checkout@v4
+      # No third-party actions: the repo policy only allows actions owned
+      # by blakkd, so every step is plain shell.
 
-      - uses: astral-sh/setup-uv@v5
-        with:
-          cache: true
+      - name: Checkout
+        run: git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
 
-      - name: Cache Hugging Face model downloads
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/huggingface
-          key: hf-${{ hashFiles('tests/test_model_all_configs.py', 'uv.lock') }}
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: uv sync --frozen
 
       # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
+      # ~30 GB of models are re-downloaded on each run (no cache action allowed).
       - name: Run CPU inference matrix
         run: uv run pytest tests/test_model_all_configs.py -v --tb=short
 
-      - name: Upload results
+      - name: Publish results
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: transcription-results
-          path: test_audio_data/transcription_results.txt
+        run: cat test_audio_data/transcription_results.txt >> "$GITHUB_STEP_SUMMARY" || echo "no results file"
