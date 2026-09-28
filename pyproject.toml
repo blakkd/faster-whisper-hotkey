@@ -33,18 +33,23 @@ dependencies = [
     "torch==2.12.1",
     "torchaudio==2.11.0",
     "nemo-toolkit[asr]==3.0.0",
+    "lightning==2.6.6",
     "requests==2.34.2",
     "importlib_resources==7.1.0",
     "mistral-common[audio]==1.11.7",
     "transformers==5.17.0",
-    "bitsandbytes>=0.46.1",
+    # Pinned: 0.50.x stores 4bit-linear biases as float32 (0.49.x: checkpoint
+    # dtype). The first model param is then an f32 bias, so model.dtype flips
+    # to f32 and model-internal input casts (e.g. granite_speech forward) feed
+    # f32 into bf16 LayerNorms -> RuntimeError on cuda/int4.
+    "bitsandbytes==0.49.2",
     "pyperclip==1.11.0",
     "soundfile==0.14.0",
     "librosa==0.11.0",
-    "sentencepiece==0.2.1",
+    "sentencepiece==0.2.2",
     "protobuf==5.29.6",
     "onnx==1.22.0",
-    "accelerate==1.14.0",
+    "accelerate==1.15.0",
     "silero-vad>=6.2.1",
     "moondream==2.5.0",
 ]
@@ -88,3 +93,10 @@ reportMissingTypeStubs = "none"
 # published after it.
 [tool.uv]
 exclude-newer = "2026-09-25T00:00:00Z"
+# nemo-toolkit[asr] declares lightning>2.2.1,<=2.4.0, but the `lightning`
+# meta-package bundles the executed pytorch code under `lightning.pytorch`
+# (which NeMo imports), and that bundled copy is only patched in >=2.6.6
+# (CVE-2026-58659: RCE via checkpoint `_instantiator` in load_from_checkpoint).
+# The separate `pytorch-lightning` dist is unpinned, so this override only
+# upgrades the bundled copy NeMo actually runs.
+override-dependencies = ["lightning==2.6.6"]

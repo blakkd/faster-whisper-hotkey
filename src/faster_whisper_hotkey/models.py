@@ -87,11 +87,44 @@ def suppress_nemo():
 # Suppress OneLogger/NeMo initialization warnings at import time
 with suppress_output():
     import tempfile
+    from importlib import import_module
 
     import moondream as md
     import soundfile as sf
     import torch
     from faster_whisper import WhisperModel
+
+    # NeMo's OneLogger trainer plugin (nv_one_logger 2.3.1) decorates
+    # OneLoggerPTLTrainer.save_checkpoint with @override, and the `overrides`
+    # library statically validates the override against the parent signature at
+    # class-creation time. The plugin predates the `weights_only` parameter
+    # added to Trainer.save_checkpoint in lightning 2.6, so the check rejects it
+    # even though the override is a drop-in wrapper forwarding all arguments
+    # unchanged (nemo-toolkit pins lightning<=2.4.0 to avoid this). We run
+    # lightning 2.6.6 for the checkpoint-RCE fix (CVE-2026-58659), so disable
+    # only the static signature check; the missing-method check and runtime
+    # behavior are untouched. The `overrides` package shadows its
+    # `overrides.overrides` submodule with a same-named decorator function, so
+    # the module must be fetched via importlib.
+    _ovr = import_module("overrides.overrides")
+    if not getattr(_ovr, "_fwh_sig_check_disabled", False):
+        setattr(_ovr, "ensure_signature_is_compatible", lambda *args, **kwargs: None)  # noqa: B010
+        setattr(_ovr, "_fwh_sig_check_disabled", True)  # noqa: B010
+
+    # nemo.utils.exp_manager imports NeptuneLogger, which lightning 2.6 removed.
+    # NeMo only instantiates it when a user configures Neptune training
+    # logging, which this app never does, so provide a stub that fails loudly
+    # if that path is ever reached.
+    import lightning.pytorch.loggers as _ltl
+
+    if not hasattr(_ltl, "NeptuneLogger"):
+
+        class _NeptuneLoggerUnavailable:
+            def __init__(self, *args: Any, **kwargs: Any) -> None:
+                raise RuntimeError("Neptune logging is unavailable in this build")
+
+        setattr(_ltl, "NeptuneLogger", _NeptuneLoggerUnavailable)  # noqa: B010
+
     from nemo.collections.asr.models import ASRModel, EncDecMultiTaskModel
 
     # Patch SentencePieceTokenizer.eos_id for canary models.
