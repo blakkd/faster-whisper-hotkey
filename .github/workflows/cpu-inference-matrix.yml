@@ -21,7 +21,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          # Free disk for model downloads: the venv no longer needs the uv cache.
+          rm -rf "$HOME/.cache/uv"
 
       # Fail fast (seconds) if the token is missing/invalid instead of
       # ~10 minutes of model downloads. Never prints the token value.
@@ -44,12 +47,23 @@ jobs:
           PY
 
       # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
-      # ~30 GB of models are re-downloaded on each run (no cache action allowed).
+      # ~30 GB of models are re-downloaded on each run (no cache action allowed);
+      # FWH_CLEANUP_HF_CACHE=1 deletes each tested model before the next one is
+      # downloaded so everything fits in the runner's 14 GB of disk.
       - name: Run CPU inference matrix
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          FWH_CLEANUP_HF_CACHE: "1"
         run: uv run pytest tests/test_model_all_configs.py -v --tb=short
 
       - name: Publish results
         if: always()
-        run: cat test_audio_data/transcription_results.txt >> "$GITHUB_STEP_SUMMARY" || echo "no results file"
+        run: |
+          cat test_audio_data/transcription_results.txt >> "$GITHUB_STEP_SUMMARY" || echo "no results file"
+          if [ -f test_audio_data/disk_usage_log.txt ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### Disk usage at test class boundaries" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat test_audio_data/disk_usage_log.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
