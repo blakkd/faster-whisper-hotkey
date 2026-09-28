@@ -6,6 +6,9 @@ Run: pytest tests/test_model_all_configs.py -v --tb=long
 
 Skip CUDA configs automatically when no GPU is available. Override with:
     pytest tests/test_model_all_configs.py -v --tb=long --force-cuda
+
+Run CUDA configs only (skip CPU configs), e.g. on a GPU machine:
+    pytest tests/test_model_all_configs.py -v --tb=long --cuda-only
 """
 
 import gc
@@ -141,6 +144,7 @@ def _cuda_available():
 def _run_configs(configs, audio, request):
     """Run transcription for a list of configs. Returns (results, skipped, errors)."""
     force_cuda = request.config.getoption("--force-cuda")
+    cuda_only = request.config.getoption("--cuda-only")
     cuda_ok = _cuda_available() or force_cuda
 
     audio_data, sr = audio
@@ -150,6 +154,9 @@ def _run_configs(configs, audio, request):
     errors = []
 
     for model_type, model_name, device, compute_type in configs:
+        if cuda_only and device == "cpu":
+            skipped.append((model_type, model_name, device, compute_type, "CPU configs excluded (--cuda-only)"))
+            continue
         if device == "cuda" and not cuda_ok:
             skipped.append((model_type, model_name, device, compute_type, "CUDA not available"))
             continue

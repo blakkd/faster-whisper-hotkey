@@ -16,3 +16,9 @@ def pytest_addoption(parser):
         default=False,
         help="Force CUDA configs even when no GPU is available",
     )
+    parser.addoption(
+        "--cuda-only",
+        action="store_true",
+        default=False,
+        help="Skip CPU configs (run CUDA configs only)",
+    )
