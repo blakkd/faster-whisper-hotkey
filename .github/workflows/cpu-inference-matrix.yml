@@ -6,6 +6,7 @@ on:
 jobs:
   cpu-matrix:
     runs-on: ubuntu-latest
+    environment: actions
     timeout-minutes: 300
     steps:
       # No third-party actions: the repo policy only allows actions owned
