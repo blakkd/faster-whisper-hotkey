@@ -32,14 +32,20 @@ def _disk_state(label: str) -> None:
         df = subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[-1]
     except Exception:
         df = "df failed"
+    try:
+        free = subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0]
+    except Exception:
+        free = "free failed"
     sizes = []
     for path in (HF_HUB_DIR, os.path.expanduser("~/.cache/uv")):
         if os.path.isdir(path):
             du = subprocess.run(["du", "-sh", path], capture_output=True, text=True, timeout=60)
             if du.returncode == 0:
                 sizes.append(f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}={du.stdout.split()[0]}")
+    line = f"{time.strftime('%H:%M:%S')} {label} | {df} | {free} | " + " ".join(sizes)
     with open(DISK_LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{time.strftime('%H:%M:%S')} {label} | {df} | " + " ".join(sizes) + "\n")
+        f.write(line + "\n")
+    print(f"[disk] {line}", flush=True)
 
 
 @pytest.fixture(autouse=True, scope="session")
