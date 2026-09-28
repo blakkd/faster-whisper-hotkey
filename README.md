@@ -36,6 +36,7 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so that's not 
 
 - **(NEW) [moondream/parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra)**:
   - 25 languages
+  - Automatic language recognition
   - Transcription only
   - Post-trained version of nvidia/parakeet-tdt-0.6b-v3: same 0.6B architecture, but:
     - **lower word error rate** on every benchmark
