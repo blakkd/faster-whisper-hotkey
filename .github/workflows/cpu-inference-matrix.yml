@@ -23,6 +23,26 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # Fail fast (seconds) if the token is missing/invalid instead of
+      # ~10 minutes of model downloads. Never prints the token value.
+      - name: Verify HF token
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "::error::HF_TOKEN is empty - check the 'actions' environment secret"
+            exit 1
+          fi
+          uv run python - <<'PY'
+          import os
+          from huggingface_hub import model_info, whoami
+
+          who = whoami()
+          print(f"HF auth OK: user={who.get('name')} token_len={len(os.environ['HF_TOKEN'])}")
+          info = model_info("CohereLabs/cohere-transcribe-03-2026")
+          print(f"gated model accessible: {info.modelId} gated={info.gated}")
+          PY
+
       # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
       # ~30 GB of models are re-downloaded on each run (no cache action allowed).
       - name: Run CPU inference matrix
