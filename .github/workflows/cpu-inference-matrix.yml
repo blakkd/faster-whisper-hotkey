@@ -25,6 +25,8 @@ jobs:
       # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
       # ~30 GB of models are re-downloaded on each run (no cache action allowed).
       - name: Run CPU inference matrix
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: uv run pytest tests/test_model_all_configs.py -v --tb=short
 
       - name: Publish results
