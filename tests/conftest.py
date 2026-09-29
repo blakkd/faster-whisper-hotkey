@@ -78,3 +78,9 @@ def pytest_addoption(parser):
         default=False,
         help="Skip CPU configs (run CUDA configs only)",
     )
+    parser.addoption(
+        "--cpu-only",
+        action="store_true",
+        default=False,
+        help="Skip CUDA configs (run CPU configs only)",
+    )
