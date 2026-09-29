@@ -7,7 +7,32 @@ jobs:
   cpu-matrix:
     runs-on: ubuntu-latest
     environment: actions
-    timeout-minutes: 300
+    timeout-minutes: 30
+    # One job per model. Each job runs on its own runner, so if GitHub tears a
+    # runner down mid-download (hosted runners get recycled) it only loses that
+    # model's ~5 minutes; the other jobs keep going and still publish results
+    # (fail-fast: false).
+    strategy:
+      fail-fast: false
+      matrix:
+        # voxtral is CUDA-only, so it is exercised by the local GPU run, not here.
+        include:
+          - model: whisper
+            test_class: TestTranscribeWhisper
+          - model: parakeet-ultra
+            test_class: TestTranscribeParakeetUltra
+          - model: canary
+            test_class: TestTranscribeCanary
+          - model: cohere
+            test_class: TestTranscribeCohere
+          - model: granite-nar
+            test_class: TestTranscribeGraniteNAR
+          - model: granite
+            test_class: TestTranscribeGranite
+          - model: granite-turboctc
+            test_class: TestTranscribeGraniteTurboCTC
+          - model: qwen3-asr
+            test_class: TestTranscribeQwen3ASR
     steps:
       # No third-party actions: the repo policy only allows actions owned
       # by blakkd, so every step is plain shell.
@@ -21,13 +46,10 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
-        run: |
-          uv sync --frozen
-          # Free disk for model downloads: the venv no longer needs the uv cache.
-          rm -rf "$HOME/.cache/uv"
+        run: uv sync --frozen
 
       # Fail fast (seconds) if the token is missing/invalid instead of
-      # ~10 minutes of model downloads. Never prints the token value.
+      # minutes of model downloads. Never prints the token value.
       - name: Verify HF token
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -46,39 +68,25 @@ jobs:
           print(f"gated model accessible: {info.modelId} gated={info.gated}")
           PY
 
-      # Pre-download the gated model in an isolated shell step (output streams
-      # live, unlike pytest-captured test output) so that if the job is killed
-      # during its download we still see the df/free numbers up to the kill.
-      - name: Pre-download gated model
+      # Run the single model this job is responsible for. -s streams progress
+      # and the [disk] line into the live log so a torn-down runner still shows
+      # how far it got.
+      - name: Run ${{ matrix.model }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           df -h /
-          free -h
-          uv run python -c "from huggingface_hub import snapshot_download; snapshot_download('CohereLabs/cohere-transcribe-03-2026')"
-          echo "pre-download done"
-          df -h /
-          free -h
+          uv run pytest "tests/test_model_all_configs.py::${{ matrix.test_class }}" -v --tb=short -s
 
-      # CUDA configs auto-skip on a GPU-less runner (14 CPU configs run).
-      # ~30 GB of models are re-downloaded on each run (no cache action allowed);
-      # FWH_CLEANUP_HF_CACHE=1 deletes each tested model before the next one is
-      # downloaded so everything fits in the runner's 14 GB of disk.
-      # -s: stream test prints (progress, [disk] lines) into the live CI log.
-      - name: Run CPU inference matrix
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          FWH_CLEANUP_HF_CACHE: "1"
-        run: uv run pytest tests/test_model_all_configs.py -v --tb=short -s
-
+      # Surface this model's transcription on the run page. (For a job that is
+      # hard-killed the runner is gone, so the streamed job log is the record.)
       - name: Publish results
         if: always()
         run: |
-          cat test_audio_data/transcription_results.txt >> "$GITHUB_STEP_SUMMARY" || echo "no results file"
-          if [ -f test_audio_data/disk_usage_log.txt ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "### Disk usage at test class boundaries" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-            cat test_audio_data/disk_usage_log.txt >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "### ${{ matrix.model }} — transcription"
+            echo ""
+            echo '```'
+            cat test_audio_data/transcription_results.txt 2>/dev/null || echo "no results file"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

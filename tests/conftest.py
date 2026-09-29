@@ -1,7 +1,6 @@
 """Pytest configuration for integration tests."""
 
 import os
-import shutil
 import subprocess
 import time
 
@@ -15,13 +14,12 @@ def _hf_hub_probe_reachable(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Per-class HF model cache cleanup (small-disk runners)
+# Disk telemetry
 # ---------------------------------------------------------------------------
-# GitHub-hosted runners have 14 GB of disk and the matrix downloads ~30 GB of
-# models in total, so each tested model is deleted before the next one is
-# downloaded. Off by default so local runs keep their cache; the CI workflow
-# sets FWH_CLEANUP_HF_CACHE=1. Disk usage is logged to
-# test_audio_data/disk_usage_log.txt at every class boundary.
+# The CPU matrix now runs one model per job (own runner), so disk is never a
+# constraint (runners have ~145 GB). The [disk] line per test class is kept as
+# cheap forensics: it streams into the CI log with -s and is written to
+# test_audio_data/disk_usage_log.txt, so a future disk/OOM issue is visible.
 
 HF_HUB_DIR = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
 DISK_LOG_FILE = "test_audio_data/disk_usage_log.txt"
@@ -56,27 +54,15 @@ def _disk_log_file():
     yield
 
 
-_last_disk_class = None
-
-
 @pytest.fixture(autouse=True)
-def _cleanup_hf_models_after_class(request):
-    """Log disk usage at each test class boundary; with FWH_CLEANUP_HF_CACHE=1,
-    delete the HF model cache after each test (each class of the matrix file is
-    a single test that loads exactly one model) so the next model fits on disk."""
-    global _last_disk_class
+def _log_disk_before_class(request):
+    """Log disk usage before each test class (one [disk] line per class)."""
     cls = request.node.cls
     if cls is None:
         yield
         return
-    if _last_disk_class is not cls:
-        _disk_state(f"before {cls.__name__}")
+    _disk_state(f"before {cls.__name__}")
     yield
-    _last_disk_class = cls
-    if os.environ.get("FWH_CLEANUP_HF_CACHE") != "1":
-        return
-    shutil.rmtree(HF_HUB_DIR, ignore_errors=True)
-    _disk_state(f"after cleanup of {cls.__name__}")
 
 
 def pytest_addoption(parser):
