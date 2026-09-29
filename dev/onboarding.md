@@ -1,6 +1,6 @@
 # onboarding.md
 
-Context document for collaborators working in this repo.
+Context document for collaborators and agents working in this repo.
 
 ## What this is
 
@@ -66,7 +66,3 @@ Optional OpenAI-compatible endpoint. The settings API key may be a literal or an
 - Two-tier matching: `TERMINAL_IDENTIFIERS` (substrings) + `TERMINAL_EXACT_IDENTIFIERS` (`st`, `foot`, `tabby`, `hyper`, `rio` as whole words). Paste is `Ctrl+V`, or `Ctrl+Shift+V` in terminals (e.g. Ghostty's default binding).
 - Pre-TUI keystrokes are captured and replayed (transcribe.py `_read_pending_input`/`_parse_key_sequence`/`_ReplayWindow`): keys pressed during the heavy startup imports are buffered by the shell's cooked-mode tty; without the replay a stale ESC misreads as "cancel" and a stale Enter picks "Use Last Settings".
 - Silero VAD loads at `transcriber.py` import (before the TUI); `on_press` has a 0.1 s guard after the previous transcription ended. Sub-windows aren't visible (VSCode terminal unsupported); Windows not supported.
-
-## TODO
-
-See `dev/TODO` (source of truth).

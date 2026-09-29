@@ -184,6 +184,15 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 - If you pick parakeet-ultra, you can even use multiple languages during your recording!
 - For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions are slow, try float32.
 
+## Bugs & Feature request
+
+If you encounter any bug, please report it. If you use an agent to write it, please keep it concise and error/symtpom focused.
+I accept feature proposal, put that in Discussions. Though keep in mind I'd like to keep this tool minimal. So that should be more about QoL than exanding it. For example, you can propose to add the possibility to set different hotkeys to use LLM correction with custom, various prompts that would fit best the current context (agent, chat, mail, ...). That could could be a good feature to request.
+
+## Developers/Agents
+
+Read `dev/onboarding.md` first: it has the setup, the architecture, and the gotchas you won't guess from the code. Only open PRs you can explain.
+
 ## Acknowledgements
 
 Many thanks to:
