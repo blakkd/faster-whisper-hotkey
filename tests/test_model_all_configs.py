@@ -25,7 +25,10 @@ from faster_whisper_hotkey.settings import Settings
 # Audio fixture
 # ---------------------------------------------------------------------------
 
-AUDIO_PATH = "test_audio_data/test.mp3"
+# 16kHz mono to match production (mic records native 16kHz, no resample).
+# cohere-transcribe is hypersensitive to the 44.1k->16k resampler (soxr degrades
+# its spacing), so the fixture uses a native-16kHz file to avoid resampling.
+AUDIO_PATH = "test_audio_data/test_16k.wav"
 RESULTS_FILE = "test_audio_data/transcription_results.txt"
 TARGET_SR = 16000
 
