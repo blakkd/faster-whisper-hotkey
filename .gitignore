@@ -7,4 +7,4 @@ tests/__pycache__/
 speed.txt
 test_audio_data/transcription_results.txt
 test_audio_data/disk_usage_log.txt
-dev/
+dev/TODO
