@@ -99,4 +99,12 @@ reportMissingTypeStubs = "none"
 # `lightning` depends on the separate `pytorch-lightning` dist unpinned, and
 # that dist carries the same CVEs at <=2.4.0, so both are pinned to the
 # patched release.
-override-dependencies = ["lightning==2.6.6", "pytorch-lightning==2.6.6"]
+# nemo-toolkit[asr] (itself flagged in the Unit 42 research behind
+# CVE-2026-68508) conservatively caps hydra-core at <=1.3.2; 1.3.4+ adds a
+# dangerous `_target_` blacklist in hydra.utils.instantiate(), so the latest
+# 1.3.x patch is forced here (1.3.x is API-stable across patches).
+override-dependencies = [
+    "hydra-core==1.3.7",
+    "lightning==2.6.6",
+    "pytorch-lightning==2.6.6",
+]
