@@ -27,19 +27,32 @@ DISK_LOG_FILE = "test_audio_data/disk_usage_log.txt"
 
 def _disk_state(label: str) -> None:
     try:
-        df = subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[-1]
-    except Exception:
+        df = (
+            subprocess.run(["df", "-h", "/"], capture_output=True, text=True, timeout=10, check=False)
+            .stdout.strip()
+            .splitlines()[-1]
+        )
+    except (OSError, subprocess.SubprocessError, IndexError):
         df = "df failed"
     try:
-        free = subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[0]
-    except Exception:
+        free = (
+            subprocess.run(["free", "-h"], capture_output=True, text=True, timeout=10, check=False)
+            .stdout.strip()
+            .splitlines()[0]
+        )
+    except (OSError, subprocess.SubprocessError, IndexError):
         free = "free failed"
     sizes = []
     for path in (HF_HUB_DIR, os.path.expanduser("~/.cache/uv")):
         if os.path.isdir(path):
-            du = subprocess.run(["du", "-sh", path], capture_output=True, text=True, timeout=60)
+            try:
+                du = subprocess.run(["du", "-sh", path], capture_output=True, text=True, timeout=60, check=False)
+            except (OSError, subprocess.SubprocessError):
+                continue
             if du.returncode == 0:
-                sizes.append(f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}={du.stdout.split()[0]}")
+                sizes.append(
+                    f"{os.path.basename(os.path.dirname(path))}/{os.path.basename(path)}={du.stdout.split()[0]}"
+                )
     line = f"{time.strftime('%H:%M:%S')} {label} | {df} | {free} | " + " ".join(sizes)
     with open(DISK_LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line + "\n")
