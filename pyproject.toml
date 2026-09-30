@@ -90,12 +90,7 @@ reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
 
 # UV
-# Absolute cutoff so the lockfile stays valid despite the machine-global
-# "exclude-newer = 7 days" setting (relative windows would exclude freshly
-# published packages like moondream). Bump this date when adding a package
-# published after it.
 [tool.uv]
-exclude-newer = "2026-09-25T00:00:00Z"
 # nemo-toolkit[asr] declares lightning>2.2.1,<=2.4.0, but the `lightning`
 # meta-package bundles the executed pytorch code under `lightning.pytorch`
 # (which NeMo imports), and that bundled copy is only patched in >=2.6.6
