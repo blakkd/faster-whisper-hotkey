@@ -526,7 +526,7 @@ wheels = [
 
 [[package]]
 name = "faster-whisper-hotkey"
-version = "0.8.1"
+version = "0.8.2"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
@@ -534,7 +534,6 @@ dependencies = [
     { name = "faster-whisper" },
     { name = "importlib-resources" },
     { name = "librosa" },
-    { name = "lightning" },
     { name = "mistral-common", extra = ["audio"] },
     { name = "moondream" },
     { name = "nemo-toolkit", extra = ["asr"] },
@@ -568,7 +567,6 @@ requires-dist = [
     { name = "faster-whisper", specifier = "==1.2.1" },
     { name = "importlib-resources", specifier = "==7.1.0" },
     { name = "librosa", specifier = "==0.11.0" },
-    { name = "lightning", specifier = "==2.6.6" },
     { name = "mistral-common", extras = ["audio"], specifier = "==1.11.7" },
     { name = "moondream", specifier = "==2.5.0" },
     { name = "nemo-toolkit", extras = ["asr"], specifier = "==3.0.0" },

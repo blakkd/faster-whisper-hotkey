@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faster-whisper-hotkey"
-version = "0.8.1"
+version = "0.8.2"
 description = "Push-to-talk transcription"
 readme = "README.md"
 authors = [{name = "blakkd"}]
@@ -33,7 +33,10 @@ dependencies = [
     "torch==2.14.0",
     "torchaudio==2.11.0",
     "nemo-toolkit[asr]==3.0.0",
-    "lightning==2.6.6",
+    # lightning is NOT pinned here: nemo-toolkit[asr] caps it at <=2.4.0, so a
+    # pin in published metadata makes this package unresolvable for consumers
+    # (override-dependencies below is lockfile-only and does not ship in the
+    # wheel). The CVE-patched 2.6.6 is still enforced in this project's lock.
     "requests==2.34.2",
     "importlib_resources==7.1.0",
     "mistral-common[audio]==1.11.7",
