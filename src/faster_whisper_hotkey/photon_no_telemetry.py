@@ -74,9 +74,7 @@ class NoTelemetryReporter:
     @staticmethod
     def _is_api_key_header_safe(api_key: str) -> bool:
         # Identical to the real implementation (pure string handling).
-        return api_key.isascii() and all(
-            not c.isspace() and c.isprintable() for c in api_key
-        )
+        return api_key.isascii() and all(not c.isspace() and c.isprintable() for c in api_key)
 
 
 _applied = False
