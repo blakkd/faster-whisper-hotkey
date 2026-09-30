@@ -30,7 +30,7 @@ dependencies = [
     "faster-whisper==1.2.1",
     "pynput==1.8.2",
     "pulsectl==24.12.0",
-    "torch==2.12.1",
+    "torch==2.14.0",
     "torchaudio==2.11.0",
     "nemo-toolkit[asr]==3.0.0",
     "lightning==2.6.6",
