@@ -96,7 +96,9 @@ exclude-newer = "2026-09-25T00:00:00Z"
 # nemo-toolkit[asr] declares lightning>2.2.1,<=2.4.0, but the `lightning`
 # meta-package bundles the executed pytorch code under `lightning.pytorch`
 # (which NeMo imports), and that bundled copy is only patched in >=2.6.6
-# (CVE-2026-58659: RCE via checkpoint `_instantiator` in load_from_checkpoint).
-# The separate `pytorch-lightning` dist is unpinned, so this override only
-# upgrades the bundled copy NeMo actually runs.
-override-dependencies = ["lightning==2.6.6"]
+# (CVE-2026-58659: RCE via checkpoint `_instantiator` in
+# load_from_checkpoint; CVE-2026-31221: insecure checkpoint deserialization).
+# `lightning` depends on the separate `pytorch-lightning` dist unpinned, and
+# that dist carries the same CVEs at <=2.4.0, so both are pinned to the
+# patched release.
+override-dependencies = ["lightning==2.6.6", "pytorch-lightning==2.6.6"]

@@ -14,7 +14,10 @@ resolution-markers = [
 exclude-newer = "2026-09-25T00:00:00Z"
 
 [manifest]
-overrides = [{ name = "lightning", specifier = "==2.6.6" }]
+overrides = [
+    { name = "lightning", specifier = "==2.6.6" },
+    { name = "pytorch-lightning", specifier = "==2.6.6" },
+]
 
 [[package]]
 name = "absl-py"
