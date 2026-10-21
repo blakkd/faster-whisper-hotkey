@@ -1,3 +1,24 @@
+> [!NOTE]
+> This has been a fun project!
+>
+> Recently, I was looking for a way to make model support consistent as it was always a pain adding new models.
+> I found [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) and thought I finally found the perfect candidate!
+>
+> Then I saw [cjpais](https://github.com/cjpais) created [Handy](https://github.com/cjpais/Handy), directly built upon transcribe.cpp!
+>
+> It works great, it's much faster (allowing for example Qwen3-ASR-1.7B to run easily on CPU), and on top of that: the features it has are covering all already existing + the ones in my TODO.
+>
+> No point keeping faster-whisper-hotkey alive anymore. A bit of nostalgia, but archiving the repo is the right thing to do.
+>
+> I encourage everyone to try out **[Handy](https://github.com/cjpais/Handy)**. It works great, has a great yet still minimal UI, offers choices where I harcoded things, has visual feedback when recording, streaming support, and more! And finally, makes this beast of Qwen3-ASR-1.7B usable on CPU! I love it. All I needed!
+>
+> Thanks:
+> - to all the ones that showed some love to the project <3
+> - to Mozilla and @cjpais
+> - and GGML!
+
+---
+
 # _faster-whisper Hotkey_
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/blakkd/faster-whisper-hotkey)
