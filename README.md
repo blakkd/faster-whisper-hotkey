@@ -12,6 +12,8 @@
 >
 > I encourage everyone to try out **[Handy](https://github.com/cjpais/Handy)**. It works great, has a great yet still minimal UI, offers choices where I harcoded things, has visual feedback when recording, streaming support, and more! And finally, makes this beast of Qwen3-ASR-1.7B usable on CPU! I love it. All I needed!
 >
+> PS: go to https://huggingface.co/handy-computer/models to find many already quantized models, including some that are not visible in the app settings model list, such as parakeet-ultra from Moondream
+>
 > Thanks:
 > - to all the ones that showed some love to the project <3
 > - to Mozilla and @cjpais
