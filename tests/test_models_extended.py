@@ -106,13 +106,13 @@ class TestModelWrapperInitEdgeCases:
         wrapper = ModelWrapper(settings)
         assert wrapper.model_type == "whisper"  # Should be normalized
 
-    @patch("faster_whisper_hotkey.models.AutoModelForSpeechSeq2Seq")
-    def test_init_cohere_with_cpu_device(self, mock_auto_model):
+    @patch("faster_whisper_hotkey.models.CohereAsrForConditionalGeneration")
+    def test_init_cohere_with_cpu_device(self, mock_cohere):
         """Test Cohere model loading on CPU."""
         from faster_whisper_hotkey.models import ModelWrapper
 
         mock_model = MagicMock()
-        mock_auto_model.from_pretrained.return_value = mock_model
+        mock_cohere.from_pretrained.return_value = mock_model
         mock_processor = MagicMock()
 
         with patch("faster_whisper_hotkey.models.AutoProcessor") as mock_proc:
