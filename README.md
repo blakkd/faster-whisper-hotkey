@@ -6,11 +6,9 @@
 >
 > Then I saw [cjpais](https://github.com/cjpais) created [Handy](https://github.com/cjpais/Handy), directly built upon transcribe.cpp!
 >
-> It works great, it's much faster (allowing for example Qwen3-ASR-1.7B to run easily on CPU), and on top of that: the features it has are covering all already existing + the ones in my TODO.
+> It works great, it's much faster (allowing for example Qwen3-ASR-1.7B to run easily on CPU), and on top of that: the features it has are covering *almost* all faster-whisper-hotkey already had + the ones in my TODO, and has new features on top of that. Cool minimal GUI, offers choices where I hardcoded things, has visual feedback when recording, streaming support, and more! And finally, makes this beast of Qwen3-ASR-1.7B usable on CPU! I encourage anyone to try it out. You can also try [SpeakoFlow](https://github.com/AbhishekBarali/SpeakoFlow) which was built on top of Handy and even has a contextual "ask LLM this / do this" feature!
 >
-> No point keeping faster-whisper-hotkey alive anymore. A bit of nostalgia, but archiving the repo is the right thing to do.
->
-> I encourage everyone to try out **[Handy](https://github.com/cjpais/Handy)**. It works great, has a great yet still minimal UI, offers choices where I harcoded things, has visual feedback when recording, streaming support, and more! And finally, makes this beast of Qwen3-ASR-1.7B usable on CPU! I love it. All I needed!
+> There is no point keeping faster-whisper-hotkey alive anymore. A bit of nostalgia, but archiving the repo is the right thing to do.
 >
 > PS: go to https://huggingface.co/handy-computer/models to find many already quantized models, including some that are not visible in the app settings model list, such as parakeet-ultra from Moondream
 >
