@@ -46,7 +46,8 @@ DEFAULT_MODEL_NAME = {
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("models", nargs="*", default=["parakeet-ultra"])
+    parser.add_argument("models", nargs="*", default=["parakeet-ultra"],
+                        help="model types, or type:name (e.g. whisper:small)")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--quant", default="int8")
     parser.add_argument("--runs", type=int, default=3)
@@ -57,11 +58,13 @@ def main() -> None:
     duration = len(audio) / sr
     print(f"audio: {AUDIO_PATH}  {duration:.1f} s @ {sr} Hz  device={args.device} quant={args.quant}")
 
-    for model_type in args.models:
+    for spec in args.models:
+        model_type, _, name_override = spec.partition(":")
+        model_name = name_override or DEFAULT_MODEL_NAME[model_type]
         settings = Settings(
             device_name="",
             model_type=model_type,
-            model_name=DEFAULT_MODEL_NAME[model_type],
+            model_name=model_name,
             compute_type=args.quant,
             device=args.device,
             language=LANGUAGE_BY_MODEL[model_type],

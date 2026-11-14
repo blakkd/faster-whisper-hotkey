@@ -1,7 +1,7 @@
 import curses
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any
+from typing import Any, Literal
 
 from pulsectl import Pulse
 
@@ -311,18 +311,31 @@ def _initial_precision_idx(options: list[str], current: str, native: str) -> int
 
 
 # Every model runs on the transcribe.cpp ggml runtime, which offers the same
-# three backends for all families: CUDA (NVIDIA), Vulkan (AMD/Intel GPUs) and
-# plain CPU. The GGUF files are downloaded per precision, so (unlike the old
-# per-engine matrices) every precision works on every device.
-_DEVICE_OPTIONS = ["cuda", "vulkan", "cpu"]
+# backends for all families: CUDA (NVIDIA), Vulkan (AMD/Intel GPUs) and plain
+# CPU. CUDA and Vulkan are optional ggml modules — the PyPI wheel has
+# CPU+Vulkan, CUDA needs a source build (dev/onboarding.md); the menu lists
+# what the installed provider can actually serve (_available_devices).
+# The GGUF files are downloaded per precision, so (unlike the old per-engine
+# matrices) every precision works on every device.
+_DEVICE_OPTIONS: list[Literal["cuda", "vulkan", "cpu"]] = ["cuda", "vulkan", "cpu"]
+
+
 # TUI precision labels -> GGUF quantizations (mapping in gguf_models.py).
 _PRECISION_OPTIONS = ["float32", "float16", "bfloat16", "int8", "int4"]
 
 
+def _available_devices() -> list[str]:
+    """Device menu entries the installed engine can actually serve."""
+    import transcribe_cpp
+
+    return [d for d in _DEVICE_OPTIONS if d == "cpu" or transcribe_cpp.backend_available(d)]
+
+
 def _device_menu(stdscr, config: ConfigData, title: str = "Compute Device", footer: str = "") -> str | None:
-    """Shared "Compute Device" screen; returns "cuda", "vulkan" or "cpu"."""
-    initial_idx = {"cpu": 2, "vulkan": 1}.get(config.device, 0)
-    return curses_menu(stdscr, title, _DEVICE_OPTIONS, footer=footer, initial_idx=initial_idx)
+    """Shared "Compute Device" screen; returns the selected backend name."""
+    options = _available_devices()
+    initial_idx = options.index(config.device) if config.device in options else 0
+    return curses_menu(stdscr, title, options, footer=footer, initial_idx=initial_idx)
 
 
 def _precision_screen(stdscr, config: ConfigData, native: str, options: list[str] | None = None) -> str | None:

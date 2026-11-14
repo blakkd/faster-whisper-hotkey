@@ -36,7 +36,20 @@ __main__.py        CLI: --debug / --headless / --config
              └─ terminal.py     focused-window detection (X11/Wayland)
 ```
 
-- **One engine**: everything is a GGUF checkpoint run through [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) via its `transcribe-cpp` Python binding (ctypes). Backends: `cpu`, `vulkan`, `cuda` — the PyPI `transcribe-cpp-native` wheel ships CPU+Vulkan; **CUDA needs a source build** (`CMAKE_ARGS="-DTRANSCRIBE_CUDA=ON -DTRANSCRIBE_GGML_BACKEND_DL=ON" uv pip install --no-binary transcribe-cpp-native transcribe-cpp-native`), since the cu12 provider wheel is not published yet.
+- **One engine**: everything is a GGUF checkpoint run through [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) via its `transcribe-cpp` Python binding (ctypes). Backends: `cpu`, `vulkan`, `cuda` — the PyPI `transcribe-cpp-native` wheel ships CPU+Vulkan; **CUDA is not on PyPI yet** (the cu12 provider wheel is a placeholder).
+- **Enabling CUDA locally** (verified on this box, CUDA 13.2 toolkit + RTX PRO 4500): the clean one-shot build `uv pip install --no-binary transcribe-cpp-native ...` fails unless `glslc` is installed (needed for the Vulkan shaders; `apt install glslang-tools` or the Vulkan SDK — no sudo here, and the glslang GitHub releases do NOT ship glslc). The working recipe: build the sdist of the **same version as the installed wheel** with CUDA only, then graft the module onto the official CPU+Vulkan provider:
+
+  ```sh
+  pip download transcribe-cpp-native==<installed-ver> --no-binary :all: --no-deps -d tc && cd tc && tar xzf *.tar.gz && cd transcribe_cpp_native-*/
+  CMAKE_ARGS="-DTRANSCRIBE_CUDA=ON -DTRANSCRIBE_GGML_BACKEND_DL=ON -DTRANSCRIBE_VULKAN=OFF \
+    -DGGML_NATIVE=OFF -DCMAKE_CUDA_ARCHITECTURES=native" uv build --wheel --out-dir dist
+  unzip -j dist/*.whl "*/_native/libggml-cuda.so"
+  cp libggml-cuda.so <venv>/lib/python3.11/site-packages/transcribe_cpp_native/_native/
+  # then add "cuda" to "backends" in that _native/contract.json (provider metadata only;
+  # ggml itself just dlopens every libggml-*.so in that directory)
+  ```
+
+  `uv sync`/any native reinstall reverts to the CPU+Vulkan wheel — the app still boots fine (see backend fallback below), just redo the graft. `transcribe_cpp.backend_available("cuda")` should return True; Blackwell compiles as `sm_120a` automatically.
 - **Flow**: hotkey press → `sd.InputStream` (16 kHz mono) into a 10-min ring buffer; release → skip if <1 s or no speech (Silero VAD v6.2 GGUF via the engine's VAD role, if enabled) → a daemon thread runs `ModelWrapper.transcribe()` → optional LLM correction → clipboard set + paste (fallback: char-by-char typing).
 - **TUI** (ui.py): `ConfigStep` state machine; per-model Device → Precision → Language; ESC returns to the initial screen. Device is `cuda|vulkan|cpu` for every model; all precisions work on every device (GGUF files exist per quant). ESC handling and keystroke replay as before.
 - **Models** (models.py): one load path (`gguf_models.repo_and_filename()` → `downloader.ensure_gguf()` → `transcribe_cpp.Model`), plus one run path where `_run_kwargs()` maps the settings language to `task/language/target_language`. Support models on the same engine: Silero VAD (speech gate) and VoxLingua107 lang-id (cohere's `auto`).
@@ -53,7 +66,8 @@ Not obvious from the code:
 - **Quant mapping fallbacks** (gguf_models.py): the NeMo ports (parakeet/canary/whisper) don't publish F32 (whisper) or BF16 files — picking `bfloat16` there silently maps to F16, `float32` on whisper maps to F16. This is intended; the menu keeps one uniform list.
 - **granite-nar** is all-lowercase → `capitalization.py` restores sentence case (English `i` → `I`); **granite-turboctc** emits no punctuation and is intentionally not post-processed. Both are properties of the checkpoint, identical to the old HF path.
 - **canary translate pairs**: the TUI stores `src-tgt`; same-same is transcription, different triggers `task="translate"`. granite works the same way (engine-validated pair list).
-- **GPU warmup**: one silent 2 s transcription at load on GPU backends (CUDA/Vulkan) pays the one-time kernel-module cost so the first real recording isn't slow.
+- **Backend fallback** (`resolve_backend` in models.py): a saved device the installed provider can't serve (e.g. `"cuda"` after reverting to the CPU+Vulkan wheel) logs a warning and falls back to the engine's `auto` selection — startup never dies over it. The TUI device menu only lists available backends (`ui._available_devices`), so a new pick can't be un-serviceable; the settings file keeps its value, so installing a CUDA provider later re-enables it.
+- **GPU warmup**: one silent 2 s transcription at load, decided by the device the engine actually resolved (`model.device.device_type != "cpu"`) — so `auto` landing on a GPU still warms up, and a fallback to CPU doesn't pay the cost. This pays the one-time kernel-module cost so the first real recording isn't slow.
 - **VAD model loads lazily** on the first speech gate (not at import like the old torch version) and falls open (`no speech gating`) if the GGUF can't be loaded.
 - **Test audio is native 16 kHz** (`test_audio_data/test_16k.wav`, mono) because production records 16 kHz with no resample — and cohere-transcribe is hypersensitive to the 44.1k→16k resampler: the old 44.1 kHz mp3 fixture came out spacing-less on the first ~20 s (soxr at any mid quality; scipy `resample_poly` and soxr LQ/QQ survived). Keep the fixture native.
 

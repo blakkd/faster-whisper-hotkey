@@ -52,6 +52,7 @@ def make_engine(**attrs):
     engine.model = MagicMock()
     engine.model.session.return_value = session
     engine.model.capabilities = SimpleNamespace(max_audio_ms=attrs.get("max_audio_ms", 0), languages=())
+    engine.model.device = SimpleNamespace(device_type=attrs.get("device_type", "cpu"))
     engine.Model.return_value = engine.model
 
     # _load_support_model also goes through transcribe_cpp.Model, so the
@@ -121,27 +122,33 @@ class TestModelLoad:
         assert wrapper.backend == "vulkan"
         eng.Model.assert_called_once_with("/tmp/fake.gguf", backend="vulkan")
 
-    def test_unavailable_backend_raises(self):
+    def test_unavailable_backend_falls_back_to_auto(self):
+        """A saved device the library can't serve (cuda on the CPU+Vulkan wheel)
+        must not kill startup — the engine's auto selection takes over."""
         engine = make_engine()
-        engine.backend_available.return_value = False
-        from faster_whisper_hotkey.models import ModelWrapper
-
-        with patch("faster_whisper_hotkey.models.transcribe_cpp", engine), pytest.raises(ValueError, match="backend"):
-            ModelWrapper(MockSettings("whisper", "small", "cuda", "float16"))
+        engine.backend_available.side_effect = lambda b: b != "cuda"
+        wrapper, eng = build(MockSettings("whisper", "small", "cuda", "float16"), engine)
+        assert wrapper.backend == "auto"
+        eng.Model.assert_called_once_with("/tmp/fake.gguf", backend="auto")
 
     def test_unknown_model_raises(self):
         with pytest.raises(ValueError, match="Unknown whisper model"):
             build(MockSettings("whisper", "nonexistent", "cpu", "int8"))
 
     def test_gpu_warmup_runs_on_gpu_backends_only(self):
-        with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr:
-            build(MockSettings("whisper", "small", "cuda", "float16"))
+        # Device decision follows the engine's actually resolved device, not the
+        # requested backend name (auto may pick a GPU; cuda may fall back).
+        gpu_engine = make_engine(device_type="gpu")
+        with (
+            patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr,
+        ):
+            build(MockSettings("whisper", "small", "cuda", "float16"), gpu_engine)
         mock_tr.assert_called_once()
         dummy = mock_tr.call_args[0][0]
         assert dummy.shape == (32000,) and dummy.dtype == np.float32 and not dummy.any()
 
         with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr:
-            build(MockSettings("whisper", "small", "cpu", "int8"))
+            build(MockSettings("whisper", "small", "cpu", "int8"))  # make_engine default device_type: cpu
         mock_tr.assert_not_called()
 
 

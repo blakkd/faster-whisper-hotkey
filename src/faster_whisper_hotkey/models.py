@@ -43,8 +43,22 @@ _PAIR_LANGUAGE_TYPES = ("canary", "granite")
 _BACKEND_BY_DEVICE: dict[str, "transcribe_cpp.Backend"] = {"cpu": "cpu", "cuda": "cuda", "vulkan": "vulkan"}
 
 
-def _backend_for(device: str) -> "transcribe_cpp.Backend":
-    return _BACKEND_BY_DEVICE.get((device or "").lower(), "auto")
+def resolve_backend(device: str) -> "transcribe_cpp.Backend":
+    """Map the settings device to a backend the installed library can serve.
+
+    A saved device the installed provider has no module for (e.g. "cuda"
+    with the CPU+Vulkan PyPI wheel) falls back to "auto" — the engine's own
+    best-available selection — instead of failing at startup. Settings files
+    keep their device value, so a later provider install picks it up again.
+    """
+    backend = _BACKEND_BY_DEVICE.get((device or "").lower(), "auto")
+    if backend != "auto" and not transcribe_cpp.backend_available(backend):
+        logger.warning(
+            f"Backend {backend!r} is not available with the installed transcribe_cpp library; "
+            "using automatic backend selection (CUDA needs a source build, see dev/onboarding.md)."
+        )
+        return "auto"
+    return backend
 
 
 def _is_auto(language: str | None) -> bool:
@@ -77,7 +91,7 @@ def _load_support_model(variant_id: str, backend: "transcribe_cpp.Backend") -> t
 
 def load_vad_model(device: str) -> transcribe_cpp.Model:
     """Load the Silero VAD GGUF on the same backend as the main model."""
-    return _load_support_model("silero-vad-v6.2", _backend_for(device))
+    return _load_support_model("silero-vad-v6.2", resolve_backend(device))
 
 
 class ModelWrapper:
@@ -94,13 +108,7 @@ class ModelWrapper:
         repo, filename, variant, quant = repo_and_filename(self.model_type, settings.model_name, settings.compute_type)
         self.variant = variant
         self.quant = quant
-        self.backend: transcribe_cpp.Backend = _backend_for(settings.device)
-
-        if not transcribe_cpp.backend_available(self.backend):
-            raise ValueError(
-                f"The {self.backend!r} backend is not available with the installed transcribe_cpp "
-                f"library. Pick 'cpu' (or a supported GPU backend) in the settings screen."
-            )
+        self.backend: transcribe_cpp.Backend = resolve_backend(settings.device)
 
         path = ensure_gguf(repo, filename)
         logger.info(f"Loading {variant.variant} ({quant}, {self.backend}) from {path}")
@@ -113,7 +121,13 @@ class ModelWrapper:
         self.session = self.model.session()
         self._langid_model: transcribe_cpp.Model | None = None  # cohere "auto": separate lang-id model
 
-        if self.backend in _GPU_BACKENDS:
+        # Warm up on the device the engine actually chose ("auto" may have
+        # picked a GPU, and an explicit "cuda" request may have fallen back).
+        try:
+            on_gpu = self.model.device.device_type != "cpu"
+        except Exception:  # noqa: BLE001 — backend without resolved device info
+            on_gpu = self.backend in _GPU_BACKENDS
+        if on_gpu:
             self._warmup_gpu()
 
     def _warmup_gpu(self):

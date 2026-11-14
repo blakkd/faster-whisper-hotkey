@@ -566,7 +566,7 @@ class TestParakeetUltraDeviceScreen:
     ENTER = 13
     ESC = 27
 
-    def _run_screen(self, choice: str | None, device: str = ""):
+    def _run_screen(self, choice: str | None, device: str = "", available: list[str] | None = None):
         from faster_whisper_hotkey import ui
 
         config = ui.ConfigData()
@@ -581,7 +581,10 @@ class TestParakeetUltraDeviceScreen:
             captured["initial_idx"] = kwargs.get("initial_idx", 0)
             return choice
 
-        with patch.object(ui, "curses_menu", fake_menu):
+        with (
+            patch.object(ui, "curses_menu", fake_menu),
+            patch("transcribe_cpp.backend_available", lambda b: b in (available or ["cuda", "vulkan", "cpu"])),
+        ):
             result = ui._screen_parakeet_ultra_device(MagicMock(), config)
 
         return result, config, captured
@@ -615,6 +618,14 @@ class TestParakeetUltraDeviceScreen:
         assert result[0] == ui.ConfigStep.PARAKEET_ULTRA_PRECISION
         assert config.device == "vulkan"
         assert captured["initial_idx"] == 1
+
+    def test_unavailable_backends_are_hidden(self):
+        """No CUDA provider installed -> the menu offers only what works."""
+        _, config, captured = self._run_screen("vulkan", device="cuda", available=["vulkan", "cpu"])
+
+        assert captured["options"] == ["vulkan", "cpu"]
+        assert captured["initial_idx"] == 0  # saved "cuda" is gone: start at top
+        assert config.device == "vulkan"  # a fresh pick replaces the stale value
 
     def test_esc_returns_to_initial(self):
         from faster_whisper_hotkey import ui
