@@ -135,6 +135,25 @@ class TestModelLoad:
         with pytest.raises(ValueError, match="Unknown whisper model"):
             build(MockSettings("whisper", "nonexistent", "cpu", "int8"))
 
+    def test_gpu_oom_falls_back_to_cpu(self):
+        """A GPU full of someone else's workload must not kill the app."""
+        from transcribe_cpp.errors import OutOfMemory
+
+        engine = make_engine()
+        engine.Model.side_effect = [OutOfMemory("gpu full"), engine.model]
+        wrapper, eng = build(MockSettings("parakeet-ultra", "parakeet-ultra", "cuda", "int4"), engine)
+        assert wrapper.backend == "cpu"
+        assert eng.Model.call_count == 2
+        assert eng.Model.call_args_list[1][1]["backend"] == "cpu"
+
+    def test_cpu_oom_propagates(self):
+        from transcribe_cpp.errors import OutOfMemory
+
+        engine = make_engine()
+        engine.Model.side_effect = OutOfMemory("out of ram")
+        with pytest.raises(OutOfMemory):
+            build(MockSettings("whisper", "small", "cpu", "int8"), engine)
+
     def test_gpu_warmup_runs_on_gpu_backends_only(self):
         # Device decision follows the engine's actually resolved device, not the
         # requested backend name (auto may pick a GPU; cuda may fall back).

@@ -105,7 +105,8 @@ class MicrophoneTranscriber:
         """Open the Silero VAD (GGUF) session lazily; None if unavailable (then no gating)."""
         if self._vad_session is None and not self._vad_failed:
             try:
-                self._vad_session = load_vad_model(self.settings.device).vad_session()
+                # follow the model's effective backend (it may have fallen back to CPU)
+                self._vad_session = load_vad_model(self.model_wrapper.backend).vad_session()
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"Silero VAD unavailable ({e}); speech gating disabled")
                 self._vad_failed = True

@@ -13,7 +13,7 @@ from typing import Any
 
 import numpy as np
 import transcribe_cpp
-from transcribe_cpp.errors import InputTooLong, InputTooShort, OutputTruncated, TranscribeError
+from transcribe_cpp.errors import InputTooLong, InputTooShort, OutOfMemory, OutputTruncated, TranscribeError
 
 from .capitalization import add_capitalization
 from .config import accepted_languages_cohere
@@ -90,7 +90,7 @@ def _load_support_model(variant_id: str, backend: "transcribe_cpp.Backend") -> t
 
 
 def load_vad_model(device: str) -> transcribe_cpp.Model:
-    """Load the Silero VAD GGUF on the same backend as the main model."""
+    """Load the Silero VAD GGUF on the given device/backend name ("auto" = best available)."""
     return _load_support_model("silero-vad-v6.2", resolve_backend(device))
 
 
@@ -112,7 +112,19 @@ class ModelWrapper:
 
         path = ensure_gguf(repo, filename)
         logger.info(f"Loading {variant.variant} ({quant}, {self.backend}) from {path}")
-        self.model = transcribe_cpp.Model(str(path), backend=self.backend)
+        try:
+            self.model = transcribe_cpp.Model(str(path), backend=self.backend)
+        except OutOfMemory:
+            # A GPU full of someone else's work must not kill push-to-talk:
+            # every model here runs acceptably on CPU (see README table).
+            if self.backend == "cpu":
+                raise
+            logger.error(
+                f"Out of memory loading {variant.variant} on {self.backend!r} — the GPU is likely "
+                "full; falling back to CPU. Free VRAM (or lower the quantization) to use the GPU."
+            )
+            self.backend = "cpu"
+            self.model = transcribe_cpp.Model(str(path), backend="cpu")
         self.capabilities = self.model.capabilities
         self.max_audio_ms = self.capabilities.max_audio_ms
         if self.max_audio_ms:
