@@ -17,7 +17,7 @@ jobs:
       matrix:
         # One job per model family. The transcribe.cpp engine runs everywhere,
         # so even voxtral now has a CPU lane. (The CUDA/Vulkan lanes are the
-        # local --cuda-only run on the GPU box.)
+        # local --gpu-only run on the GPU box; they auto-skip on these runners.)
         include:
           - model: whisper
             test_class: TestTranscribeWhisper

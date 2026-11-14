@@ -4,15 +4,18 @@ Integration test: transcribe a fixed audio sample with every supported model con
 Output: test_audio_data/transcription_results.txt, one block per config.
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
-Skips GPU configs automatically when the backend is unavailable. Override with:
-    pytest tests/test_model_all_configs.py -v --tb=long --force-cuda
+Skips GPU configs automatically when the backend is unavailable. Force with:
+    pytest tests/test_model_all_configs.py --force-cuda / --force-vulkan
 
-Run GPU configs only / CPU configs only:
-    pytest tests/test_model_all_configs.py -v --tb=long --cuda-only
-    pytest tests/test_model_all_configs.py -v --tb=long --cpu-only
+Device lanes (default is everything available):
+    pytest ... --cpu-only      # CI lane
+    pytest ... --cuda-only     # CUDA configs only
+    pytest ... --vulkan-only   # Vulkan configs only
+    pytest ... --gpu-only      # every GPU backend (the full VRAM-free box run)
 
 "cuda" here means the ggml CUDA backend (needs a source-built provider, the
-PyPI wheel ships CPU+Vulkan); "vulkan" works with the default wheel.
+PyPI wheel ships CPU+Vulkan); "vulkan" works with the default wheel. CI runners
+have no GPU device at all, so all GPU configs auto-skip there.
 """
 
 import gc
@@ -77,45 +80,49 @@ UI_LANGUAGE_BY_MODEL = {
     "qwen3-asr": "en",
 }
 # Each tuple: (model_type, model_name, device, compute_type)
+# CPU always; CUDA and Vulkan run whenever their backend resolves (CI runners
+# have neither device, so the GPU lanes auto-skip there — that is what the
+# cpu-inference-matrix.yml jobs rely on).
 
+GPU_DEVS = ("cuda", "vulkan")
 WHISPER_MODELS = ["small"]
 GPU_PRECS = ("float16", "int8", "int4")
 CPU_PRECS = ("int8", "int4")
 
-# GGUF quantizations are backend-agnostic: every precision runs on every device.
-# CPU jobs keep the CI cheap with the two quants that matter there; GPU jobs
-# additionally cover the float path.
-WHISPER = [("whisper", m, "cpu", prec) for m in WHISPER_MODELS for prec in CPU_PRECS] + [
-    ("whisper", m, "cuda", prec) for m in WHISPER_MODELS for prec in GPU_PRECS
-]
 
-PARAKEET = [("parakeet", "parakeet-tdt-0.6b-v3", dev, prec) for dev in ("cpu", "cuda") for prec in ("float32", "int8")]
+def _family(model_type: str, model_name: str, cpu_precs: tuple, gpu_precs: tuple) -> list:
+    """All (device, precision) configs for one model.
 
-PARAKEET_ULTRA = [("parakeet-ultra", "parakeet-ultra", dev, prec) for dev in ("cpu", "cuda") for prec in ("int8", "int4")]
+    GGUF quantizations are backend-agnostic, but CPU stays on the two quants
+    that matter for CI cost while GPU lanes additionally cover the float path.
+    """
+    return [(model_type, model_name, "cpu", prec) for prec in cpu_precs] + [
+        (model_type, model_name, dev, prec) for dev in GPU_DEVS for prec in gpu_precs
+    ]
 
-CANARY = [("canary", "canary-1b-v2", dev, prec) for dev in ("cpu", "cuda") for prec in ("float32", "int8", "int4")]
 
-VOXTRAL = [("voxtral", "voxtral-mini-3b-2507", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")]
+FLOAT32_INT8 = ("float32", "int8")
+BFLOAT16_INT = ("bfloat16", "int8", "int4")
 
-COHERE = [("cohere", "cohere-transcribe-03-2026", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")]
+WHISPER = [cfg for m in WHISPER_MODELS for cfg in _family("whisper", m, CPU_PRECS, GPU_PRECS)]
 
-GRANITE_NAR = [
-    ("granite-nar", "granite-speech-4.1-2b-nar", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
-]
+PARAKEET = _family("parakeet", "parakeet-tdt-0.6b-v3", FLOAT32_INT8, FLOAT32_INT8)
 
-GRANITE = [
-    ("granite", "granite-speech-4.1-2b", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
-]
+PARAKEET_ULTRA = _family("parakeet-ultra", "parakeet-ultra", ("int8", "int4"), ("int8", "int4"))
 
-GRANITE_TURBOCTC = [
-    ("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", dev, prec)
-    for dev in ("cpu", "cuda")
-    for prec in ("bfloat16", "int8", "int4")
-]
+CANARY = _family("canary", "canary-1b-v2", ("float32", "int8", "int4"), ("float32", "int8", "int4"))
 
-QWEN3_ASR = [
-    ("qwen3-asr", "qwen3-asr-1.7b", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
-]
+VOXTRAL = _family("voxtral", "voxtral-mini-3b-2507", BFLOAT16_INT, BFLOAT16_INT)
+
+COHERE = _family("cohere", "cohere-transcribe-03-2026", BFLOAT16_INT, BFLOAT16_INT)
+
+GRANITE_NAR = _family("granite-nar", "granite-speech-4.1-2b-nar", BFLOAT16_INT, BFLOAT16_INT)
+
+GRANITE = _family("granite", "granite-speech-4.1-2b", BFLOAT16_INT, BFLOAT16_INT)
+
+GRANITE_TURBOCTC = _family("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", BFLOAT16_INT, BFLOAT16_INT)
+
+QWEN3_ASR = _family("qwen3-asr", "qwen3-asr-1.7b", BFLOAT16_INT, BFLOAT16_INT)
 
 
 def _backend_ok(device: str) -> bool:
@@ -129,9 +136,9 @@ def _backend_ok(device: str) -> bool:
 
 def _run_configs(configs, audio, request):
     """Run transcription for a list of configs. Returns (results, skipped, errors)."""
-    force_cuda = request.config.getoption("--force-cuda")
-    cuda_only = request.config.getoption("--cuda-only")
-    cpu_only = request.config.getoption("--cpu-only")
+    force = {"cuda": request.config.getoption("--force-cuda"), "vulkan": request.config.getoption("--force-vulkan")}
+    lanes = {lane: request.config.getoption(f"--{lane}-only") for lane in ("cpu", "cuda", "vulkan")}
+    gpu_only = request.config.getoption("--gpu-only")
 
     audio_data, sr = audio
 
@@ -140,13 +147,18 @@ def _run_configs(configs, audio, request):
     errors = []
 
     for model_type, model_name, device, compute_type in configs:
-        if cuda_only and device == "cpu":
-            skipped.append((model_type, model_name, device, compute_type, "CPU configs excluded (--cuda-only)"))
+        allowed = (
+            lanes["cpu"] and device == "cpu"
+            or lanes["cuda"] and device == "cuda"
+            or lanes["vulkan"] and device == "vulkan"
+            or gpu_only and device != "cpu"
+            or not (lanes["cpu"] or lanes["cuda"] or lanes["vulkan"] or gpu_only)
+        )
+        if not allowed:
+            lanes_on = [lane for lane, on in lanes.items() if on] + (["gpu"] if gpu_only else [])
+            skipped.append((model_type, model_name, device, compute_type, f"excluded by lane {','.join(lanes_on)}"))
             continue
-        if cpu_only and device != "cpu":
-            skipped.append((model_type, model_name, device, compute_type, "GPU configs excluded (--cpu-only)"))
-            continue
-        if device != "cpu" and not (_backend_ok(device) or force_cuda):
+        if device != "cpu" and not (_backend_ok(device) or force[device]):
             skipped.append((model_type, model_name, device, compute_type, f"{device} backend not available"))
             continue
 
@@ -164,6 +176,12 @@ def _run_configs(configs, audio, request):
             t0 = time.monotonic()
             wrapper = ModelWrapper(settings)
             load_time = round(time.monotonic() - t0, 2)
+
+            # ModelWrapper retries an OOM'd GPU load on CPU (production safety
+            # net); in this matrix that must surface as a failure, never as a
+            # green row labelled with a device the model never ran on.
+            if wrapper.backend != device:
+                raise RuntimeError(f"requested {device!r}, but model resolved to {wrapper.backend!r} (VRAM full?)")
 
             t1 = time.monotonic()
             text = wrapper.transcribe(audio_data, sample_rate=sr, language=settings.language)

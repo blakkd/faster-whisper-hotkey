@@ -79,14 +79,32 @@ def pytest_addoption(parser):
         help="Force CUDA configs even when no GPU is available",
     )
     parser.addoption(
-        "--cuda-only",
+        "--force-vulkan",
         action="store_true",
         default=False,
-        help="Skip CPU configs (run CUDA configs only)",
+        help="Force Vulkan configs even when no GPU is available",
     )
     parser.addoption(
         "--cpu-only",
         action="store_true",
         default=False,
-        help="Skip CUDA configs (run CPU configs only)",
+        help="Skip GPU configs (run CPU configs only)",
+    )
+    parser.addoption(
+        "--cuda-only",
+        action="store_true",
+        default=False,
+        help="Skip CPU and Vulkan configs (run CUDA configs only)",
+    )
+    parser.addoption(
+        "--vulkan-only",
+        action="store_true",
+        default=False,
+        help="Skip CPU and CUDA configs (run Vulkan configs only)",
+    )
+    parser.addoption(
+        "--gpu-only",
+        action="store_true",
+        default=False,
+        help="Skip CPU configs (run all GPU backends that are available)",
     )
