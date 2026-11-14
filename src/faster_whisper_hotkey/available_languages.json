@@ -1,9 +1,6 @@
 {
   "accepted_models_whisper": [
-    "distil-large-v3",
-    "distil-large-v2",
-    "distil-medium.en",
-    "distil-small.en",
+    "large-v3-turbo",
     "large-v3",
     "large-v2",
     "large-v1",
@@ -123,11 +120,7 @@
     "tiny.en",
     "small.en",
     "base.en",
-    "medium.en",
-    "distil-medium.en",
-    "distil-small.en",
-    "distil-large-v3",
-    "distil-large-v2"
+    "medium.en"
   ],
   "canary_source_target_languages": [
     "bg",
@@ -232,6 +225,7 @@
     "en-uk"
   ],
   "accepted_languages_cohere": [
+    "auto",
     "en",
     "de",
     "fr",

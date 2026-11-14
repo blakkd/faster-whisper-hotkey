@@ -15,14 +15,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # voxtral is CUDA-only, so it is exercised by the local GPU run, not here.
+        # One job per model family. The transcribe.cpp engine runs everywhere,
+        # so even voxtral now has a CPU lane. (The CUDA/Vulkan lanes are the
+        # local --cuda-only run on the GPU box.)
         include:
           - model: whisper
             test_class: TestTranscribeWhisper
+          - model: parakeet
+            test_class: TestTranscribeParakeet
           - model: parakeet-ultra
             test_class: TestTranscribeParakeetUltra
           - model: canary
             test_class: TestTranscribeCanary
+          - model: voxtral
+            test_class: TestTranscribeVoxtral
           - model: cohere
             test_class: TestTranscribeCohere
           - model: granite-nar
@@ -48,32 +54,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      # Fail fast (seconds) if the token is missing/invalid instead of
-      # minutes of model downloads. Never prints the token value.
-      - name: Verify HF token
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          if [ -z "$HF_TOKEN" ]; then
-            echo "::error::HF_TOKEN is empty - check the 'actions' environment secret"
-            exit 1
-          fi
-          uv run python - <<'PY'
-          import os
-          from huggingface_hub import model_info, whoami
-
-          who = whoami()
-          print(f"HF auth OK: user={who.get('name')} token_len={len(os.environ['HF_TOKEN'])}")
-          info = model_info("CohereLabs/cohere-transcribe-03-2026")
-          print(f"gated model accessible: {info.modelId} gated={info.gated}")
-          PY
-
-      # Run the single model this job is responsible for. -s streams progress
-      # and the [disk] line into the live log so a torn-down runner still shows
-      # how far it got.
+      # No HF token needed anymore: every model is a public GGUF file
+      # re-hosted by the transcribe.cpp team (handy-computer on HF).
       - name: Run ${{ matrix.model }}
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           df -h /
           uv run pytest "tests/test_model_all_configs.py::${{ matrix.test_class }}" -v --tb=short -s

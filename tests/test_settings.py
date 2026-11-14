@@ -185,3 +185,67 @@ class TestSettingsRoundTrip:
         assert settings.device_name == "my_device"
         assert settings.model_type == "parakeet"
         assert settings.hotkey == "f8"
+
+
+class TestModelNameMigration:
+    """Settings files from before the transcribe.cpp migration are rewritten on load."""
+
+    def test_old_hf_repo_ids_migrate(self, tmp_path):
+        test_file = str(tmp_path / "settings.json")
+        with open(test_file, "w") as f:
+            json.dump(
+                {
+                    "device_name": "d",
+                    "model_type": "cohere",
+                    "model_name": "CohereLabs/cohere-transcribe-03-2026",
+                    "compute_type": "bfloat16",
+                    "device": "cuda",
+                    "language": "en",
+                },
+                f,
+            )
+
+        settings = load_settings(settings_file=test_file)
+
+        assert settings is not None
+        assert settings.model_name == "cohere-transcribe-03-2026"
+
+    def test_distil_variants_map_to_full_checkpoints(self, tmp_path):
+        test_file = str(tmp_path / "settings.json")
+        with open(test_file, "w") as f:
+            json.dump(
+                {
+                    "device_name": "d",
+                    "model_type": "whisper",
+                    "model_name": "distil-large-v3",
+                    "compute_type": "int8",
+                    "device": "cpu",
+                    "language": "en",
+                },
+                f,
+            )
+
+        settings = load_settings(settings_file=test_file)
+
+        assert settings is not None
+        assert settings.model_name == "large-v3"
+
+    def test_new_names_pass_through_unchanged(self, tmp_path):
+        test_file = str(tmp_path / "settings.json")
+        with open(test_file, "w") as f:
+            json.dump(
+                {
+                    "device_name": "d",
+                    "model_type": "whisper",
+                    "model_name": "large-v3",
+                    "compute_type": "int8",
+                    "device": "cpu",
+                    "language": "en",
+                },
+                f,
+            )
+
+        settings = load_settings(settings_file=test_file)
+
+        assert settings is not None
+        assert settings.model_name == "large-v3"

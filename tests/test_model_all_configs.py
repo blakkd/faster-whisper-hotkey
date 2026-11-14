@@ -4,11 +4,15 @@ Integration test: transcribe a fixed audio sample with every supported model con
 Output: test_audio_data/transcription_results.txt, one block per config.
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
-Skip CUDA configs automatically when no GPU is available. Override with:
+Skips GPU configs automatically when the backend is unavailable. Override with:
     pytest tests/test_model_all_configs.py -v --tb=long --force-cuda
 
-Run CUDA configs only (skip CPU configs), e.g. on a GPU machine:
+Run GPU configs only / CPU configs only:
     pytest tests/test_model_all_configs.py -v --tb=long --cuda-only
+    pytest tests/test_model_all_configs.py -v --tb=long --cpu-only
+
+"cuda" here means the ggml CUDA backend (needs a source-built provider, the
+PyPI wheel ships CPU+Vulkan); "vulkan" works with the default wheel.
 """
 
 import gc
@@ -16,9 +20,10 @@ import time
 
 import numpy as np
 import pytest
-import torch
+import soundfile as sf
+import transcribe_cpp
 
-from faster_whisper_hotkey.models import ModelWrapper, _cuda_int8_supported
+from faster_whisper_hotkey.models import ModelWrapper
 from faster_whisper_hotkey.settings import Settings
 
 # ---------------------------------------------------------------------------
@@ -26,8 +31,8 @@ from faster_whisper_hotkey.settings import Settings
 # ---------------------------------------------------------------------------
 
 # 16kHz mono to match production (mic records native 16kHz, no resample).
-# cohere-transcribe is hypersensitive to the 44.1k->16k resampler (soxr degrades
-# its spacing), so the fixture uses a native-16kHz file to avoid resampling.
+# cohere-transcribe is hypersensitive to the 44.1k->16k resampler, so the
+# fixture uses a native-16kHz file to avoid resampling.
 AUDIO_PATH = "test_audio_data/test_16k.wav"
 RESULTS_FILE = "test_audio_data/transcription_results.txt"
 TARGET_SR = 16000
@@ -35,14 +40,11 @@ TARGET_SR = 16000
 
 @pytest.fixture(scope="module")
 def audio():
-    """Load and resample the test audio once for the whole module."""
-    import librosa
-
-    data, sr = librosa.load(AUDIO_PATH, sr=None, dtype="float32")
+    """Load the native-16kHz test audio once for the whole module."""
+    data, sr = sf.read(AUDIO_PATH, dtype="float32", always_2d=True)
     if sr != TARGET_SR:
-        data = librosa.resample(data, orig_sr=sr, target_sr=TARGET_SR)
-        sr = TARGET_SR
-    return data.astype(np.float32), sr
+        raise RuntimeError(f"{AUDIO_PATH} must be native {TARGET_SR} Hz (got {sr})")
+    return data[:, 0].astype(np.float32), sr
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +53,6 @@ def results_file():
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         f.write(f"faster-whisper-hotkey transcription results — {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"audio: {AUDIO_PATH}\n")
-        f.write(f"cuda_available: {_cuda_available()}\n")
         f.write("=" * 80 + "\n")
         f.write("\n")
     return RESULTS_FILE
@@ -65,6 +66,7 @@ def results_file():
 # canary/granite are src-tgt pairs, the rest are plain codes.
 UI_LANGUAGE_BY_MODEL = {
     "whisper": "en",
+    "parakeet": "",
     "parakeet-ultra": "",
     "canary": "en-en",
     "voxtral": "auto",
@@ -77,66 +79,47 @@ UI_LANGUAGE_BY_MODEL = {
 # Each tuple: (model_type, model_name, device, compute_type)
 
 WHISPER_MODELS = ["small"]
+GPU_PRECS = ("float16", "int8", "int4")
+CPU_PRECS = ("int8", "int4")
 
-# whisper: CPU (int8) + CUDA (float16, float32, int8)
-# float16 unsupported on CPU (CTranslate2 hw requirement); int4 not supported
-_configs = [(m, "cpu", prec) for m in WHISPER_MODELS for prec in ("int8",)] + [
-    (m, "cuda", prec) for m in WHISPER_MODELS for prec in ("float16", "float32", "int8")
+# GGUF quantizations are backend-agnostic: every precision runs on every device.
+# CPU jobs keep the CI cheap with the two quants that matter there; GPU jobs
+# additionally cover the float path.
+WHISPER = [("whisper", m, "cpu", prec) for m in WHISPER_MODELS for prec in CPU_PRECS] + [
+    ("whisper", m, "cuda", prec) for m in WHISPER_MODELS for prec in GPU_PRECS
 ]
 
-WHISPER = [("whisper", m, dev, prec) for m, dev, prec in _configs]
+PARAKEET = [("parakeet", "parakeet-tdt-0.6b-v3", dev, prec) for dev in ("cpu", "cuda") for prec in ("float32", "int8")]
 
-# parakeet-ultra (Moondream Photon): no user-selectable precision ("" = n/a)
-PARAKEET_ULTRA = [
-    ("parakeet-ultra", "moondream/parakeet-ultra", "cpu", ""),
-    ("parakeet-ultra", "moondream/parakeet-ultra", "cuda", ""),
-]
+PARAKEET_ULTRA = [("parakeet-ultra", "parakeet-ultra", dev, prec) for dev in ("cpu", "cuda") for prec in ("int8", "int4")]
 
-# canary: native=float32, CPU (f32/bf16) + CUDA (f32/bf16/int8/int4)
-CANARY = [("canary", "nvidia/canary-1b-v2", "cpu", prec) for prec in ("float32", "bfloat16")] + [
-    ("canary", "nvidia/canary-1b-v2", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
-]
+CANARY = [("canary", "canary-1b-v2", dev, prec) for dev in ("cpu", "cuda") for prec in ("float32", "int8", "int4")]
 
-# voxtral: native=float32, CUDA (f32/bf16/int8/int4)
-VOXTRAL = [
-    ("voxtral", "mistralai/Voxtral-Mini-3B-2507", "cuda", prec) for prec in ("float32", "bfloat16", "int8", "int4")
-]
+VOXTRAL = [("voxtral", "voxtral-mini-3b-2507", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")]
 
-# cohere: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
-COHERE = [("cohere", "CohereLabs/cohere-transcribe-03-2026", "cpu", prec) for prec in ("float32", "bfloat16")] + [
-    ("cohere", "CohereLabs/cohere-transcribe-03-2026", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
-]
+COHERE = [("cohere", "cohere-transcribe-03-2026", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")]
 
-# granite-nar: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE_NAR = [
-    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cpu", prec) for prec in ("float32", "bfloat16")
-] + [
-    ("granite-nar", "ibm-granite/granite-speech-4.1-2b-nar", "cuda", prec)
-    for prec in ("bfloat16", "float32", "int8", "int4")
+    ("granite-nar", "granite-speech-4.1-2b-nar", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
 ]
 
-# granite (AR): native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
-GRANITE = [("granite", "ibm-granite/granite-speech-4.1-2b", "cpu", prec) for prec in ("float32", "bfloat16")] + [
-    ("granite", "ibm-granite/granite-speech-4.1-2b", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
+GRANITE = [
+    ("granite", "granite-speech-4.1-2b", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
 ]
 
-# granite-turboctc: native=bfloat16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
 GRANITE_TURBOCTC = [
-    ("granite-turboctc", "ibm-granite/granite-speech-5.0-470m-turboctc-nc", "cpu", prec)
-    for prec in ("float32", "bfloat16")
-] + [
-    ("granite-turboctc", "ibm-granite/granite-speech-5.0-470m-turboctc-nc", "cuda", prec)
-    for prec in ("bfloat16", "float32", "int8", "int4")
+    ("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", dev, prec)
+    for dev in ("cpu", "cuda")
+    for prec in ("bfloat16", "int8", "int4")
 ]
 
-# qwen3-asr: weights natively bf16, CPU (f32/bf16) + CUDA (bf16/f32/int8/int4)
-QWEN3_ASR = [("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cpu", prec) for prec in ("float32", "bfloat16")] + [
-    ("qwen3-asr", "Qwen/Qwen3-ASR-1.7B-hf", "cuda", prec) for prec in ("bfloat16", "float32", "int8", "int4")
+QWEN3_ASR = [
+    ("qwen3-asr", "qwen3-asr-1.7b", dev, prec) for dev in ("cpu", "cuda") for prec in ("bfloat16", "int8", "int4")
 ]
 
 
-def _cuda_available():
-    return torch.cuda.is_available()
+def _backend_ok(device: str) -> bool:
+    return device == "cpu" or transcribe_cpp.backend_available(device)
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +132,6 @@ def _run_configs(configs, audio, request):
     force_cuda = request.config.getoption("--force-cuda")
     cuda_only = request.config.getoption("--cuda-only")
     cpu_only = request.config.getoption("--cpu-only")
-    cuda_ok = _cuda_available() or force_cuda
 
     audio_data, sr = audio
 
@@ -161,16 +143,11 @@ def _run_configs(configs, audio, request):
         if cuda_only and device == "cpu":
             skipped.append((model_type, model_name, device, compute_type, "CPU configs excluded (--cuda-only)"))
             continue
-        if cpu_only and device == "cuda":
-            skipped.append((model_type, model_name, device, compute_type, "CUDA configs excluded (--cpu-only)"))
+        if cpu_only and device != "cpu":
+            skipped.append((model_type, model_name, device, compute_type, "GPU configs excluded (--cpu-only)"))
             continue
-        if device == "cuda" and not cuda_ok:
-            skipped.append((model_type, model_name, device, compute_type, "CUDA not available"))
-            continue
-        if model_type == "whisper" and device == "cuda" and compute_type == "int8" and not _cuda_int8_supported():
-            skipped.append(
-                (model_type, model_name, device, compute_type, "int8 not supported on this CUDA GPU (Blackwell sm_12x)")
-            )
+        if device != "cpu" and not (_backend_ok(device) or force_cuda):
+            skipped.append((model_type, model_name, device, compute_type, f"{device} backend not available"))
             continue
 
         print(f"\n>>> Testing: {model_type}/{model_name} ({device}/{compute_type})")
@@ -193,8 +170,6 @@ def _run_configs(configs, audio, request):
             transcribe_time = round(time.monotonic() - t1, 2)
 
             del wrapper
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
             gc.collect()
 
             results.append(
@@ -268,132 +243,87 @@ def _format_results(model_label, results, skipped, errors, audio_data, sr):
     return "\n".join(lines)
 
 
+def _model_test(configs, model_label, audio, request, results_file):
+    results, skipped, errors, audio_data, sr = _run_configs(configs, audio, request)
+
+    block = _format_results(model_label, results, skipped, errors, audio_data, sr)
+    print(f"\n{block}")
+    with open(results_file, "a", encoding="utf-8") as f:
+        f.write(block + "\n")
+
+    _assert_ok(results, errors)
+
+
 # ---------------------------------------------------------------------------
 # Tests — one per model type
 # ---------------------------------------------------------------------------
 
 
 class TestTranscribeWhisper:
-    """Transcribe test audio with faster-whisper configs."""
+    """Transcribe test audio with whisper configs."""
 
     def test_whisper(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(WHISPER, audio, request)
+        _model_test(WHISPER, "whisper", audio, request, results_file)
 
-        block = _format_results("faster-whisper", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
 
-        _assert_ok(results, errors)
+class TestTranscribeParakeet:
+    """Transcribe test audio with parakeet configs."""
+
+    def test_parakeet(self, audio, request, results_file):
+        _model_test(PARAKEET, "parakeet", audio, request, results_file)
 
 
 class TestTranscribeParakeetUltra:
-    """Transcribe test audio with parakeet-ultra configs (Moondream Photon)."""
+    """Transcribe test audio with parakeet-ultra configs."""
 
     def test_parakeet_ultra(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(PARAKEET_ULTRA, audio, request)
-
-        block = _format_results("parakeet-ultra", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(PARAKEET_ULTRA, "parakeet-ultra", audio, request, results_file)
 
 
 class TestTranscribeCanary:
     """Transcribe test audio with canary configs."""
 
     def test_canary(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(CANARY, audio, request)
-
-        block = _format_results("canary", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(CANARY, "canary", audio, request, results_file)
 
 
 class TestTranscribeVoxtral:
     """Transcribe test audio with voxtral configs."""
 
     def test_voxtral(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(VOXTRAL, audio, request)
-
-        block = _format_results("voxtral", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(VOXTRAL, "voxtral", audio, request, results_file)
 
 
 class TestTranscribeCohere:
     """Transcribe test audio with cohere configs."""
 
     def test_cohere(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(COHERE, audio, request)
-
-        block = _format_results("cohere", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(COHERE, "cohere", audio, request, results_file)
 
 
 class TestTranscribeGraniteNAR:
     """Transcribe test audio with granite-nar configs."""
 
     def test_granite_nar(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_NAR, audio, request)
-
-        block = _format_results("granite-nar", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(GRANITE_NAR, "granite-nar", audio, request, results_file)
 
 
 class TestTranscribeGranite:
     """Transcribe test audio with granite (AR) configs."""
 
     def test_granite(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(GRANITE, audio, request)
-
-        block = _format_results("granite", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(GRANITE, "granite", audio, request, results_file)
 
 
 class TestTranscribeGraniteTurboCTC:
     """Transcribe test audio with granite-turboctc configs."""
 
     def test_granite_turboctc(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(GRANITE_TURBOCTC, audio, request)
-
-        block = _format_results("granite-turboctc", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(GRANITE_TURBOCTC, "granite-turboctc", audio, request, results_file)
 
 
 class TestTranscribeQwen3ASR:
     """Transcribe test audio with qwen3-asr configs."""
 
     def test_qwen3_asr(self, audio, request, results_file):
-        results, skipped, errors, audio_data, sr = _run_configs(QWEN3_ASR, audio, request)
-
-        block = _format_results("qwen3-asr", results, skipped, errors, audio_data, sr)
-        print(f"\n{block}")
-        with open(results_file, "a", encoding="utf-8") as f:
-            f.write(block + "\n")
-
-        _assert_ok(results, errors)
+        _model_test(QWEN3_ASR, "qwen3-asr", audio, request, results_file)

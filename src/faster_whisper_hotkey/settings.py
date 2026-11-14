@@ -3,6 +3,8 @@ import logging
 import os
 from dataclasses import dataclass
 
+from .gguf_models import MODEL_NAME_MIGRATIONS
+
 logger = logging.getLogger(__name__)
 
 conf_dir = os.path.expanduser("~/.config")
@@ -49,6 +51,12 @@ def load_settings(settings_file: str | None = None) -> Settings | None:
             data.setdefault("llm_endpoint", "")
             data.setdefault("llm_model_name", "")
             data.setdefault("llm_api_key", "")
+            migrated = MODEL_NAME_MIGRATIONS.get(data["model_name"])
+            if migrated:
+                # Settings from before the transcribe.cpp migration stored upstream
+                # Hugging Face repo ids (or dropped distil variants).
+                logger.info(f"Migrating saved model_name {data['model_name']!r} to {migrated!r}")
+                data["model_name"] = migrated
             return Settings(**data)
     except FileNotFoundError:
         return None

@@ -2,20 +2,6 @@
 import collections
 import curses
 import logging
-import warnings
-
-warnings.filterwarnings(
-    "ignore",
-    message="invalid escape sequence '\\s'",
-    category=SyntaxWarning,
-    module="lhotse.recipes.iwslt22_ta",
-)
-warnings.filterwarnings(
-    "ignore",
-    message="invalid escape sequence '\\('",
-    category=SyntaxWarning,
-    module="pydub.utils",
-)
 
 
 def _setup_logging():

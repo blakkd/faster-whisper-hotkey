@@ -36,9 +36,8 @@ class TestAcceptedModelsWhisper:
         for model in expected_models:
             assert model in accepted_models_whisper
 
-    def test_distil_models_present(self):
-        distil_models = [m for m in accepted_models_whisper if "distil" in m]
-        assert len(distil_models) >= 2
+    def test_turbo_model_present(self):
+        assert "large-v3-turbo" in accepted_models_whisper
 
 
 class TestEnglishOnlyModelsWhisper:
@@ -47,8 +46,7 @@ class TestEnglishOnlyModelsWhisper:
 
     def test_english_only_models_contains_en_suffix(self):
         for model in english_only_models_whisper:
-            if "distil-large" not in model:
-                assert model.endswith(".en"), f"{model} should end with .en or be a distil-large-vX model"
+            assert model.endswith(".en"), f"{model} should end with .en"
 
     def test_english_only_models_not_empty(self):
         assert len(english_only_models_whisper) > 0

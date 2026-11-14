@@ -22,6 +22,7 @@ class ConfigStep(Enum):
     PARAKEET_DEVICE = auto()
     PARAKEET_PRECISION = auto()
     PARAKEET_ULTRA_DEVICE = auto()
+    PARAKEET_ULTRA_PRECISION = auto()
     CANARY_SOURCE_LANG = auto()
     CANARY_TARGET_LANG = auto()
     CANARY_DEVICE = auto()
@@ -309,6 +310,28 @@ def _initial_precision_idx(options: list[str], current: str, native: str) -> int
     return 0
 
 
+# Every model runs on the transcribe.cpp ggml runtime, which offers the same
+# three backends for all families: CUDA (NVIDIA), Vulkan (AMD/Intel GPUs) and
+# plain CPU. The GGUF files are downloaded per precision, so (unlike the old
+# per-engine matrices) every precision works on every device.
+_DEVICE_OPTIONS = ["cuda", "vulkan", "cpu"]
+# TUI precision labels -> GGUF quantizations (mapping in gguf_models.py).
+_PRECISION_OPTIONS = ["float32", "float16", "bfloat16", "int8", "int4"]
+
+
+def _device_menu(stdscr, config: ConfigData, title: str = "Compute Device", footer: str = "") -> str | None:
+    """Shared "Compute Device" screen; returns "cuda", "vulkan" or "cpu"."""
+    initial_idx = {"cpu": 2, "vulkan": 1}.get(config.device, 0)
+    return curses_menu(stdscr, title, _DEVICE_OPTIONS, footer=footer, initial_idx=initial_idx)
+
+
+def _precision_screen(stdscr, config: ConfigData, native: str, options: list[str] | None = None) -> str | None:
+    """Shared precision screen; returns the selected compute_type label."""
+    options = options or _PRECISION_OPTIONS
+    initial_idx = _initial_precision_idx(options, config.compute_type, native)
+    return curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, native=native)
+
+
 def config_screen_main(stdscr, settings_file: str | None = None):
     """
     Unified configuration screen with consistent ESC behavior.
@@ -405,6 +428,8 @@ def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData)
         return _screen_parakeet_precision(stdscr, config)
     elif current_step == ConfigStep.PARAKEET_ULTRA_DEVICE:
         return _screen_parakeet_ultra_device(stdscr, config)
+    elif current_step == ConfigStep.PARAKEET_ULTRA_PRECISION:
+        return _screen_parakeet_ultra_precision(stdscr, config)
 
     # Canary sub-steps
     elif current_step == ConfigStep.CANARY_SOURCE_LANG:
@@ -570,7 +595,7 @@ def _screen_vad_enable(stdscr, config: ConfigData):
 def _screen_model_type(stdscr, config: ConfigData):
     """Select model type."""
     model_options = [
-        "faster-whisper",
+        "whisper",
         "parakeet-ultra",
         "canary-1b-v2",
         "Voxtral-Mini-3B-2507",
@@ -604,7 +629,7 @@ def _screen_model_type(stdscr, config: ConfigData):
 
     # Map display name to internal type
     type_map = {
-        "faster-whisper": "whisper",
+        "whisper": "whisper",
         "parakeet-ultra": "parakeet-ultra",
         "canary-1b-v2": "canary",
         "Voxtral-Mini-3B-2507": "voxtral",
@@ -671,19 +696,7 @@ def _screen_whisper_model(stdscr, config: ConfigData):
 
 def _screen_whisper_device(stdscr, config: ConfigData):
     """Select compute device for Whisper."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
@@ -694,27 +707,12 @@ def _screen_whisper_device(stdscr, config: ConfigData):
 def _screen_whisper_precision(stdscr, config: ConfigData):
     """Select precision for Whisper."""
     from .config import english_only_models_whisper
-    from .models import _cuda_int8_supported
 
-    options = ["int8"] if config.device == "cpu" else ["float16", "int8"]
-    initial_idx = _initial_precision_idx(options, config.compute_type, "float16")
-
-    warning = ""
-    while True:
-        selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, footer=warning, native="float16")
-
-        if selected is None:
-            return _back_to_initial(config)
-
-        if selected == "int8" and config.device == "cuda" and not _cuda_int8_supported():
-            initial_idx = 1
-            warning = (
-                "int8 is not supported on this CUDA GPU (Blackwell sm_120/121, CTranslate2/cuBLAS "
-                "limitation). Select a different precision to continue."
-            )
-            continue
-
-        break
+    # Whisper GGUFs ship F16 plus the Q8/Q6/Q5/Q4 quantizations — no F32 files.
+    options = ["float16", "int8", "int4"]
+    selected = _precision_screen(stdscr, config, "float16" if config.device != "cpu" else "int8", options)
+    if selected is None:
+        return _back_to_initial(config)
 
     config.compute_type = selected
 
@@ -756,23 +754,11 @@ def _screen_whisper_language(stdscr, config: ConfigData):
 
 def _screen_parakeet_device(stdscr, config: ConfigData):
     """Select compute device for Parakeet."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "nvidia/parakeet-tdt-0.6b-v3"
+    config.model_name = "parakeet-tdt-0.6b-v3"
     config.device = selected
     config.language = ""  # Parakeet supports auto-detection
 
@@ -780,45 +766,31 @@ def _screen_parakeet_device(stdscr, config: ConfigData):
 
 
 def _screen_parakeet_ultra_device(stdscr, config: ConfigData):
-    """Select compute device for Parakeet Ultra (Moondream Photon)."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        footer="Moondream Photon engine: no precision choice (compiled kernels)",
-        initial_idx=initial_idx,
-    )
-
+    """Select compute device for Parakeet Ultra."""
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "moondream/parakeet-ultra"
+    config.model_name = "parakeet-ultra"
     config.device = selected
-    config.compute_type = ""  # Photon has no user-selectable precision
     config.language = ""  # automatic language detection (25 languages)
 
+    return (ConfigStep.PARAKEET_ULTRA_PRECISION, config)
+
+
+def _screen_parakeet_ultra_precision(stdscr, config: ConfigData):
+    """Select precision for Parakeet Ultra (GGUF quantizations)."""
+    selected = _precision_screen(stdscr, config, "int8")
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.compute_type = selected
     return (ConfigStep.HOTKEY, config)
 
 
 def _screen_parakeet_precision(stdscr, config: ConfigData):
     """Select precision for Parakeet."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="float32")
-
+    selected = _precision_screen(stdscr, config, "float32")
     if selected is None:
         return _back_to_initial(config)
 
@@ -890,40 +862,18 @@ def _screen_canary_target_lang(stdscr, config: ConfigData):
 
 def _screen_canary_device(stdscr, config: ConfigData):
     """Select compute device for Canary."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "nvidia/canary-1b-v2"
+    config.model_name = "canary-1b-v2"
     config.device = selected
     return (ConfigStep.CANARY_PRECISION, config)
 
 
 def _screen_canary_precision(stdscr, config: ConfigData):
     """Select precision for Canary."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="float32")
-
+    selected = _precision_screen(stdscr, config, "float32")
     if selected is None:
         return _back_to_initial(config)
 
@@ -937,11 +887,8 @@ def _screen_canary_precision(stdscr, config: ConfigData):
 
 
 def _screen_voxtral_device(stdscr, config: ConfigData):
-    """Select compute device for Voxtral (GPU only)."""
-    options = ["cuda"]  # Voxtral is GPU-only
-
-    selected = curses_menu(stdscr, "Compute Device (CUDA only)", options)
-
+    """Select compute device for Voxtral."""
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
@@ -951,17 +898,12 @@ def _screen_voxtral_device(stdscr, config: ConfigData):
 
 def _screen_voxtral_precision(stdscr, config: ConfigData):
     """Select precision for Voxtral."""
-    options = ["float32", "bfloat16", "int8", "int4"]
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "float32")
-
-    selected = curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, native="float32")
-
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 
     config.compute_type = selected
-    config.model_name = "mistralai/Voxtral-Mini-3B-2507"
+    config.model_name = "voxtral-mini-3b-2507"
     config.language = "auto"
     return (ConfigStep.HOTKEY, config)
 
@@ -973,19 +915,7 @@ def _screen_voxtral_precision(stdscr, config: ConfigData):
 
 def _screen_cohere_device(stdscr, config: ConfigData):
     """Select compute device for Cohere."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
@@ -995,17 +925,7 @@ def _screen_cohere_device(stdscr, config: ConfigData):
 
 def _screen_cohere_precision(stdscr, config: ConfigData):
     """Select precision for Cohere."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
-
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 
@@ -1031,7 +951,7 @@ def _screen_cohere_language(stdscr, config: ConfigData):
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "CohereLabs/cohere-transcribe-03-2026"
+    config.model_name = "cohere-transcribe-03-2026"
     config.language = selected
 
     return (ConfigStep.HOTKEY, config)
@@ -1044,40 +964,18 @@ def _screen_cohere_language(stdscr, config: ConfigData):
 
 def _screen_granite_nar_device(stdscr, config: ConfigData):
     """Select compute device for Granite NAR."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "ibm-granite/granite-speech-4.1-2b-nar"
+    config.model_name = "granite-speech-4.1-2b-nar"
     config.device = selected
     return (ConfigStep.GRANITE_NAR_PRECISION, config)
 
 
 def _screen_granite_nar_precision(stdscr, config: ConfigData):
     """Select precision for Granite NAR."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
-
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 
@@ -1165,40 +1063,18 @@ def _screen_granite_target_lang(stdscr, config: ConfigData):
 
 def _screen_granite_device(stdscr, config: ConfigData):
     """Select compute device for Granite AR."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "ibm-granite/granite-speech-4.1-2b"
+    config.model_name = "granite-speech-4.1-2b"
     config.device = selected
     return (ConfigStep.GRANITE_PRECISION, config)
 
 
 def _screen_granite_precision(stdscr, config: ConfigData):
     """Select precision for Granite AR."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
-
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 
@@ -1213,40 +1089,18 @@ def _screen_granite_precision(stdscr, config: ConfigData):
 
 def _screen_granite_turboctc_device(stdscr, config: ConfigData):
     """Select compute device for Granite Speech 5.0 TurboCTC."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "ibm-granite/granite-speech-5.0-470m-turboctc-nc"
+    config.model_name = "granite-speech-5.0-470m-turboctc-nc"
     config.device = selected
     return (ConfigStep.GRANITE_TURBOCTC_PRECISION, config)
 
 
 def _screen_granite_turboctc_precision(stdscr, config: ConfigData):
-    """Select precision for Granite Speech 5.0 TurboCTC (weights are natively bf16)."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
-
+    """Select precision for Granite Speech 5.0 TurboCTC (GGUF quantizations)."""
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 
@@ -1262,40 +1116,18 @@ def _screen_granite_turboctc_precision(stdscr, config: ConfigData):
 
 def _screen_qwen3_asr_device(stdscr, config: ConfigData):
     """Select compute device for Qwen3-ASR."""
-    options = ["cuda", "cpu"]
-
-    initial_idx = 0
-    if config.device == "cpu":
-        initial_idx = 1
-
-    selected = curses_menu(
-        stdscr,
-        "Compute Device",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = _device_menu(stdscr, config)
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = "Qwen/Qwen3-ASR-1.7B-hf"
+    config.model_name = "qwen3-asr-1.7b"
     config.device = selected
     return (ConfigStep.QWEN3_ASR_PRECISION, config)
 
 
 def _screen_qwen3_asr_precision(stdscr, config: ConfigData):
-    """Select precision for Qwen3-ASR (weights are natively bf16)."""
-    options = ["float32", "bfloat16", "int8", "int4"] if config.device == "cuda" else ["float32", "bfloat16"]
-    footer = (
-        ""
-        if config.device == "cuda"
-        else "bf16 only recommended if your CPU natively supports it, super slow otherwise"
-    )
-
-    initial_idx = _initial_precision_idx(options, config.compute_type, "bfloat16")
-
-    selected = curses_menu(stdscr, "Precision", options, footer=footer, initial_idx=initial_idx, native="bfloat16")
-
+    """Select precision for Qwen3-ASR (GGUF quantizations)."""
+    selected = _precision_screen(stdscr, config, "bfloat16")
     if selected is None:
         return _back_to_initial(config)
 

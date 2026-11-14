@@ -7,13 +7,11 @@ import time
 import numpy as np
 import pulsectl
 import sounddevice as sd
-import torch
 from pynput import keyboard
-from silero_vad import get_speech_timestamps, load_silero_vad
 
 from .clipboard import backup_clipboard, restore_clipboard, set_clipboard
 from .llm_corrector import LLMCorrector
-from .models import ModelWrapper
+from .models import ModelWrapper, load_vad_model, pcm
 from .paste import paste_to_active_window
 from .settings import Settings
 
@@ -21,9 +19,6 @@ logger = logging.getLogger(__name__)
 
 # Minimum recording duration to prevent short noise transcriptions
 MIN_RECORDING_DURATION = 1.0  # seconds
-
-# Silero VAD model (loaded once, thread-safe inference)
-_vad_model = load_silero_vad()
 
 
 class MicrophoneTranscriber:
@@ -36,6 +31,10 @@ class MicrophoneTranscriber:
 
         # Load the requested model wrapper
         self.model_wrapper = ModelWrapper(self.settings)
+
+        # Silero VAD (transcribe.cpp GGUF; loaded lazily on first speech gate)
+        self._vad_session = None
+        self._vad_failed = False
 
         # Initialize LLM corrector if enabled
         self.llm_corrector = None
@@ -102,21 +101,29 @@ class MicrophoneTranscriber:
             return np.mean(audio_data, axis=1).astype(np.float32)
         return audio_data.flatten().astype(np.float32)
 
-    @staticmethod
-    def _has_speech(audio_data: np.ndarray, sample_rate: int) -> bool:
-        """Check if audio contains speech using Silero VAD."""
+    def _get_vad_session(self):
+        """Open the Silero VAD (GGUF) session lazily; None if unavailable (then no gating)."""
+        if self._vad_session is None and not self._vad_failed:
+            try:
+                self._vad_session = load_vad_model(self.settings.device).vad_session()
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"Silero VAD unavailable ({e}); speech gating disabled")
+                self._vad_failed = True
+        return self._vad_session
+
+    def _has_speech(self, audio_data: np.ndarray, sample_rate: int) -> bool:
+        """Check if audio contains speech using Silero VAD (transcribe.cpp GGUF)."""
+        vad = self._get_vad_session()
+        if vad is None:
+            return True
         if len(audio_data) < 512:
             return True
-        audio_tensor = torch.from_numpy(np.expand_dims(audio_data, axis=0))
-        timestamps = get_speech_timestamps(
-            audio_tensor,
-            _vad_model,
-            threshold=0.5,
-            sampling_rate=sample_rate,
-            min_speech_duration_ms=100,
-            min_silence_duration_ms=50,
-        )
-        return len(timestamps) > 0
+        try:
+            result = vad.run(pcm(audio_data), threshold=0.5, min_speech_ms=100, min_silence_ms=50)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"VAD failed ({e}); assuming speech")
+            return True
+        return len(result.segments) > 0
 
     # ------------------------------------------------------------------
     # Audio callback

@@ -70,10 +70,8 @@ class TestEnglishOnlyModelsWhisperExtended:
         from faster_whisper_hotkey.config import english_only_models_whisper
 
         for model in english_only_models_whisper:
-            # Either ends with .en or is distil-large variant
-            is_en_suffix = model.endswith(".en")
-            is_distil_large = "distil" in model and "large" in model
-            assert is_en_suffix or is_distil_large
+            # English-only checkpoints carry the .en suffix
+            assert model.endswith(".en")
 
 
 class TestAcceptedLanguagesWhisperExtended:

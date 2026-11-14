@@ -6,13 +6,6 @@ import time
 
 import pytest
 
-
-@pytest.fixture(autouse=True)
-def _hf_hub_probe_reachable(monkeypatch):
-    """Keep the Hugging Face reachability probe from making real network calls in tests."""
-    monkeypatch.setattr("faster_whisper_hotkey.hf_offline.hf_hub_reachable", lambda *args, **kwargs: True)
-
-
 # ---------------------------------------------------------------------------
 # Disk telemetry
 # ---------------------------------------------------------------------------
@@ -21,7 +14,7 @@ def _hf_hub_probe_reachable(monkeypatch):
 # cheap forensics: it streams into the CI log with -s and is written to
 # test_audio_data/disk_usage_log.txt, so a future disk/OOM issue is visible.
 
-HF_HUB_DIR = os.path.join(os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface")), "hub")
+GGUF_CACHE_DIR = os.path.expanduser("~/.cache/faster_whisper_hotkey/models")
 DISK_LOG_FILE = "test_audio_data/disk_usage_log.txt"
 
 
@@ -43,7 +36,7 @@ def _disk_state(label: str) -> None:
     except (OSError, subprocess.SubprocessError, IndexError):
         free = "free failed"
     sizes = []
-    for path in (HF_HUB_DIR, os.path.expanduser("~/.cache/uv")):
+    for path in (GGUF_CACHE_DIR, os.path.expanduser("~/.cache/uv")):
         if os.path.isdir(path):
             try:
                 du = subprocess.run(["du", "-sh", path], capture_output=True, text=True, timeout=60, check=False)

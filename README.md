@@ -12,36 +12,38 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **CPU-friendly**: [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) gives instant transcription, on any CPU.
+- **One engine for everything**: all models are GGUF checkpoints running on [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (ggml) — CPU, Vulkan (any AMD/Intel/NVIDIA GPU) or CUDA backend, no per-model dependency zoo.
 - **LLM correction**: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models
 
 _To help with choosing your model, you can look at [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming)._
 
-**CPU speed** for a 40 s clip (best compute type per model, see _Tips_):
+**CPU speed** for a 40 s clip (best quantization per model, 16-core Ryzen 9 5950X; run `dev/bench_models.py` to reproduce):
 
-| Model                                           | Engine       | Compute |     Time | Speed |
-| ----------------------------------------------- | ------------ | ------- | -------: | ----: |
-| moondream/parakeet-ultra                        | Photon       | float32 |    2.6 s | 15.7× |
-| Systran/faster-whisper (small)                  | CTranslate2  | int8    |    4.1 s |  9.7× |
-| ibm-granite/granite-speech-5.0-470m-turboctc-nc | Transformers | float32 |    4.7 s |  8.4× |
-| CohereLabs/cohere-transcribe-03-2026            | Transformers | float32 |   33.2 s |  1.2× |
-| ibm-granite/granite-speech-4.1-2b-nar           | Transformers | float32 |   35.7 s |  1.1× |
-| Qwen/Qwen3-ASR-1.7B-hf                          | Transformers | float32 |   48.3 s |  0.8× |
-| ibm-granite/granite-speech-4.1-2b               | Transformers | float32 |   55.2 s |  0.7× |
-| nvidia/canary-1b-v2                             | NeMo         | float32 |   55.7 s |  0.7× |
-| mistralai/Voxtral-Mini-3B-2507                  | Transformers | —       | GPU only |     — |
+| Model                                           | Compute |     Time | Speed |
+| ----------------------------------------------- | ------- | -------: | ----: |
+| ibm-granite/granite-speech-5.0-470m-turboctc-nc | int4    |    0.8 s | 49.2× |
+| nvidia/parakeet-tdt-0.6b-v3                     | int4    |    1.3 s | 30.5× |
+| moondream/parakeet-ultra                        | int4    |    1.4 s | 29.1× |
+| nvidia/canary-1b-v2                             | int4    |    2.5 s | 16.1× |
+| whisper (small)                                 | int4    |    2.5 s | 15.8× |
+| CohereLabs/cohere-transcribe-03-2026            | int4    |    4.1 s |  9.8× |
+| ibm-granite/granite-speech-4.1-2b-nar           | int4    |    6.0 s |  6.7× |
+| Qwen/Qwen3-ASR-1.7B-hf                          | int4    |    7.9 s |  5.1× |
+| ibm-granite/granite-speech-4.1-2b               | int4    |    9.6 s |  4.2× |
+| mistralai/Voxtral-Mini-3B-2507                  | int4    |   22.3 s |  1.8× |
+
+For comparison with the old four-engine setup: parakeet-ultra 2.6 s → 1.4 s (Photon → GGUF), whisper small 4.1 s → 2.5 s, cohere 33.2 s → 4.1 s, granite 55.2 s → 9.6 s, canary 55.7 s → 2.5 s — and voxtral, previously GPU-only, now runs on CPU too. (Large models still cost: whisper large-v3 int4 takes 12.6 s on this CPU.)
 
 On GPU every model is super fast (all < 3.5 s for the same clip), so that's not particularly useful to benchmark that. But anyway, detailed evaluation results can be found in [`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
 
-- **(NEW) [moondream/parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra)**:
+- **(NEW) [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra)**:
   - 25 languages
   - Automatic language recognition
   - Transcription only
-  - Post-trained version of nvidia/parakeet-tdt-0.6b-v3: same 0.6B architecture, but:
-    - **lower word error rate** on every benchmark
-    - **3x faster** than nvidia/parakeet-tdt-0.6b-v3, thanks to Moondream's [Photon](https://moondream.ai/photon) engine
-  - CPU/GPU (GPU is left as option, but there is no point using it... Anyway!)
+  - Post-trained version of nvidia/parakeet-tdt-0.6b-v3: same 0.6B architecture, but with a **lower word error rate** on every benchmark
+  - CPU/GPU
 
 - **[Qwen/Qwen3-ASR-1.7B-hf](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf)**:
   - 30 languages
@@ -72,7 +74,7 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so that's not 
 - **[CohereLabs/cohere-transcribe-03-2026](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**:
   - 14 languages
   - Transcription only
-  - Officially, no automatic language recognition, but it still works pretty great
+  - The model itself has no language detection: with `auto` a small VoxLingua107 language-ID model detects the language before transcribing
   - CPU/GPU
   - Quite smart, deals well with hesitation and stutters
 
@@ -81,15 +83,16 @@ On GPU every model is super fast (all < 3.5 s for the same clip), so that's not 
   - Transcription and translation (bidirectional to/from English)
   - No automatic language recognition
   - CPU/GPU
+  - Recordings are limited to ~6 minutes (model architecture)
 
 - **[mistralai/Voxtral-Mini-3B-2507](https://huggingface.co/mistralai/Voxtral-Mini-3B-2507)**:
   - 8 languages
-  - Transcription only
+  - Transcription (and translation, on the engine side — not wired into the menu yet)
   - Automatic language recognition
   - Smart (it even guesses when to put some quotes, etc.) and seems less error-prone for non English native speakers
-  - GPU only
+  - CPU/GPU
 
-- **[Systran/faster-whisper](https://github.com/SYSTRAN/faster-whisper)**:
+- **faster-whisper models (tiny → large-v3, large-v3-turbo)**:
   - Many languages
   - Transcription only
   - CPU/GPU
@@ -169,6 +172,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Limitations
 
+- **Recording length**: whisper, the parakeet models, qwen3-asr and voxtral handle recordings of any practical length. canary and cohere reject anything above ~6.7 minutes (positional table in the checkpoint), and the granite models top out around 30 s of dense speech — the app logs a clear message in those cases instead of returning junk.
 - **granite-nar**: punctuation comes from the model, but capitalization is a post-processing pass (sentence starts + English "I"), so proper nouns like names stay lowercase.
 - **granite-turboctc**: no punctuation or capitalization in output (by design of the non-autoregressive architecture).
 
@@ -180,9 +184,10 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 ## Tips
 
-- If you you pick a multilingual **faster-whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
+- If you you pick a multilingual **whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-ultra, you can even use multiple languages during your recording!
-- For models whose weights are natively bfloat16 (the precision menu marks the native one), you can still pick float32: it upcasts the weights, which costs extra memory, but is far faster on CPUs without good native bf16 support. If your transcriptions are slow, try float32.
+- Precisions map to GGUF quantizations: `float32/float16/bfloat16` → full-precision files, `int8` → Q8_0, `int4` → Q4_K_M. Q8_0 is virtually lossless and roughly half the memory; on a recent CPU, `int8` is usually the best pick (and always works — every precision runs on every device).
+- Models are downloaded once from Hugging Face (public `handy-computer` repositories) to `~/.cache/faster_whisper_hotkey/models/` and work offline from then on.
 
 ## Bugs & Feature request
 
@@ -197,9 +202,10 @@ Read `dev/onboarding.md` first: it has the setup, the architecture, and the gotc
 
 Many thanks to:
 
-- **the developers of faster-whisper** for providing such an efficient transcription inference engine
+- **the transcribe.cpp team** ([handy-computer](https://github.com/handy-computer/transcribe.cpp)) for the single ggml-based engine that runs every model here, and their verified GGUF conversions
+- **the ggml project** for the runtime underneath it
 - **NVIDIA** for their blazing fast parakeet and canary models
-- **Moondream** for parakeet-ultra and their Photon local inference engine
+- **Moondream** for parakeet-ultra
 - **Mistral** for their impressively accurate model Voxtral-Mini-3B model
 - **Cohere** for their cohere-transcribe-03-2026 model
 - **IBM** for their granite-speech models

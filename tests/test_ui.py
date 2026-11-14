@@ -395,7 +395,7 @@ class TestCursesMenu:
 
 
 class TestWhisperPrecisionScreen:
-    """Test the whisper precision screen int8/CUDA guard (Blackwell sm_12x)."""
+    """Test the whisper precision screen options and preselection."""
 
     KEY_DOWN = 258
     KEY_UP = 259
@@ -417,67 +417,24 @@ class TestWhisperPrecisionScreen:
         config.model_name = "small"
         return config
 
-    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_int8_blocked_on_unsupported_cuda(self, mock_curses, mock_supported):
-        """Picking int8 on an unsupported CUDA GPU shows a warning and stays on the screen."""
+    def test_default_choice_on_cuda(self, mock_curses):
+        """The GGUF files exist for every quant on every device — no guards needed."""
         from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
 
         mock_curses.KEY_DOWN = self.KEY_DOWN
         mock_curses.KEY_UP = self.KEY_UP
-        # down -> int8, Enter (blocked); up -> float16, Enter (accepted)
-        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER, self.KEY_UP, self.ENTER])
+        mock_stdscr = self._make_stdscr([self.ENTER])  # Enter on the preselected float16
 
         config = self._config(device="cuda")
         result = _screen_whisper_precision(mock_stdscr, config)
 
-        assert result is not None
         next_step, config = result
         assert next_step == ConfigStep.WHISPER_LANGUAGE
         assert config.compute_type == "float16"
-        assert "not supported on this CUDA GPU" in str(mock_stdscr.addstr.call_args_list)
 
-    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_int8_blocked_until_escalated_choice(self, mock_curses, mock_supported):
-        """Repeated int8 selections keep showing the warning; ESC still aborts."""
-        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
-
-        mock_curses.KEY_DOWN = self.KEY_DOWN
-        mock_curses.KEY_UP = self.KEY_UP
-        # down -> int8, Enter (blocked); down stays, Enter (blocked again); ESC
-        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER, self.KEY_DOWN, self.ENTER, self.ESC])
-
-        config = self._config(device="cuda")
-        result = _screen_whisper_precision(mock_stdscr, config)
-
-        assert result == (ConfigStep.INITIAL, config)
-        assert config.compute_type == ""
-        warnings_shown = str(mock_stdscr.addstr.call_args_list).count("not supported on this CUDA GPU")
-        assert warnings_shown >= 2
-
-    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=True)
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_int8_allowed_when_supported(self, mock_curses, mock_supported):
-        """int8 is accepted without warning when the GPU supports it."""
-        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
-
-        mock_curses.KEY_DOWN = self.KEY_DOWN
-        mock_curses.KEY_UP = self.KEY_UP
-        mock_stdscr = self._make_stdscr([self.KEY_DOWN, self.ENTER])
-
-        config = self._config(device="cuda")
-        result = _screen_whisper_precision(mock_stdscr, config)
-
-        next_step, config = result
-        assert next_step == ConfigStep.WHISPER_LANGUAGE
-        assert config.compute_type == "int8"
-        assert "not supported" not in str(mock_stdscr.addstr.call_args_list)
-
-    @patch("faster_whisper_hotkey.models._cuda_int8_supported", return_value=False)
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_int8_on_cpu_never_blocked(self, mock_curses, mock_supported):
-        """The GPU guard only applies to CUDA; CPU int8 is always accepted."""
+    def test_cpu_defaults_to_int8_and_offers_int4(self, mock_curses):
         from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
 
         mock_curses.KEY_DOWN = self.KEY_DOWN
@@ -489,7 +446,21 @@ class TestWhisperPrecisionScreen:
 
         next_step, config = result
         assert next_step == ConfigStep.WHISPER_LANGUAGE
-        assert config.compute_type == "int8"
+        assert config.compute_type == "int8"  # CPU preselection
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_saved_precision_preselected(self, mock_curses):
+        from faster_whisper_hotkey.ui import _screen_whisper_precision
+
+        mock_curses.KEY_DOWN = self.KEY_DOWN
+        mock_curses.KEY_UP = self.KEY_UP
+        mock_stdscr = self._make_stdscr([self.ENTER])
+
+        config = self._config(device="cuda", compute_type="int4")
+        result = _screen_whisper_precision(mock_stdscr, config)
+
+        _, config = result
+        assert config.compute_type == "int4"
 
 
 class TestCursesMenuNativeHint:
@@ -536,30 +507,33 @@ class TestCursesMenuNativeHint:
 
 
 class TestPrecisionScreensUniformOrder:
-    """Precision screens list options in the same order for every model and mark the native one."""
+    """Precision screens list the same options for every model/device and mark the native one."""
 
-    CANONICAL_ORDER = ("float32", "bfloat16", "float16", "int8", "int4")
+    CANONICAL_ORDER = ("float32", "float16", "bfloat16", "int8", "int4")
 
     @pytest.mark.parametrize(
         ("screen_name", "device", "expected_options", "native"),
         [
-            ("_screen_whisper_precision", "cuda", ["float16", "int8"], "float16"),
-            ("_screen_whisper_precision", "cpu", ["int8"], "float16"),
-            ("_screen_parakeet_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
-            ("_screen_parakeet_precision", "cpu", ["float32", "bfloat16"], "float32"),
-            ("_screen_canary_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
-            ("_screen_canary_precision", "cpu", ["float32", "bfloat16"], "float32"),
-            ("_screen_voxtral_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "float32"),
-            ("_screen_cohere_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
-            ("_screen_cohere_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
-            ("_screen_granite_nar_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
-            ("_screen_granite_nar_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
-            ("_screen_granite_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
-            ("_screen_granite_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
-            ("_screen_granite_turboctc_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
-            ("_screen_granite_turboctc_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
-            ("_screen_qwen3_asr_precision", "cuda", ["float32", "bfloat16", "int8", "int4"], "bfloat16"),
-            ("_screen_qwen3_asr_precision", "cpu", ["float32", "bfloat16"], "bfloat16"),
+            ("_screen_whisper_precision", "cuda", ["float16", "int8", "int4"], "float16"),
+            ("_screen_whisper_precision", "cpu", ["float16", "int8", "int4"], "int8"),
+            ("_screen_parakeet_precision", "cuda", list(CANONICAL_ORDER), "float32"),
+            ("_screen_parakeet_precision", "cpu", list(CANONICAL_ORDER), "float32"),
+            ("_screen_parakeet_ultra_precision", "cuda", list(CANONICAL_ORDER), "int8"),
+            ("_screen_parakeet_ultra_precision", "cpu", list(CANONICAL_ORDER), "int8"),
+            ("_screen_canary_precision", "cuda", list(CANONICAL_ORDER), "float32"),
+            ("_screen_canary_precision", "cpu", list(CANONICAL_ORDER), "float32"),
+            ("_screen_voxtral_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_voxtral_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_cohere_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_cohere_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_nar_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_nar_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_turboctc_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_granite_turboctc_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_qwen3_asr_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
+            ("_screen_qwen3_asr_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
         ],
     )
     def test_options_follow_canonical_order_and_mark_native(self, screen_name, device, expected_options, native):
@@ -587,7 +561,7 @@ class TestPrecisionScreensUniformOrder:
 
 
 class TestParakeetUltraDeviceScreen:
-    """Parakeet Ultra (Moondream Photon) device screen: no precision step."""
+    """Parakeet Ultra device screen: GGUF engine with a precision step after it."""
 
     ENTER = 13
     ESC = 27
@@ -617,12 +591,11 @@ class TestParakeetUltraDeviceScreen:
 
         result, config, captured = self._run_screen("cuda")
 
-        assert result == (ui.ConfigStep.HOTKEY, config)
-        assert config.model_name == "moondream/parakeet-ultra"
+        assert result == (ui.ConfigStep.PARAKEET_ULTRA_PRECISION, config)
+        assert config.model_name == "parakeet-ultra"
         assert config.device == "cuda"
-        assert config.compute_type == ""  # Photon: no user-selectable precision
         assert config.language == ""  # automatic language detection
-        assert captured["options"] == ["cuda", "cpu"]
+        assert captured["options"] == ["cuda", "vulkan", "cpu"]
         assert captured["initial_idx"] == 0
 
     def test_cpu_selection_and_preselect(self):
@@ -630,8 +603,17 @@ class TestParakeetUltraDeviceScreen:
 
         result, config, captured = self._run_screen("cpu", device="cpu")
 
-        assert result == (ui.ConfigStep.HOTKEY, config)
+        assert result == (ui.ConfigStep.PARAKEET_ULTRA_PRECISION, config)
         assert config.device == "cpu"
+        assert captured["initial_idx"] == 2
+
+    def test_vulkan_preselect(self):
+        from faster_whisper_hotkey import ui
+
+        result, config, captured = self._run_screen("vulkan", device="vulkan")
+
+        assert result[0] == ui.ConfigStep.PARAKEET_ULTRA_PRECISION
+        assert config.device == "vulkan"
         assert captured["initial_idx"] == 1
 
     def test_esc_returns_to_initial(self):
