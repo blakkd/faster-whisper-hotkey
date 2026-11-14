@@ -177,11 +177,10 @@ def _run_configs(configs, audio, request):
             wrapper = ModelWrapper(settings)
             load_time = round(time.monotonic() - t0, 2)
 
-            # ModelWrapper retries an OOM'd GPU load on CPU (production safety
-            # net); in this matrix that must surface as a failure, never as a
-            # green row labelled with a device the model never ran on.
+            # Invariant: strict backend resolution means the model runs on
+            # exactly the requested device (a bad backend raises before this).
             if wrapper.backend != device:
-                raise RuntimeError(f"requested {device!r}, but model resolved to {wrapper.backend!r} (VRAM full?)")
+                raise RuntimeError(f"requested {device!r}, but model resolved to {wrapper.backend!r}")
 
             t1 = time.monotonic()
             text = wrapper.transcribe(audio_data, sample_rate=sr, language=settings.language)

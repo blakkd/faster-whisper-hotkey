@@ -44,20 +44,21 @@ _BACKEND_BY_DEVICE: dict[str, "transcribe_cpp.Backend"] = {"cpu": "cpu", "cuda":
 
 
 def resolve_backend(device: str) -> "transcribe_cpp.Backend":
-    """Map the settings device to a backend the installed library can serve.
+    """Map the settings device to a backend, strictly.
 
-    A saved device the installed provider has no module for (e.g. "cuda"
-    with the CPU+Vulkan PyPI wheel) falls back to "auto" — the engine's own
-    best-available selection — instead of failing at startup. Settings files
-    keep their device value, so a later provider install picks it up again.
+    No silent substitution: an explicit device the installed library cannot
+    serve (e.g. "cuda" with the CPU+Vulkan PyPI wheel) raises with a clear
+    remedy instead of quietly running somewhere else. The TUI only offers
+    serviceable backends, so this only fires on stale settings files — where
+    startup then stops with the instruction to fix them.
     """
     backend = _BACKEND_BY_DEVICE.get((device or "").lower(), "auto")
     if backend != "auto" and not transcribe_cpp.backend_available(backend):
-        logger.warning(
-            f"Backend {backend!r} is not available with the installed transcribe_cpp library; "
-            "using automatic backend selection (CUDA needs a source build, see dev/onboarding.md)."
+        raise ValueError(
+            f"The {backend!r} backend is not available with the installed transcribe_cpp library. "
+            "Pick a listed device in the settings screen (CUDA needs a source-built provider, "
+            "see dev/onboarding.md)."
         )
-        return "auto"
     return backend
 
 
@@ -114,17 +115,15 @@ class ModelWrapper:
         logger.info(f"Loading {variant.variant} ({quant}, {self.backend}) from {path}")
         try:
             self.model = transcribe_cpp.Model(str(path), backend=self.backend)
-        except OutOfMemory:
-            # A GPU full of someone else's work must not kill push-to-talk:
-            # every model here runs acceptably on CPU (see README table).
-            if self.backend == "cpu":
-                raise
-            logger.error(
-                f"Out of memory loading {variant.variant} on {self.backend!r} — the GPU is likely "
-                "full; falling back to CPU. Free VRAM (or lower the quantization) to use the GPU."
+        except OutOfMemory as exc:
+            # No device substitution: a full GPU means a full GPU. Report it
+            # actionably; main() turns this into one clean error line + exit.
+            remedy = (
+                "the GPU is likely full — free VRAM, use a smaller quantization, or pick 'cpu' in the settings screen"
+                if self.backend != "cpu"
+                else "system RAM is full — close applications or use a smaller quantization"
             )
-            self.backend = "cpu"
-            self.model = transcribe_cpp.Model(str(path), backend="cpu")
+            raise OutOfMemory(f"Failed to load {variant.variant} on {self.backend!r}: out of memory ({remedy}).") from exc
         self.capabilities = self.model.capabilities
         self.max_audio_ms = self.capabilities.max_audio_ms
         if self.max_audio_ms:
@@ -134,7 +133,7 @@ class ModelWrapper:
         self._langid_model: transcribe_cpp.Model | None = None  # cohere "auto": separate lang-id model
 
         # Warm up on the device the engine actually chose ("auto" may have
-        # picked a GPU, and an explicit "cuda" request may have fallen back).
+        # picked a GPU; an explicit backend is honored or already raised above).
         try:
             on_gpu = self.model.device.device_type != "cpu"
         except Exception:  # noqa: BLE001 — backend without resolved device info

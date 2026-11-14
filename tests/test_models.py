@@ -122,41 +122,43 @@ class TestModelLoad:
         assert wrapper.backend == "vulkan"
         eng.Model.assert_called_once_with("/tmp/fake.gguf", backend="vulkan")
 
-    def test_unavailable_backend_falls_back_to_auto(self):
-        """A saved device the library can't serve (cuda on the CPU+Vulkan wheel)
-        must not kill startup — the engine's auto selection takes over."""
+    def test_unavailable_backend_raises_actionably(self):
+        """No silent substitution: a device the library can't serve stops with
+        a clear remedy instead of quietly running on another backend."""
         engine = make_engine()
         engine.backend_available.side_effect = lambda b: b != "cuda"
-        wrapper, eng = build(MockSettings("whisper", "small", "cuda", "float16"), engine)
-        assert wrapper.backend == "auto"
-        eng.Model.assert_called_once_with("/tmp/fake.gguf", backend="auto")
+        from faster_whisper_hotkey.models import ModelWrapper
+
+        with patch("faster_whisper_hotkey.models.transcribe_cpp", engine), pytest.raises(ValueError, match="not available"):
+            ModelWrapper(MockSettings("whisper", "small", "cuda", "float16"))
+        engine.Model.assert_not_called()
 
     def test_unknown_model_raises(self):
         with pytest.raises(ValueError, match="Unknown whisper model"):
             build(MockSettings("whisper", "nonexistent", "cpu", "int8"))
 
-    def test_gpu_oom_falls_back_to_cpu(self):
-        """A GPU full of someone else's workload must not kill the app."""
+    def test_gpu_oom_raises_actionably_without_retry(self):
+        """A full GPU stops the app with a remedy — no CPU masquerade."""
         from transcribe_cpp.errors import OutOfMemory
 
         engine = make_engine()
-        engine.Model.side_effect = [OutOfMemory("gpu full"), engine.model]
-        wrapper, eng = build(MockSettings("parakeet-ultra", "parakeet-ultra", "cuda", "int4"), engine)
-        assert wrapper.backend == "cpu"
-        assert eng.Model.call_count == 2
-        assert eng.Model.call_args_list[1][1]["backend"] == "cpu"
+        engine.Model.side_effect = OutOfMemory("out of memory (status 7)")
+        with pytest.raises(OutOfMemory, match="GPU is likely full|free VRAM"):
+            build(MockSettings("parakeet-ultra", "parakeet-ultra", "cuda", "int4"), engine)
+        engine.Model.assert_called_once()
 
-    def test_cpu_oom_propagates(self):
+    def test_cpu_oom_raises_actionably(self):
         from transcribe_cpp.errors import OutOfMemory
 
         engine = make_engine()
-        engine.Model.side_effect = OutOfMemory("out of ram")
-        with pytest.raises(OutOfMemory):
+        engine.Model.side_effect = OutOfMemory("out of memory (status 7)")
+        with pytest.raises(OutOfMemory, match="RAM is full"):
             build(MockSettings("whisper", "small", "cpu", "int8"), engine)
+        engine.Model.assert_called_once()
 
     def test_gpu_warmup_runs_on_gpu_backends_only(self):
-        # Device decision follows the engine's actually resolved device, not the
-        # requested backend name (auto may pick a GPU; cuda may fall back).
+        # Device decision follows the engine's actually resolved device (the
+        # settings backend may be "auto", which can land on a GPU).
         gpu_engine = make_engine(device_type="gpu")
         with (
             patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr,
