@@ -34,14 +34,18 @@ class GgufVariant:
 _V = GgufVariant
 
 # compute_type labels are the ones the settings file and the TUI precision
-# screens use ("float32", "float16", "bfloat16", "int8", "int4", "" = default).
+# screens use ("float32", "float16", "bfloat16", "int8", "int4", "" = default),
+# plus two off-menu quants ("q6_k", "q5_k_m") that the repos publish and that
+# hand-written settings files / the benchmark matrix can request.
 # Every label must map to a quant the family actually publishes:
-#   whisper:  F16, Q8_0, Q6_K, Q5_K_M, Q4_K_M (no float files beyond F16)
+#   whisper (all except v3): F32, F16, Q8_0, Q6_K, Q5_K_M, Q4_K_M (no BF16)
+#   whisper large-v3 / v3-turbo: same but NO F32 files — float32 falls back to F16
 #   NeMo ports (parakeet/canary): F32, F16, Q8_0, Q6_K, Q5_K_M, Q4_K_M (no BF16)
 #   LLM-head ports (voxtral/cohere/granite*/qwen3): BF16, F16, Q8_0, Q6_K, Q5_K_M, Q4_K_M (no F32)
-_WHISPER = {"float32": "F16", "float16": "F16", "bfloat16": "F16", "int8": "Q8_0", "int4": "Q4_K_M"}
-_NEMO = {"float32": "F32", "float16": "F16", "bfloat16": "F16", "int8": "Q8_0", "int4": "Q4_K_M"}
-_LLM = {"float32": "BF16", "float16": "F16", "bfloat16": "BF16", "int8": "Q8_0", "int4": "Q4_K_M"}
+_WHISPER = {"float32": "F32", "float16": "F16", "bfloat16": "F16", "int8": "Q8_0", "q6_k": "Q6_K", "q5_k_m": "Q5_K_M", "int4": "Q4_K_M"}
+_WHISPER_NO_F32 = {**_WHISPER, "float32": "F16"}  # large-v3 / v3-turbo repos publish no F32
+_NEMO = {"float32": "F32", "float16": "F16", "bfloat16": "F16", "int8": "Q8_0", "q6_k": "Q6_K", "q5_k_m": "Q5_K_M", "int4": "Q4_K_M"}
+_LLM = {"float32": "BF16", "float16": "F16", "bfloat16": "BF16", "int8": "Q8_0", "q6_k": "Q6_K", "q5_k_m": "Q5_K_M", "int4": "Q4_K_M"}
 
 VARIANTS: dict[str, GgufVariant] = {
     v.variant: v
@@ -56,8 +60,8 @@ VARIANTS: dict[str, GgufVariant] = {
         _V("whisper-medium.en", "handy-computer/whisper-medium.en-gguf", _WHISPER, "float16"),
         _V("whisper-large-v1", "handy-computer/whisper-large-gguf", _WHISPER, "float16", stem="whisper-large"),
         _V("whisper-large-v2", "handy-computer/whisper-large-v2-gguf", _WHISPER, "float16"),
-        _V("whisper-large-v3", "handy-computer/whisper-large-v3-gguf", _WHISPER, "float16"),
-        _V("whisper-large-v3-turbo", "handy-computer/whisper-large-v3-turbo-gguf", _WHISPER, "float16"),
+        _V("whisper-large-v3", "handy-computer/whisper-large-v3-gguf", _WHISPER_NO_F32, "float16"),
+        _V("whisper-large-v3-turbo", "handy-computer/whisper-large-v3-turbo-gguf", _WHISPER_NO_F32, "float16"),
         _V("parakeet-ultra", "handy-computer/parakeet-ultra-gguf", _NEMO, "int8"),
         _V("parakeet-tdt-0.6b-v3", "handy-computer/parakeet-tdt-0.6b-v3-gguf", _NEMO, "float32"),
         _V("canary-1b-v2", "handy-computer/canary-1b-v2-gguf", _NEMO, "float32"),

@@ -7,10 +7,13 @@ language/task mapping per family, and the error paths.
 
 import logging
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
+from faster_whisper_hotkey.settings import Settings
 
 _started_patches: list = []
 
@@ -112,6 +115,23 @@ class TestModelLoad:
         wrapper, _ = build(MockSettings("canary", "canary-1b-v2", "cpu", "bfloat16"))
         assert wrapper.quant == "F16"
 
+    def test_off_menu_quants_resolve_to_real_files(self):
+        # q6_k/q5_k_m are published by every repo but not offered in the TUI
+        # menu; hand-written settings / the benchmark matrix request them.
+        wrapper, _ = build(MockSettings("whisper", "small", "cpu", "q6_k"))
+        assert wrapper.quant == "Q6_K"
+        wrapper, _ = build(MockSettings("voxtral", "voxtral-mini-3b-2507", "cpu", "q5_k_m"))
+        assert wrapper.quant == "Q5_K_M"
+
+    def test_whisper_small_float32_is_real_f32(self):
+        wrapper, _ = build(MockSettings("whisper", "small", "cpu", "float32"))
+        assert wrapper.quant == "F32"
+
+    def test_whisper_large_v3_float32_falls_back_to_f16(self):
+        # The large-v3 repo publishes no F32 file; float32 maps to F16.
+        wrapper, _ = build(MockSettings("whisper", "large-v3", "cpu", "float32"))
+        assert wrapper.quant == "F16"
+
     def test_float32_on_llm_family_falls_back_to_bf16(self):
         # The LLM-head ports ship no F32 files; float32 maps to the native BF16.
         wrapper, _ = build(MockSettings("voxtral", "voxtral-mini-3b-2507", "cpu", "float32"))
@@ -130,7 +150,7 @@ class TestModelLoad:
         from faster_whisper_hotkey.models import ModelWrapper
 
         with patch("faster_whisper_hotkey.models.transcribe_cpp", engine), pytest.raises(ValueError, match="not available"):
-            ModelWrapper(MockSettings("whisper", "small", "cuda", "float16"))
+            ModelWrapper(cast(Settings, MockSettings("whisper", "small", "cuda", "float16")))
         engine.Model.assert_not_called()
 
     def test_unknown_model_raises(self):
@@ -312,7 +332,7 @@ class TestTranscribeErrors:
 
         engine = make_engine()
         exc = OutputTruncated("budget")
-        exc.partial_result = SimpleNamespace(text="partial transcript")
+        exc.partial_result = SimpleNamespace(text="partial transcript")  # pyright: ignore[reportAttributeAccessIssue] — engine attaches it dynamically
         engine.model.session.return_value.run.side_effect = exc
         wrapper, _ = build(MockSettings("whisper", "small", "cpu", "int8"), engine)
         assert wrapper.transcribe(np.ones(16000, dtype=np.float32), 16000) == "partial transcript"

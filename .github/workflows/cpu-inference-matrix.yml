@@ -7,7 +7,7 @@ jobs:
   cpu-matrix:
     runs-on: ubuntu-latest
     environment: actions
-    timeout-minutes: 30
+    timeout-minutes: 45
     # One job per model. Each job runs on its own runner, so if GitHub tears a
     # runner down mid-download (hosted runners get recycled) it only loses that
     # model's ~5 minutes; the other jobs keep going and still publish results

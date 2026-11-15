@@ -108,3 +108,15 @@ def pytest_addoption(parser):
         default=False,
         help="Skip CPU configs (run all GPU backends that are available)",
     )
+    parser.addoption(
+        "--runs",
+        type=int,
+        default=1,
+        help="Transcription runs per config; best/median/mean collapse at 1 (default 1; use 3+ to steady a noisy box)",
+    )
+    parser.addoption(
+        "--skip-download",
+        action="store_true",
+        default=False,
+        help="Never download during the matrix: a cache miss fails the config instead of poisoning load timing",
+    )
