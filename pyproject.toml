@@ -57,7 +57,7 @@ packages = ["faster_whisper_hotkey"]
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-faster_whisper_hotkey = ["*.json"]
+faster_whisper_hotkey = ["*.json", "assets/*.wav"]
 
 # RUFF
 [tool.ruff]

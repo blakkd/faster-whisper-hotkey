@@ -13,6 +13,7 @@ In the terminal, in a text editor, or even in the text chat of your online video
 - **User-Friendly Interface**: Allows users to set the input device, transcription model, compute type, device, and language directly through the menu.
 - **CPU-friendly**: [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) gives instant transcription, on any CPU.
 - **One engine for everything**: all models are GGUF checkpoints running on [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp) (ggml) — CPU, Vulkan (any AMD/Intel/NVIDIA GPU) or CUDA backend, no per-model dependency zoo.
+- **Instant first recording**: models are warmed up at startup with a 2 s audio clip, so your very first recording is as fast as your hundredth. (The clip is Never Gonna Give You Up. Run with `--debug` to see what the model thinks it heard.)
 - **LLM correction**: Optionally try to repair broken transcriptions text via any OpenAI-compatible API endpoint.
 
 ## Current models

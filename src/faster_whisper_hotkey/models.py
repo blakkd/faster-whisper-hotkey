@@ -12,6 +12,7 @@ import time
 from typing import Any
 
 import numpy as np
+import soundfile as sf
 import transcribe_cpp
 from transcribe_cpp.errors import InputTooLong, InputTooShort, OutOfMemory, OutputTruncated, TranscribeError
 
@@ -23,13 +24,15 @@ from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
-# The first forward on a fresh GPU context pays a one-time cost (kernel module
-# load, backend init). Pay it at load time with a short silent clip so the
-# first real recording isn't slowed down. This is most visible for models
-# whose whole inference is a single forward pass (e.g. granite-turboctc),
-# where the warmup cost otherwise IS the transcription delay.
-GPU_WARMUP_DURATION_S = 2.0
-_GPU_BACKENDS = ("cuda", "vulkan", "metal", "rocm")
+# Warmup: one short clip through the production path at load time, on EVERY
+# backend. A GPU pays the one-time context/kernel-module cost, a CPU pages in
+# the mmap'd weights — either way the first real recording isn't slowed down.
+# Most visible for models whose whole inference is a single forward pass
+# (e.g. granite-turboctc), where the warmup cost otherwise IS the first
+# transcription delay. The clip is deliberately REAL audio (2 s of a certain
+# 1987 hit) instead of silence: silence warms the encoder but barely feeds
+# the decoder, while audio with transients and structure exercises both.
+WARMUP_CLIP = "assets/never_gonna_give_you_up_2s.wav"
 
 # Settings values that mean "detect the language automatically".
 _AUTO_LANGUAGES = ("", "auto", None)
@@ -132,21 +135,26 @@ class ModelWrapper:
         self.session = self.model.session()
         self._langid_model: transcribe_cpp.Model | None = None  # cohere "auto": separate lang-id model
 
-        # Warm up on the device the engine actually chose ("auto" may have
-        # picked a GPU; an explicit backend is honored or already raised above).
-        try:
-            on_gpu = self.model.device.device_type != "cpu"
-        except Exception:  # noqa: BLE001 — backend without resolved device info
-            on_gpu = self.backend in _GPU_BACKENDS
-        if on_gpu:
-            self._warmup_gpu()
+        self._warmup()
 
-    def _warmup_gpu(self):
-        """Run one short silent transcription through the production path to pay the one-time GPU warmup cost."""
-        dummy = np.zeros(int(GPU_WARMUP_DURATION_S * 16000), dtype=np.float32)
+    def _warmup(self):
+        """Run the 2 s warmup clip through the production path once.
+
+        Never fatal: a warmup failure (odd backend) is logged and the app
+        still starts — worst case the first real recording pays the cost.
+        """
+        from .config import get_resource_path
+
+        audio, sr = sf.read(get_resource_path(WARMUP_CLIP), dtype="float32", always_2d=True)
+        dummy = np.ascontiguousarray(audio[:, 0], dtype=np.float32)
         start = time.perf_counter()
-        self.transcribe(dummy, sample_rate=16000, language=self.settings.language)
-        logger.info(f"GPU warmup finished in {time.perf_counter() - start:.1f} s")
+        try:
+            text = self.transcribe(dummy, sample_rate=sr, language=self.settings.language)
+            logger.info(f"Warmup finished in {time.perf_counter() - start:.1f} s")
+            if text and text.strip():
+                logger.debug(f"Warmup heard: {text.strip()[:60]!r}")
+        except Exception as exc:  # noqa: BLE001 — warmup must never block startup
+            logger.warning(f"Warmup failed ({exc}); first real transcription may be slower")
 
     # ------------------------------------------------------------------
     # Language/task selection per family

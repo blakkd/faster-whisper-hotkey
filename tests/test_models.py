@@ -52,7 +52,6 @@ def make_engine(**attrs):
     engine.model = MagicMock()
     engine.model.session.return_value = session
     engine.model.capabilities = SimpleNamespace(max_audio_ms=attrs.get("max_audio_ms", 0), languages=())
-    engine.model.device = SimpleNamespace(device_type=attrs.get("device_type", "cpu"))
     engine.Model.return_value = engine.model
 
     # _load_support_model also goes through transcribe_cpp.Model, so the
@@ -156,21 +155,22 @@ class TestModelLoad:
             build(MockSettings("whisper", "small", "cpu", "int8"), engine)
         engine.Model.assert_called_once()
 
-    def test_gpu_warmup_runs_on_gpu_backends_only(self):
-        # Device decision follows the engine's actually resolved device (the
-        # settings backend may be "auto", which can land on a GPU).
-        gpu_engine = make_engine(device_type="gpu")
-        with (
-            patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr,
-        ):
-            build(MockSettings("whisper", "small", "cuda", "float16"), gpu_engine)
-        mock_tr.assert_called_once()
-        dummy = mock_tr.call_args[0][0]
-        assert dummy.shape == (32000,) and dummy.dtype == np.float32 and not dummy.any()
+    def test_warmup_always_runs_with_real_clip(self):
+        # Warmup is device-independent (GPU: kernel-module init; CPU: pages in
+        # the mmap'd weights) and feeds the real bundled clip — silence would
+        # warm only the encoder.
+        for device in ("cuda", "cpu"):
+            with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr:
+                build(MockSettings("whisper", "small", device, "int8"))
+            mock_tr.assert_called_once()
+            dummy = mock_tr.call_args[0][0]
+            assert dummy.dtype == np.float32 and dummy.any()
+            assert abs(len(dummy) - 2 * 16000) < 2000  # ~2 s @ 16 kHz
 
-        with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe") as mock_tr:
-            build(MockSettings("whisper", "small", "cpu", "int8"))  # make_engine default device_type: cpu
-        mock_tr.assert_not_called()
+    def test_warmup_failure_is_not_fatal(self):
+        with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe", side_effect=RuntimeError("boom")):
+            wrapper, _ = build(MockSettings("whisper", "small", "cpu", "int8"))
+        assert wrapper.model is not None  # app starts regardless
 
 
 class TestLanguageTaskMapping:
@@ -223,6 +223,7 @@ class TestCohereLanguageDetection:
 
     def test_explicit_language_used_directly(self):
         wrapper, eng = build(MockSettings("cohere", "cohere-transcribe-03-2026", "cpu", "int8"))
+        eng.model.langid_session.reset_mock()  # warmup ran auto-detect with the "" settings language; irrelevant here
         wrapper.transcribe(np.ones(1600, dtype=np.float32), 16000, language="fr")
         kwargs = eng.model.session.return_value.run.call_args[1]
         assert kwargs["language"] == "fr"
@@ -275,6 +276,7 @@ class TestTranscribeErrors:
     def test_over_long_input_rejected_before_engine_call(self):
         engine = make_engine(max_audio_ms=400_000)  # canary-class 400 s cap
         wrapper, _ = build(MockSettings("canary", "canary-1b-v2", "cpu", "int8"), engine)
+        engine.model.session.return_value.run.reset_mock()  # the load-time warmup ran once legitimately
         long_audio = np.ones(401 * 16000, dtype=np.float32)
         assert wrapper.transcribe(long_audio, 16000, language="en-en") == ""
         engine.model.session.return_value.run.assert_not_called()
