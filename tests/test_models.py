@@ -5,6 +5,7 @@ tests verify the settings -> engine plumbing: variant/quant/backend selection,
 language/task mapping per family, and the error paths.
 """
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -171,6 +172,23 @@ class TestModelLoad:
         with patch("faster_whisper_hotkey.models.ModelWrapper.transcribe", side_effect=RuntimeError("boom")):
             wrapper, _ = build(MockSettings("whisper", "small", "cpu", "int8"))
         assert wrapper.model is not None  # app starts regardless
+
+    def test_warmup_debug_logs_what_was_heard(self, caplog):
+        """--debug must always reveal the easter egg, hallucinated or not."""
+        with (
+            caplog.at_level(logging.DEBUG, logger="faster_whisper_hotkey.models"),
+            patch("faster_whisper_hotkey.models.ModelWrapper.transcribe", return_value="  never gonna give you up "),
+        ):
+            build(MockSettings("whisper", "small", "cpu", "int8"))
+        assert "Warmup heard: 'never gonna give you up'" in caplog.text
+
+    def test_warmup_debug_logs_clean_models_too(self, caplog):
+        with (
+            caplog.at_level(logging.DEBUG, logger="faster_whisper_hotkey.models"),
+            patch("faster_whisper_hotkey.models.ModelWrapper.transcribe", return_value=""),
+        ):
+            build(MockSettings("whisper", "small", "cpu", "int8"))
+        assert "heard nothing" in caplog.text
 
 
 class TestLanguageTaskMapping:

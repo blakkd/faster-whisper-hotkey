@@ -151,8 +151,8 @@ class ModelWrapper:
         try:
             text = self.transcribe(dummy, sample_rate=sr, language=self.settings.language)
             logger.info(f"Warmup finished in {time.perf_counter() - start:.1f} s")
-            if text and text.strip():
-                logger.debug(f"Warmup heard: {text.strip()[:60]!r}")
+            heard = (text or "").strip()[:60]
+            logger.debug(f"Warmup heard: {heard!r}" if heard else "Warmup heard nothing — too well-behaved for the easter egg")
         except Exception as exc:  # noqa: BLE001 — warmup must never block startup
             logger.warning(f"Warmup failed ({exc}); first real transcription may be slower")
 
