@@ -120,3 +120,13 @@ def pytest_addoption(parser):
         default=False,
         help="Never download during the matrix: a cache miss fails the config instead of poisoning load timing",
     )
+    parser.addoption(
+        "--configs",
+        default="",
+        help="Run only these device:compute_type pairs, comma separated (e.g. cuda:float16,vulkan:int4); empty = all",
+    )
+    parser.addoption(
+        "--results-file",
+        default="test_audio_data/transcription_results.txt",
+        help="Results path; a custom path APPENDS without truncating (isolated re-runs collect into one file)",
+    )

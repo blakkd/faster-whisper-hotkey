@@ -30,6 +30,13 @@ Device lanes (default is everything available):
 
 Run count: --runs N (default 1; 3+ to steady a noisy box, 1 keeps 180 configs feasible).
 
+Sub-setting & re-runs: --configs cuda:float16,vulkan:int4 runs only those pairs
+(one process per config isolates engines that leak device memory on free — see
+dev/rerun_qwen3_gpu.sh); --results-file PATH redirects output, and a custom
+path APPENDS instead of truncating, so many single-config runs stack up in one
+file. An empty transcription (the app's swallow-engine-errors path) is a
+config ERROR here, never a green row.
+
 "cuda" here means the ggml CUDA backend (needs a source-built provider, the
 PyPI wheel ships CPU+Vulkan); "vulkan" works with the default wheel. CI runners
 have no GPU device at all, so all GPU configs auto-skip there.
@@ -72,14 +79,21 @@ def audio():
 
 
 @pytest.fixture(scope="module")
-def results_file():
-    """Truncate the shared results file once per run; each test appends its block."""
-    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
-        f.write(f"faster-whisper-hotkey transcription results — {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"audio: {AUDIO_PATH}\n")
-        f.write("=" * 80 + "\n")
-        f.write("\n")
-    return RESULTS_FILE
+def results_file(request):
+    """The results path; each test appends its block.
+
+    The default path is truncated once per run. A custom --results-file is
+    never truncated, so per-config re-runs (one pytest process each, e.g. to
+    isolate a leaking model) accumulate blocks in a single file.
+    """
+    path = request.config.getoption("--results-file")
+    if path == RESULTS_FILE:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(f"faster-whisper-hotkey transcription results — {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"audio: {AUDIO_PATH}\n")
+            f.write("=" * 80 + "\n")
+            f.write("\n")
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -184,6 +198,7 @@ def _run_configs(configs, audio, request):
     lanes = {lane: request.config.getoption(f"--{lane}-only") for lane in ("cpu", "cuda", "vulkan")}
     gpu_only = request.config.getoption("--gpu-only")
     runs = max(1, request.config.getoption("--runs"))
+    wanted = {w.strip() for w in request.config.getoption("--configs").split(",") if w.strip()}
 
     _prefetch(configs, request)  # warm the cache OUTSIDE the timed region
 
@@ -195,6 +210,8 @@ def _run_configs(configs, audio, request):
     errors = []
 
     for model_type, model_name, device, compute_type in configs:
+        if wanted and f"{device}:{compute_type}" not in wanted:
+            continue
         allowed = (
             lanes["cpu"] and device == "cpu"
             or lanes["cuda"] and device == "cuda"
@@ -242,14 +259,24 @@ def _run_configs(configs, audio, request):
                 pass
 
             times = []
-            text = ""
+            texts = []
             for _ in range(runs):
                 t1 = time.monotonic()
                 text = wrapper.transcribe(audio_data, sample_rate=sr, language=settings.language)
                 times.append(time.monotonic() - t1)
+                texts.append(text.strip() if text else "")
 
+            # Explicit native teardown (close() frees sessions first, then the
+            # model — the C ordering contract) instead of leaning on gc order.
+            wrapper.model.close()
             del wrapper
             gc.collect()
+
+            # A model whose transcribe() swallowed an engine error returns ""
+            # (the app degrades gracefully); here that must be an error row,
+            # never a green one with a nonsense speed factor.
+            if not any(texts):
+                raise RuntimeError("empty transcription (engine likely errored mid-run)")
 
             results.append(
                 (
@@ -263,7 +290,7 @@ def _run_configs(configs, audio, request):
                     round(statistics.fmean(times), 2),
                     round(audio_sec / min(times), 1),
                     vram_used_mib,
-                    text.strip() if text else "",
+                    next(t for t in texts if t),  # first non-empty transcript for the quality check
                 )
             )
 
