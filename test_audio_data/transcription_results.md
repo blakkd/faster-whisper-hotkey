@@ -3,7 +3,7 @@
 Audio: `test_audio_data/test_16k.wav` — 40.05 s, native 16 kHz mono
 Hardware: NVIDIA RTX PRO 4500 Blackwell (32 GB) · AMD Ryzen 9 5950X (16 cores / 32 threads)
 Speed = `40.05 / best run` (× realtime); `load+warm` = model init + warmup clip, downloads excluded (prefetch).
-Method: `tests/test_model_all_configs.py`, 180 configs (10 models × 6 published quants × cpu/cuda/vulkan), 2026-11-15.
+Method: `tests/test_model_all_configs.py` 180-config benchmark matrix (10 models × 6 published quants × cpu/cuda/vulkan), 2026-11-15; the matrix was retired after this run and lives in git history at commit 3e4a025.
 qwen3-asr GPU rows re-run one config per process (transcribe.cpp qwen3_asr VRAM free bug; see dev/onboarding.md).
 
 ## whisper

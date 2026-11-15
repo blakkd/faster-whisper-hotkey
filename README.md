@@ -18,69 +18,12 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
-_To help with choosing your model, you can look at [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming)._
+_To help with choosing your model, you can also take a look at [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming)._
 
-Benchmarked on the 40 s clip `test_audio_data/test_16k.wav` (best-of-3 per config).
-Full 180-config matrix — 10 models × 6 published quants × cpu/cuda/vulkan — run
-2026-11-15 on a 16-core Ryzen 9 5950X with an NVIDIA RTX PRO 4500 Blackwell (32 GB).
-Reproduce: `uv run pytest tests/test_model_all_configs.py --runs 3` (or a subset via
-`dev/bench_models.py`). The complete grid with VRAM footprints per config:
-[`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md).
-
-**CPU** (fastest quantization per model):
-
-| Model                                           | Compute |     Time | Speed |
-| ----------------------------------------------- | ------- | -------: | ----: |
-| ibm-granite/granite-speech-5.0-470m-turboctc-nc | Q4_K_M  |    0.9 s | 46.4× |
-| nvidia/parakeet-tdt-0.6b-v3                     | F16     |    1.2 s | 32.2× |
-| moondream/parakeet-ultra                        | F16     |    1.4 s | 28.9× |
-| nvidia/canary-1b-v2                             | Q4_K_M  |    2.3 s | 17.6× |
-| openai/whisper-small                            | Q4_K_M  |    2.6 s | 15.7× |
-| CohereLabs/cohere-transcribe-03-2026            | Q4_K_M  |    4.0 s | 10.1× |
-| ibm-granite/granite-speech-4.1-2b-nar           | F16     |    6.1 s |  6.6× |
-| Qwen/Qwen3-ASR-1.7B-hf                          | Q4_K_M  |    7.9 s |  5.0× |
-| ibm-granite/granite-speech-4.1-2b               | Q4_K_M  |    9.9 s |  4.1× |
-| mistralai/Voxtral-Mini-3B-2507                  | Q4_K_M  |   22.4 s |  1.8× |
-
-(Small quants are not automatically fastest on CPU — the parakeet/NAR decoders
-outrun their Q4_K_M builds with plain F16, dequantization costs more than the
-memory saved. The full grid shows where each quant wins.)
-
-**CUDA** (fastest quant, with its VRAM working set — weights + buffers + runtime):
-
-| Model                                           | Compute |     Time |   Speed |    VRAM |
-| ----------------------------------------------- | ------- | -------: | ------: | ------: |
-| ibm-granite/granite-speech-5.0-470m-turboctc-nc | Q5_K_M  |    0.1 s |  374.3× | 5165 MiB |
-| openai/whisper-small                            | F16     |    0.2 s |  181.8× | 1562 MiB |
-| nvidia/parakeet-tdt-0.6b-v3                     | Q8_0    |    0.3 s |  136.0× | 1995 MiB |
-| ibm-granite/granite-speech-4.1-2b-nar           | Q8_0    |    0.3 s |  127.3× | 5045 MiB |
-| moondream/parakeet-ultra                        | Q4_K_M  |    0.3 s |  119.8× | 1917 MiB |
-| Qwen/Qwen3-ASR-1.7B-hf                          | Q4_K_M  |    0.4 s |  112.8× | 2493 MiB |
-| nvidia/canary-1b-v2                             | Q5_K_M  |    0.4 s |  102.1× | 3429 MiB |
-| CohereLabs/cohere-transcribe-03-2026            | F16     |    0.5 s |   75.4× | 6619 MiB |
-| mistralai/Voxtral-Mini-3B-2507                  | Q4_K_M  |    0.6 s |   64.7× | 5945 MiB |
-| ibm-granite/granite-speech-4.1-2b               | Q4_K_M  |    0.7 s |   61.4× | 6407 MiB |
-
-**Vulkan** (same GPU via the portable ggml backend — fastest quant):
-
-| Model                                           | Compute |     Time |   Speed |    VRAM |
-| ----------------------------------------------- | ------- | -------: | ------: | ------: |
-| ibm-granite/granite-speech-5.0-470m-turboctc-nc | BF16    |    0.1 s |  433.7× | 6054 MiB |
-| nvidia/parakeet-tdt-0.6b-v3                     | Q8_0    |    0.2 s |  243.4× | 2302 MiB |
-| moondream/parakeet-ultra                        | Q8_0    |    0.2 s |  206.6× | 2462 MiB |
-| CohereLabs/cohere-transcribe-03-2026            | Q8_0    |    0.3 s |  160.8× | 5302 MiB |
-| nvidia/canary-1b-v2                             | Q4_K_M  |    0.3 s |  158.1× | 3638 MiB |
-| openai/whisper-small                            | Q4_K_M  |    0.3 s |  151.4× | 1842 MiB |
-| ibm-granite/granite-speech-4.1-2b-nar           | Q4_K_M  |    0.4 s |  113.9× | 5577 MiB |
-| Qwen/Qwen3-ASR-1.7B-hf                          | Q4_K_M  |    0.6 s |   65.9× | 2603 MiB |
-| mistralai/Voxtral-Mini-3B-2507                  | Q4_K_M  |    0.8 s |   48.0× | 6270 MiB |
-| ibm-granite/granite-speech-4.1-2b               | Q4_K_M  |    0.9 s |   46.6× | 6718 MiB |
-
-On a modern GPU, every model transcribes a 40 s clip in under a second — push-to-talk
-feels instant everywhere. Even the biggest model (Voxtral) needs < 7 GB VRAM, so any
-decent card works.
-
-For comparison with the old four-engine setup: parakeet-ultra 2.6 s → 1.4 s (Photon → GGUF), whisper small 4.1 s → 2.6 s, cohere 33.2 s → 4.0 s, granite 55.2 s → 9.9 s, canary 55.7 s → 2.3 s — and voxtral, previously GPU-only, now runs on CPU too.
+Speed of every model × quantization × backend (cpu/cuda/vulkan), with VRAM
+footprints and load times, measured on the 40 s clip `test_audio_data/test_16k.wav`:
+**[`test_audio_data/transcription_results.md`](test_audio_data/transcription_results.md)**.
+Reproduce a subset with `uv run python dev/bench_models.py`.
 
 - **(NEW) [parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra)**:
   - 25 languages
