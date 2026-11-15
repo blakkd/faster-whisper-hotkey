@@ -1,45 +1,30 @@
 """
-Integration test: transcribe a fixed audio sample with every supported model config.
+Engine smoke test: one tiny model through the full app stack, every backend.
 
-Output: test_audio_data/transcription_results.txt, one block per config, with
-metrics per line: load+warm time, then best/median/mean of --runs (default 1)
-transcriptions, the real-time speed factor (audio seconds / best run) and, for
-GPU rows, the VRAM footprint the engine reports after load+warmup
-(weights + context buffers + runtime overhead).
+WHY ONE MODEL: everything runs on transcribe.cpp now — checkpoint loading,
+quantization, decode and backends are the engine's job, exercised upstream by
+their own CI. This test verifies OUR remaining stack end-to-end: GGUF
+downloader, settings->engine plumbing, warmup, VAD-adjacent production path,
+and that each ggml backend (cpu/cuda/vulkan) resolves and transcribes. If
+granite-turboctc Q4_K_M (the smallest published checkpoint, 280 MB) works
+here, the engine works; per-model behavior is unit-tested plumbing only.
+
+The 180-config full benchmark matrix that used to live here ran its final
+complete pass on 2026-11-15; the permanent results are in
+test_audio_data/transcription_results.md (full grid incl. VRAM footprints)
+and the README tables. The matrix code is in git history at commit 3e4a025.
+
+Output: one block per backend in the results file (metrics: load+warm,
+best/median/mean of --runs, speed factor, VRAM on GPU rows).
 
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
-Download timing: each family's GGUFs are fetched by a prefetch pass BEFORE
-the timed loop, so load+warm never includes network time (a cold-cache first
-run downloads once, subsequent runs are cache hits). --skip-download refuses
-to fetch: a cache miss then fails the config loudly rather than poisoning its
-load metric.
+Backend lanes / flags still work (they're backend-generic): --cpu-only,
+--cuda-only, --vulkan-only, --gpu-only, --force-cuda/--force-vulkan,
+--configs cuda:int4, --runs N, --skip-download, --results-file PATH.
 
-Coverage: 10 families x every quant the repos publish (F32/BF16, F16, Q8_0,
-Q6_K, Q5_K_M, Q4_K_M — "q6_k"/"q5_k_m" are off-menu settings labels) x three
-backends (cpu, cuda, vulkan) = 180 configs.
-
-Skips GPU configs automatically when the backend is unavailable. Force with:
-    pytest tests/test_model_all_configs.py --force-cuda / --force-vulkan
-
-Device lanes (default is everything available):
-    pytest ... --cpu-only      # CI lane
-    pytest ... --cuda-only     # CUDA configs only
-    pytest ... --vulkan-only   # Vulkan configs only
-    pytest ... --gpu-only      # every GPU backend (the full VRAM-free box run)
-
-Run count: --runs N (default 1; 3+ to steady a noisy box, 1 keeps 180 configs feasible).
-
-Sub-setting & re-runs: --configs cuda:float16,vulkan:int4 runs only those pairs
-(one process per config isolates engines that leak device memory on free — see
-dev/rerun_qwen3_gpu.sh); --results-file PATH redirects output, and a custom
-path APPENDS instead of truncating, so many single-config runs stack up in one
-file. An empty transcription (the app's swallow-engine-errors path) is a
-config ERROR here, never a green row.
-
-"cuda" here means the ggml CUDA backend (needs a source-built provider, the
-PyPI wheel ships CPU+Vulkan); "vulkan" works with the default wheel. CI runners
-have no GPU device at all, so all GPU configs auto-skip there.
+"cuda" means the ggml CUDA backend (source-built provider; the PyPI wheel
+ships CPU+Vulkan). CI runners have no GPU, so the GPU lanes auto-skip there.
 """
 
 import gc
@@ -97,65 +82,17 @@ def results_file(request):
 
 
 # ---------------------------------------------------------------------------
-# Config matrix
+# Smoke config: the smallest published checkpoint, on every backend.
+# (Language "en" matches what the config TUI saves for this family; the
+# backend-generic plumbing under test is identical for every other model.)
 # ---------------------------------------------------------------------------
-# Language the config TUI saves for each model type (mirrors the ui.py screens):
-# parakeet has no language step ("" = auto), voxtral is always "auto" (LID),
-# canary/granite are src-tgt pairs, the rest are plain codes.
+
+SMOKE_CONFIGS = [
+    ("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", dev, "int4") for dev in ("cpu", "cuda", "vulkan")
+]
 UI_LANGUAGE_BY_MODEL = {
-    "whisper": "en",
-    "parakeet": "",
-    "parakeet-ultra": "",
-    "canary": "en-en",
-    "voxtral": "auto",
-    "cohere": "en",
-    "granite-nar": "en",
-    "granite": "en-en",
     "granite-turboctc": "en",
-    "qwen3-asr": "en",
 }
-# Each tuple: (model_type, model_name, device, compute_type)
-# CPU always; CUDA and Vulkan run whenever their backend resolves (CI runners
-# have neither device, so the GPU lanes auto-skip there — that is what the
-# cpu-inference-matrix.yml jobs rely on).
-
-GPU_DEVS = ("cpu", "cuda", "vulkan")
-WHISPER_MODELS = ["small"]
-
-# Every quant the HF repos publish, as a settings label. The NeMo/whisper
-# families get F32 floats, the LLM-head families BF16 (float32 on those maps
-# to BF16 — the identical file — so the LLM lane names it directly and every
-# row below tests a distinct GGUF).
-FULL_FLOAT_INT = ("float32", "float16", "int8", "q6_k", "q5_k_m", "int4")
-FULL_BFLOAT_INT = ("bfloat16", "float16", "int8", "q6_k", "q5_k_m", "int4")
-
-
-def _family(model_type: str, model_name: str, precs: tuple) -> list:
-    """All (device, precision) configs for one model — every backend, every
-    published quant. Quant files are backend-agnostic, so the same download
-    serves all three lanes."""
-    return [(model_type, model_name, dev, prec) for dev in GPU_DEVS for prec in precs]
-
-
-WHISPER = [cfg for m in WHISPER_MODELS for cfg in _family("whisper", m, FULL_FLOAT_INT)]
-
-PARAKEET = _family("parakeet", "parakeet-tdt-0.6b-v3", FULL_FLOAT_INT)
-
-PARAKEET_ULTRA = _family("parakeet-ultra", "parakeet-ultra", FULL_FLOAT_INT)
-
-CANARY = _family("canary", "canary-1b-v2", FULL_FLOAT_INT)
-
-VOXTRAL = _family("voxtral", "voxtral-mini-3b-2507", FULL_BFLOAT_INT)
-
-COHERE = _family("cohere", "cohere-transcribe-03-2026", FULL_BFLOAT_INT)
-
-GRANITE_NAR = _family("granite-nar", "granite-speech-4.1-2b-nar", FULL_BFLOAT_INT)
-
-GRANITE = _family("granite", "granite-speech-4.1-2b", FULL_BFLOAT_INT)
-
-GRANITE_TURBOCTC = _family("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", FULL_BFLOAT_INT)
-
-QWEN3_ASR = _family("qwen3-asr", "qwen3-asr-1.7b", FULL_BFLOAT_INT)
 
 
 def _backend_ok(device: str) -> bool:
@@ -367,75 +304,12 @@ def _model_test(configs, model_label, audio, request, results_file):
 
 
 # ---------------------------------------------------------------------------
-# Tests — one per model type
+# Test
 # ---------------------------------------------------------------------------
 
 
-class TestTranscribeWhisper:
-    """Transcribe test audio with whisper configs."""
+class TestEngineSmoke:
+    """The smoke model through every available backend, via the full app stack."""
 
-    def test_whisper(self, audio, request, results_file):
-        _model_test(WHISPER, "whisper", audio, request, results_file)
-
-
-class TestTranscribeParakeet:
-    """Transcribe test audio with parakeet configs."""
-
-    def test_parakeet(self, audio, request, results_file):
-        _model_test(PARAKEET, "parakeet", audio, request, results_file)
-
-
-class TestTranscribeParakeetUltra:
-    """Transcribe test audio with parakeet-ultra configs."""
-
-    def test_parakeet_ultra(self, audio, request, results_file):
-        _model_test(PARAKEET_ULTRA, "parakeet-ultra", audio, request, results_file)
-
-
-class TestTranscribeCanary:
-    """Transcribe test audio with canary configs."""
-
-    def test_canary(self, audio, request, results_file):
-        _model_test(CANARY, "canary", audio, request, results_file)
-
-
-class TestTranscribeVoxtral:
-    """Transcribe test audio with voxtral configs."""
-
-    def test_voxtral(self, audio, request, results_file):
-        _model_test(VOXTRAL, "voxtral", audio, request, results_file)
-
-
-class TestTranscribeCohere:
-    """Transcribe test audio with cohere configs."""
-
-    def test_cohere(self, audio, request, results_file):
-        _model_test(COHERE, "cohere", audio, request, results_file)
-
-
-class TestTranscribeGraniteNAR:
-    """Transcribe test audio with granite-nar configs."""
-
-    def test_granite_nar(self, audio, request, results_file):
-        _model_test(GRANITE_NAR, "granite-nar", audio, request, results_file)
-
-
-class TestTranscribeGranite:
-    """Transcribe test audio with granite (AR) configs."""
-
-    def test_granite(self, audio, request, results_file):
-        _model_test(GRANITE, "granite", audio, request, results_file)
-
-
-class TestTranscribeGraniteTurboCTC:
-    """Transcribe test audio with granite-turboctc configs."""
-
-    def test_granite_turboctc(self, audio, request, results_file):
-        _model_test(GRANITE_TURBOCTC, "granite-turboctc", audio, request, results_file)
-
-
-class TestTranscribeQwen3ASR:
-    """Transcribe test audio with qwen3-asr configs."""
-
-    def test_qwen3_asr(self, audio, request, results_file):
-        _model_test(QWEN3_ASR, "qwen3-asr", audio, request, results_file)
+    def test_engine_smoke(self, audio, request, results_file):
+        _model_test(SMOKE_CONFIGS, "engine smoke — granite-turboctc Q4_K_M", audio, request, results_file)
