@@ -20,14 +20,14 @@ class TestMainFlow:
 
         expected_settings = Settings(
             device_name="test_dev",
-            model_type="whisper",
-            model_name="small",
-            compute_type="int8",
+            model_repo="handy-computer/whisper-small-gguf",
+            model_file="whisper-small-Q8_0.gguf",
             device="cpu",
             language="en",
             hotkey="pause",
         )
-        mock_wrapper.return_value = expected_settings
+        loaded_model = object()  # a model the config screen already loaded
+        mock_wrapper.return_value = (expected_settings, loaded_model)
 
         mock_transcriber = MagicMock()
         mock_transcriber_cls.return_value = mock_transcriber
@@ -35,7 +35,7 @@ class TestMainFlow:
         main()
 
         mock_wrapper.assert_called_once()
-        mock_transcriber_cls.assert_called_once_with(expected_settings)
+        mock_transcriber_cls.assert_called_once_with(expected_settings, loaded_model)
         mock_transcriber.run.assert_called_once()
 
     @patch("faster_whisper_hotkey.transcriber.MicrophoneTranscriber")
@@ -45,16 +45,18 @@ class TestMainFlow:
         from faster_whisper_hotkey.settings import Settings
         from faster_whisper_hotkey.transcribe import main
 
-        mock_wrapper.return_value = Settings(
-            device_name="test_dev",
-            model_type="whisper",
-            model_name="small",
-            compute_type="int8",
-            device="cuda",
-            language="en",
-            hotkey="pause",
+        mock_wrapper.return_value = (
+            Settings(
+                device_name="test_dev",
+                model_repo="handy-computer/whisper-small-gguf",
+                model_file="whisper-small-Q8_0.gguf",
+                device="cuda",
+                language="en",
+                hotkey="pause",
+            ),
+            None,
         )
-        mock_transcriber_cls.side_effect = ValueError("CUDA int8 is not supported on this GPU")
+        mock_transcriber_cls.side_effect = ValueError("CUDA is not available on this machine")
 
         main()  # must not raise
 

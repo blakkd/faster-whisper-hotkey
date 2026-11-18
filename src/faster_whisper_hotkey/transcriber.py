@@ -22,15 +22,17 @@ MIN_RECORDING_DURATION = 1.0  # seconds
 
 
 class MicrophoneTranscriber:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, model_wrapper: ModelWrapper | None = None):
         self.settings = settings
         self.sample_rate = 16000
         self.max_buffer_length = 10 * 60 * self.sample_rate
         self.audio_buffer = np.zeros(self.max_buffer_length, dtype=np.float32)
         self.buffer_index = 0
 
-        # Load the requested model wrapper
-        self.model_wrapper = ModelWrapper(self.settings)
+        # Reuse the model the config screen already loaded (it is needed there
+        # to read the model's capabilities for the language menu); load one only
+        # when running headless or starting from "Use Last Settings".
+        self.model_wrapper = model_wrapper if model_wrapper is not None else ModelWrapper(self.settings)
 
         # Silero VAD (transcribe.cpp GGUF; loaded lazily on first speech gate)
         self._vad_session = None
@@ -175,6 +177,7 @@ class MicrophoneTranscriber:
                 audio_data,
                 sample_rate=self.sample_rate,
                 language=self.settings.language,
+                target=self.settings.translate_target,
             )
 
             # Log the raw transcription

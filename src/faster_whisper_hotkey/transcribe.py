@@ -157,6 +157,7 @@ def main(headless: bool = False, settings_file: str | None = None):
     from .transcriber import MicrophoneTranscriber
 
     settings: Settings | None = None
+    model_wrapper = None  # a model already loaded during configuration
 
     if headless:
         settings = load_settings(settings_file)
@@ -172,9 +173,9 @@ def main(headless: bool = False, settings_file: str | None = None):
             try:
                 result = curses.wrapper(_run_config_screen, settings_file)
 
-                # result is either a Settings object (success) or None (aborted/cancelled)
-                if isinstance(result, Settings):
-                    settings = result
+                # result is None (aborted/cancelled) or a (Settings, ModelWrapper|None) pair
+                if isinstance(result, tuple):
+                    settings, model_wrapper = result
                     break
 
                 logger.info("Configuration cancelled. Exiting.")
@@ -184,11 +185,13 @@ def main(headless: bool = False, settings_file: str | None = None):
                 logger.info("Program terminated by user")
                 return
 
-    # Launch the transcriber with configured settings
+    # Launch the transcriber with the configured settings (reusing a loaded model if present)
     assert settings is not None
     try:
-        transcriber = MicrophoneTranscriber(settings)
+        transcriber = MicrophoneTranscriber(settings, model_wrapper)
     except Exception as e:  # noqa: BLE001
+        if model_wrapper is not None:
+            model_wrapper.close()
         logger.error(f"Failed to start transcriber: {e}")
         return
     try:

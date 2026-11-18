@@ -4,24 +4,19 @@ Engine smoke test: one tiny model through the full app stack, every backend.
 WHY ONE MODEL: everything runs on transcribe.cpp now — checkpoint loading,
 quantization, decode and backends are the engine's job, exercised upstream by
 their own CI. This test verifies OUR remaining stack end-to-end: GGUF
-downloader, settings->engine plumbing, warmup, VAD-adjacent production path,
-and that each ggml backend (cpu/cuda/vulkan) resolves and transcribes. If
-granite-turboctc Q4_K_M (the smallest published checkpoint, 280 MB) works
+downloader, settings->engine plumbing, warmup, the production transcription
+path, and that each ggml backend (cpu/cuda/vulkan) resolves and transcribes. If
+granite-turboctc Q4_K_M (the smallest published checkpoint, ~280 MB) works
 here, the engine works; per-model behavior is unit-tested plumbing only.
 
-The 180-config full benchmark matrix that used to live here ran its final
-complete pass on 2026-11-15; the permanent results are in
-test_audio_data/transcription_results.md (full grid incl. VRAM footprints)
-and the README tables. The matrix code is in git history at commit 3e4a025.
-
-Output: one block per backend in the results file (metrics: load+warm,
-best/median/mean of --runs, speed factor, VRAM on GPU rows).
+The model is addressed by hub repo + GGUF file (a stable catalog entry), the
+same way the running app addresses every model after the hub-catalog migration.
 
 Run: pytest tests/test_model_all_configs.py -v --tb=long
 
 Backend lanes / flags still work (they're backend-generic): --cpu-only,
 --cuda-only, --vulkan-only, --gpu-only, --force-cuda/--force-vulkan,
---configs cuda:int4, --runs N, --skip-download, --results-file PATH.
+--configs cpu:Q4_K_M, --runs N, --skip-download, --results-file PATH.
 
 "cuda" means the ggml CUDA backend (source-built provider; the PyPI wheel
 ships CPU+Vulkan). CI runners have no GPU, so the GPU lanes auto-skip there.
@@ -37,8 +32,7 @@ import pytest
 import soundfile as sf
 import transcribe_cpp
 
-from faster_whisper_hotkey.downloader import ensure_gguf
-from faster_whisper_hotkey.gguf_models import repo_and_filename
+from faster_whisper_hotkey.downloader import ensure_gguf, model_path
 from faster_whisper_hotkey.models import ModelWrapper
 from faster_whisper_hotkey.settings import Settings
 
@@ -47,8 +41,6 @@ from faster_whisper_hotkey.settings import Settings
 # ---------------------------------------------------------------------------
 
 # 16kHz mono to match production (mic records native 16kHz, no resample).
-# cohere-transcribe is hypersensitive to the 44.1k->16k resampler, so the
-# fixture uses a native-16kHz file to avoid resampling.
 AUDIO_PATH = "test_audio_data/test_16k.wav"
 RESULTS_FILE = "test_audio_data/transcription_results.txt"
 TARGET_SR = 16000
@@ -83,16 +75,13 @@ def results_file(request):
 
 # ---------------------------------------------------------------------------
 # Smoke config: the smallest published checkpoint, on every backend.
-# (Language "en" matches what the config TUI saves for this family; the
-# backend-generic plumbing under test is identical for every other model.)
+# (Language "auto" — granite-turboctc is English-only and ignores the hint.)
 # ---------------------------------------------------------------------------
 
-SMOKE_CONFIGS = [
-    ("granite-turboctc", "granite-speech-5.0-470m-turboctc-nc", dev, "int4") for dev in ("cpu", "cuda", "vulkan")
-]
-UI_LANGUAGE_BY_MODEL = {
-    "granite-turboctc": "en",
-}
+SMOKE_REPO = "handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf"
+SMOKE_FILE = "granite-speech-5.0-470m-turboctc-nc-Q4_K_M.gguf"
+SMOKE_QUANT = "Q4_K_M"
+SMOKE_CONFIGS = [(SMOKE_REPO, SMOKE_FILE, dev, SMOKE_QUANT) for dev in ("cpu", "cuda", "vulkan")]
 
 
 def _backend_ok(device: str) -> bool:
@@ -112,11 +101,8 @@ def _prefetch(configs, request) -> None:
     --skip-download nothing is fetched: a missing file makes the timed config
     fail loudly instead of producing download-poisoned metrics.
     """
-    unique = {(repo_and_filename(mt, nm, ct)[:2]) for mt, nm, _dev, ct in configs}
-    for repo, filename in sorted(unique):
+    for repo, filename in sorted({(repo, fn) for repo, fn, _dev, _quant in configs}):
         if request.config.getoption("--skip-download"):
-            from faster_whisper_hotkey.downloader import model_path
-
             if not model_path(repo, filename).exists():
                 raise RuntimeError(f"--skip-download: {filename} is not in the cache — prefetch it first")
             continue
@@ -146,8 +132,9 @@ def _run_configs(configs, audio, request):
     skipped = []
     errors = []
 
-    for model_type, model_name, device, compute_type in configs:
-        if wanted and f"{device}:{compute_type}" not in wanted:
+    for repo, filename, device, quant in configs:
+        label = f"{filename} ({device}/{quant})"
+        if wanted and f"{device}:{quant}" not in wanted:
             continue
         allowed = (
             lanes["cpu"] and device == "cpu"
@@ -158,21 +145,20 @@ def _run_configs(configs, audio, request):
         )
         if not allowed:
             lanes_on = [lane for lane, on in lanes.items() if on] + (["gpu"] if gpu_only else [])
-            skipped.append((model_type, model_name, device, compute_type, f"excluded by lane {','.join(lanes_on)}"))
+            skipped.append((repo, filename, device, quant, f"excluded by lane {','.join(lanes_on)}"))
             continue
         if device != "cpu" and not (_backend_ok(device) or force[device]):
-            skipped.append((model_type, model_name, device, compute_type, f"{device} backend not available"))
+            skipped.append((repo, filename, device, quant, f"{device} backend not available"))
             continue
 
-        print(f"\n>>> Testing: {model_type}/{model_name} ({device}/{compute_type})")
+        print(f"\n>>> Testing: {label}")
         try:
             settings = Settings(
                 device_name="",
-                model_type=model_type,
-                model_name=model_name,
-                compute_type=compute_type,
+                model_repo=repo,
+                model_file=filename,
                 device=device,
-                language=UI_LANGUAGE_BY_MODEL[model_type],
+                language="auto",
             )
 
             t0 = time.monotonic()
@@ -199,13 +185,13 @@ def _run_configs(configs, audio, request):
             texts = []
             for _ in range(runs):
                 t1 = time.monotonic()
-                text = wrapper.transcribe(audio_data, sample_rate=sr, language=settings.language)
+                text = wrapper.transcribe(audio_data, sample_rate=sr, language="auto")
                 times.append(time.monotonic() - t1)
                 texts.append(text.strip() if text else "")
 
             # Explicit native teardown (close() frees sessions first, then the
             # model — the C ordering contract) instead of leaning on gc order.
-            wrapper.model.close()
+            wrapper.close()
             del wrapper
             gc.collect()
 
@@ -217,10 +203,10 @@ def _run_configs(configs, audio, request):
 
             results.append(
                 (
-                    model_type,
-                    model_name,
+                    repo,
+                    filename,
                     device,
-                    compute_type,
+                    quant,
                     load_time,
                     round(min(times), 2),
                     round(statistics.median(times), 2),
@@ -232,15 +218,7 @@ def _run_configs(configs, audio, request):
             )
 
         except Exception as exc:  # noqa: BLE001
-            errors.append(
-                (
-                    model_type,
-                    model_name,
-                    device,
-                    compute_type,
-                    str(exc),
-                )
-            )
+            errors.append((repo, filename, device, quant, str(exc)))
 
     return results, skipped, errors
 
@@ -248,9 +226,9 @@ def _run_configs(configs, audio, request):
 def _assert_ok(results, errors):
     """Fail if any config raised or returned an empty transcription."""
     assert errors == [], f"{len(errors)} config(s) failed:\n" + "\n".join(
-        f"  - {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
+        f"  - {e[1]} ({e[2]}/{e[3]}): {e[4]}" for e in errors
     )
-    empty = [f"{r[0]}/{r[1]} ({r[2]}/{r[3]})" for r in results if not r[10].strip()]
+    empty = [f"{r[1]} ({r[2]}/{r[3]})" for r in results if not r[10].strip()]
     assert not empty, "empty transcription for:\n" + "\n".join(f"  - {c}" for c in empty)
 
 
@@ -262,9 +240,9 @@ def _format_results(model_label, results, skipped, errors):
     ]
 
     for row in results:
-        model_type, model_name, device, compute_type, load_time, best, median, mean, speed, vram_mib, transcription = row
-        lines.append(f"model: {model_type}/{model_name}")
-        lines.append(f"device: {device}  compute_type: {compute_type}")
+        _repo, filename, device, quant, load_time, best, median, mean, speed, vram_mib, transcription = row
+        lines.append(f"model: {filename}")
+        lines.append(f"device: {device}  quant: {quant}")
         line = f"load+warm: {load_time}s  best: {best}s  median: {median}s  mean: {mean}s  speed: {speed}x realtime"
         if vram_mib is not None:
             line += f"  vram: {vram_mib} MiB"
@@ -277,13 +255,13 @@ def _format_results(model_label, results, skipped, errors):
     if skipped:
         lines.append("SKIPPED")
         for s in skipped:
-            lines.append(f"  {s[0]}/{s[1]} ({s[2]}/{s[3]}): {s[4]}")
+            lines.append(f"  {s[1]} ({s[2]}/{s[3]}): {s[4]}")
         lines.append("")
 
     if errors:
         lines.append("ERRORS")
         for e in errors:
-            lines.append(f"  {e[0]}/{e[1]} ({e[2]}/{e[3]}): {e[4]}")
+            lines.append(f"  {e[1]} ({e[2]}/{e[3]}): {e[4]}")
         lines.append("")
 
     lines.append(f"Summary: {len(results)} OK, {len(skipped)} skipped, {len(errors)} errors")

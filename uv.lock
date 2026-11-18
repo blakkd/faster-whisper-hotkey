@@ -101,7 +101,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/2e/07/eb30593524303d136
 
 [[package]]
 name = "faster-whisper-hotkey"
-version = "0.9.0"
+version = "0.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },

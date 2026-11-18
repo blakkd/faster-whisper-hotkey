@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "faster-whisper-hotkey"
-version = "0.9.0"
+version = "0.10.0"
 description = "Push-to-talk transcription"
 readme = "README.md"
 authors = [{name = "blakkd"}]
@@ -57,7 +57,7 @@ packages = ["faster_whisper_hotkey"]
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-faster_whisper_hotkey = ["*.json", "assets/*.wav"]
+faster_whisper_hotkey = ["*.json", "assets/*.json", "assets/*.wav"]
 
 # RUFF
 [tool.ruff]

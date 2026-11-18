@@ -18,6 +18,8 @@ In the terminal, in a text editor, or even in the text chat of your online video
 
 ## Current models
 
+_The model menu lists **every GGUF checkpoint the engine publishes** (downloaded live from the `handy-computer` hub — currently 70+ models, with each model's languages, translation targets and quantizations read from the model itself), so you are not limited to this list. These are the current highlights:_
+
 _To help with choosing your model, you can also take a look at [AA-AgentTalk score](https://artificialanalysis.ai/speech-to-text/non-streaming)._
 
 Speed of every model × quantization × backend (cpu/cuda/vulkan), with VRAM
@@ -173,7 +175,7 @@ The script automatically saves your settings to `~/.config/faster_whisper_hotkey
 
 - If you you pick a multilingual **whisper** model, and select `en` as source while speaking another language it will be translated to English, provided you speak for at least few seconds.
 - If you pick parakeet-ultra, you can even use multiple languages during your recording!
-- Precisions map to GGUF quantizations: `float32/float16/bfloat16` → full-precision files, `int8` → Q8_0, `int4` → Q4_K_M. Q8_0 is virtually lossless and roughly half the memory; on a recent CPU, `int8` is usually the best pick (and always works — every precision runs on every device).
+- Precisions are the quantizations each model actually publishes — the menu lists them per model, with their download size (labelled `int8` = Q8_0, `int4` = Q4_K_M, plus `float32`/`float16`/`bfloat16` and the Q6_K/Q5_K_M mid-points when present). On a recent CPU, `int8` (Q8_0) is virtually lossless and usually the best pick.
 - Models are downloaded once from Hugging Face (public `handy-computer` repositories) to `~/.cache/faster_whisper_hotkey/models/` and work offline from then on.
 
 ## Bugs & Feature request

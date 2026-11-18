@@ -1,5 +1,7 @@
 .*
 build/
+__pycache__/
+*.pyc
 src/faster_whisper_hotkey.egg-info/
 src/faster_whisper_hotkey/__pycache__/
 dist/

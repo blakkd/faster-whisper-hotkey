@@ -1,0 +1,779 @@
+{
+  "schema": 1,
+  "author": "handy-computer",
+  "generated": "2026-11-17",
+  "repos": [
+    {
+      "id": "handy-computer/Breeze-ASR-25-gguf",
+      "files": [
+        "Breeze-ASR-25-BF16.gguf",
+        "Breeze-ASR-25-F16.gguf",
+        "Breeze-ASR-25-Q4_K_M.gguf",
+        "Breeze-ASR-25-Q5_K_M.gguf",
+        "Breeze-ASR-25-Q6_K.gguf",
+        "Breeze-ASR-25-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/canary-180m-flash-gguf",
+      "files": [
+        "canary-180m-flash-F16.gguf",
+        "canary-180m-flash-F32.gguf",
+        "canary-180m-flash-Q4_K_M.gguf",
+        "canary-180m-flash-Q5_K_M.gguf",
+        "canary-180m-flash-Q6_K.gguf",
+        "canary-180m-flash-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/canary-1b-flash-gguf",
+      "files": [
+        "canary-1b-flash-F16.gguf",
+        "canary-1b-flash-F32.gguf",
+        "canary-1b-flash-Q4_K_M.gguf",
+        "canary-1b-flash-Q5_K_M.gguf",
+        "canary-1b-flash-Q6_K.gguf",
+        "canary-1b-flash-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/canary-1b-gguf",
+      "files": [
+        "canary-1b-F16.gguf",
+        "canary-1b-F32.gguf",
+        "canary-1b-Q4_K_M.gguf",
+        "canary-1b-Q5_K_M.gguf",
+        "canary-1b-Q6_K.gguf",
+        "canary-1b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/canary-1b-v2-gguf",
+      "files": [
+        "canary-1b-v2-F16.gguf",
+        "canary-1b-v2-F32.gguf",
+        "canary-1b-v2-Q4_K_M.gguf",
+        "canary-1b-v2-Q5_K_M.gguf",
+        "canary-1b-v2-Q6_K.gguf",
+        "canary-1b-v2-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/canary-qwen-2.5b-gguf",
+      "files": [
+        "canary-qwen-2.5b-BF16.gguf",
+        "canary-qwen-2.5b-F16.gguf",
+        "canary-qwen-2.5b-Q4_K_M.gguf",
+        "canary-qwen-2.5b-Q5_K_M.gguf",
+        "canary-qwen-2.5b-Q6_K.gguf",
+        "canary-qwen-2.5b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/cohere-transcribe-03-2026-gguf",
+      "files": [
+        "cohere-transcribe-03-2026-BF16.gguf",
+        "cohere-transcribe-03-2026-F16.gguf",
+        "cohere-transcribe-03-2026-Q4_K_M.gguf",
+        "cohere-transcribe-03-2026-Q5_K_M.gguf",
+        "cohere-transcribe-03-2026-Q6_K.gguf",
+        "cohere-transcribe-03-2026-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/cohere-transcribe-arabic-07-2026-gguf",
+      "files": [
+        "cohere-transcribe-arabic-07-2026-BF16.gguf",
+        "cohere-transcribe-arabic-07-2026-F16.gguf",
+        "cohere-transcribe-arabic-07-2026-Q4_K_M.gguf",
+        "cohere-transcribe-arabic-07-2026-Q5_K_M.gguf",
+        "cohere-transcribe-arabic-07-2026-Q6_K.gguf",
+        "cohere-transcribe-arabic-07-2026-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/diar_streaming_sortformer_4spk-v2.1-gguf",
+      "files": [
+        "diar_streaming_sortformer_4spk-v2.1-F16.gguf",
+        "diar_streaming_sortformer_4spk-v2.1-F32.gguf",
+        "diar_streaming_sortformer_4spk-v2.1-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Fun-ASR-MLT-Nano-2512-gguf",
+      "files": [
+        "Fun-ASR-MLT-Nano-2512-BF16.gguf",
+        "Fun-ASR-MLT-Nano-2512-F16.gguf",
+        "Fun-ASR-MLT-Nano-2512-Q4_K_M.gguf",
+        "Fun-ASR-MLT-Nano-2512-Q5_K_M.gguf",
+        "Fun-ASR-MLT-Nano-2512-Q6_K.gguf",
+        "Fun-ASR-MLT-Nano-2512-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Fun-ASR-Nano-2512-gguf",
+      "files": [
+        "Fun-ASR-Nano-2512-BF16.gguf",
+        "Fun-ASR-Nano-2512-F16.gguf",
+        "Fun-ASR-Nano-2512-Q4_K_M.gguf",
+        "Fun-ASR-Nano-2512-Q5_K_M.gguf",
+        "Fun-ASR-Nano-2512-Q6_K.gguf",
+        "Fun-ASR-Nano-2512-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/gigaam-v3-ctc-gguf",
+      "files": [
+        "gigaam-v3-ctc-F16.gguf",
+        "gigaam-v3-ctc-F32.gguf",
+        "gigaam-v3-ctc-Q4_K_M.gguf",
+        "gigaam-v3-ctc-Q5_K_M.gguf",
+        "gigaam-v3-ctc-Q6_K.gguf",
+        "gigaam-v3-ctc-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/gigaam-v3-e2e-ctc-gguf",
+      "files": [
+        "gigaam-v3-e2e-ctc-F16.gguf",
+        "gigaam-v3-e2e-ctc-F32.gguf",
+        "gigaam-v3-e2e-ctc-Q4_K_M.gguf",
+        "gigaam-v3-e2e-ctc-Q5_K_M.gguf",
+        "gigaam-v3-e2e-ctc-Q6_K.gguf",
+        "gigaam-v3-e2e-ctc-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/gigaam-v3-e2e-rnnt-gguf",
+      "files": [
+        "gigaam-v3-e2e-rnnt-F16.gguf",
+        "gigaam-v3-e2e-rnnt-F32.gguf",
+        "gigaam-v3-e2e-rnnt-Q4_K_M.gguf",
+        "gigaam-v3-e2e-rnnt-Q5_K_M.gguf",
+        "gigaam-v3-e2e-rnnt-Q6_K.gguf",
+        "gigaam-v3-e2e-rnnt-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/gigaam-v3-rnnt-gguf",
+      "files": [
+        "gigaam-v3-rnnt-F16.gguf",
+        "gigaam-v3-rnnt-F32.gguf",
+        "gigaam-v3-rnnt-Q4_K_M.gguf",
+        "gigaam-v3-rnnt-Q5_K_M.gguf",
+        "gigaam-v3-rnnt-Q6_K.gguf",
+        "gigaam-v3-rnnt-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-4.0-1b-speech-gguf",
+      "files": [
+        "granite-4.0-1b-speech-BF16.gguf",
+        "granite-4.0-1b-speech-F16.gguf",
+        "granite-4.0-1b-speech-Q4_K_M.gguf",
+        "granite-4.0-1b-speech-Q5_K_M.gguf",
+        "granite-4.0-1b-speech-Q6_K.gguf",
+        "granite-4.0-1b-speech-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-speech-4.1-2b-gguf",
+      "files": [
+        "granite-speech-4.1-2b-BF16.gguf",
+        "granite-speech-4.1-2b-F16.gguf",
+        "granite-speech-4.1-2b-Q4_K_M.gguf",
+        "granite-speech-4.1-2b-Q5_K_M.gguf",
+        "granite-speech-4.1-2b-Q6_K.gguf",
+        "granite-speech-4.1-2b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-speech-4.1-2b-nar-gguf",
+      "files": [
+        "granite-speech-4.1-2b-nar-BF16.gguf",
+        "granite-speech-4.1-2b-nar-F16.gguf",
+        "granite-speech-4.1-2b-nar-Q4_K_M.gguf",
+        "granite-speech-4.1-2b-nar-Q5_K_M.gguf",
+        "granite-speech-4.1-2b-nar-Q6_K.gguf",
+        "granite-speech-4.1-2b-nar-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-speech-4.1-2b-plus-gguf",
+      "files": [
+        "granite-speech-4.1-2b-plus-BF16.gguf",
+        "granite-speech-4.1-2b-plus-F16.gguf",
+        "granite-speech-4.1-2b-plus-Q4_K_M.gguf",
+        "granite-speech-4.1-2b-plus-Q5_K_M.gguf",
+        "granite-speech-4.1-2b-plus-Q6_K.gguf",
+        "granite-speech-4.1-2b-plus-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-speech-5.0-470m-turboctc-gguf",
+      "files": [
+        "granite-speech-5.0-470m-turboctc-BF16.gguf",
+        "granite-speech-5.0-470m-turboctc-F16.gguf",
+        "granite-speech-5.0-470m-turboctc-Q4_K_M.gguf",
+        "granite-speech-5.0-470m-turboctc-Q5_K_M.gguf",
+        "granite-speech-5.0-470m-turboctc-Q6_K.gguf",
+        "granite-speech-5.0-470m-turboctc-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/granite-speech-5.0-470m-turboctc-nc-gguf",
+      "files": [
+        "granite-speech-5.0-470m-turboctc-nc-BF16.gguf",
+        "granite-speech-5.0-470m-turboctc-nc-F16.gguf",
+        "granite-speech-5.0-470m-turboctc-nc-Q4_K_M.gguf",
+        "granite-speech-5.0-470m-turboctc-nc-Q5_K_M.gguf",
+        "granite-speech-5.0-470m-turboctc-nc-Q6_K.gguf",
+        "granite-speech-5.0-470m-turboctc-nc-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/lang-id-voxlingua107-ecapa-gguf",
+      "files": [
+        "lang-id-voxlingua107-ecapa-F16.gguf",
+        "lang-id-voxlingua107-ecapa-F32.gguf",
+        "lang-id-voxlingua107-ecapa-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/medasr-gguf",
+      "files": [
+        "medasr-F16.gguf",
+        "medasr-F32.gguf",
+        "medasr-Q4_K_M.gguf",
+        "medasr-Q5_K_M.gguf",
+        "medasr-Q6_K.gguf",
+        "medasr-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-ar-gguf",
+      "files": [
+        "moonshine-base-ar-F16.gguf",
+        "moonshine-base-ar-F32.gguf",
+        "moonshine-base-ar-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-gguf",
+      "files": [
+        "moonshine-base-F16.gguf",
+        "moonshine-base-F32.gguf",
+        "moonshine-base-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-ja-gguf",
+      "files": [
+        "moonshine-base-ja-F16.gguf",
+        "moonshine-base-ja-F32.gguf",
+        "moonshine-base-ja-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-ko-gguf",
+      "files": [
+        "moonshine-base-ko-F16.gguf",
+        "moonshine-base-ko-F32.gguf",
+        "moonshine-base-ko-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-uk-gguf",
+      "files": [
+        "moonshine-base-uk-F16.gguf",
+        "moonshine-base-uk-F32.gguf",
+        "moonshine-base-uk-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-vi-gguf",
+      "files": [
+        "moonshine-base-vi-F16.gguf",
+        "moonshine-base-vi-F32.gguf",
+        "moonshine-base-vi-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-base-zh-gguf",
+      "files": [
+        "moonshine-base-zh-F16.gguf",
+        "moonshine-base-zh-F32.gguf",
+        "moonshine-base-zh-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-streaming-medium-gguf",
+      "files": [
+        "moonshine-streaming-medium-F16.gguf",
+        "moonshine-streaming-medium-F32.gguf",
+        "moonshine-streaming-medium-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-streaming-small-gguf",
+      "files": [
+        "moonshine-streaming-small-F16.gguf",
+        "moonshine-streaming-small-F32.gguf",
+        "moonshine-streaming-small-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-streaming-tiny-gguf",
+      "files": [
+        "moonshine-streaming-tiny-F16.gguf",
+        "moonshine-streaming-tiny-F32.gguf",
+        "moonshine-streaming-tiny-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-ar-gguf",
+      "files": [
+        "moonshine-tiny-ar-F16.gguf",
+        "moonshine-tiny-ar-F32.gguf",
+        "moonshine-tiny-ar-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-gguf",
+      "files": [
+        "moonshine-tiny-F16.gguf",
+        "moonshine-tiny-F32.gguf",
+        "moonshine-tiny-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-ja-gguf",
+      "files": [
+        "moonshine-tiny-ja-F16.gguf",
+        "moonshine-tiny-ja-F32.gguf",
+        "moonshine-tiny-ja-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-ko-gguf",
+      "files": [
+        "moonshine-tiny-ko-F16.gguf",
+        "moonshine-tiny-ko-F32.gguf",
+        "moonshine-tiny-ko-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-uk-gguf",
+      "files": [
+        "moonshine-tiny-uk-F16.gguf",
+        "moonshine-tiny-uk-F32.gguf",
+        "moonshine-tiny-uk-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-vi-gguf",
+      "files": [
+        "moonshine-tiny-vi-F16.gguf",
+        "moonshine-tiny-vi-F32.gguf",
+        "moonshine-tiny-vi-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moonshine-tiny-zh-gguf",
+      "files": [
+        "moonshine-tiny-zh-F16.gguf",
+        "moonshine-tiny-zh-F32.gguf",
+        "moonshine-tiny-zh-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/moss-transcribe-diarize-gguf",
+      "files": [
+        "MOSS-Transcribe-Diarize-BF16.gguf",
+        "MOSS-Transcribe-Diarize-F16.gguf",
+        "MOSS-Transcribe-Diarize-Q4_K_M.gguf",
+        "MOSS-Transcribe-Diarize-Q5_K_M.gguf",
+        "MOSS-Transcribe-Diarize-Q6_K.gguf",
+        "MOSS-Transcribe-Diarize-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/multitalker-parakeet-streaming-0.6b-v1-gguf",
+      "files": [
+        "multitalker-parakeet-streaming-0.6b-v1-F16.gguf",
+        "multitalker-parakeet-streaming-0.6b-v1-F32.gguf",
+        "multitalker-parakeet-streaming-0.6b-v1-Q4_K_M.gguf",
+        "multitalker-parakeet-streaming-0.6b-v1-Q5_K_M.gguf",
+        "multitalker-parakeet-streaming-0.6b-v1-Q6_K.gguf",
+        "multitalker-parakeet-streaming-0.6b-v1-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
+      "files": [
+        "nemotron-3.5-asr-streaming-0.6b-F16.gguf",
+        "nemotron-3.5-asr-streaming-0.6b-F32.gguf",
+        "nemotron-3.5-asr-streaming-0.6b-Q4_K_M.gguf",
+        "nemotron-3.5-asr-streaming-0.6b-Q5_K_M.gguf",
+        "nemotron-3.5-asr-streaming-0.6b-Q6_K.gguf",
+        "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
+      "files": [
+        "nemotron-speech-streaming-en-0.6b-F16.gguf",
+        "nemotron-speech-streaming-en-0.6b-F32.gguf",
+        "nemotron-speech-streaming-en-0.6b-Q4_K_M.gguf",
+        "nemotron-speech-streaming-en-0.6b-Q5_K_M.gguf",
+        "nemotron-speech-streaming-en-0.6b-Q6_K.gguf",
+        "nemotron-speech-streaming-en-0.6b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/orukeet-gguf",
+      "files": [
+        "orukeet-F16.gguf",
+        "orukeet-F32.gguf",
+        "orukeet-Q4_K_M.gguf",
+        "orukeet-Q5_K_M.gguf",
+        "orukeet-Q6_K.gguf",
+        "orukeet-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-ctc-0.6b-gguf",
+      "files": [
+        "parakeet-ctc-0.6b-F16.gguf",
+        "parakeet-ctc-0.6b-F32.gguf",
+        "parakeet-ctc-0.6b-Q4_K_M.gguf",
+        "parakeet-ctc-0.6b-Q5_K_M.gguf",
+        "parakeet-ctc-0.6b-Q6_K.gguf",
+        "parakeet-ctc-0.6b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-ctc-1.1b-gguf",
+      "files": [
+        "parakeet-ctc-1.1b-F16.gguf",
+        "parakeet-ctc-1.1b-F32.gguf",
+        "parakeet-ctc-1.1b-Q4_K_M.gguf",
+        "parakeet-ctc-1.1b-Q5_K_M.gguf",
+        "parakeet-ctc-1.1b-Q6_K.gguf",
+        "parakeet-ctc-1.1b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-primeline-gguf",
+      "files": [
+        "parakeet-primeline-F16.gguf",
+        "parakeet-primeline-F32.gguf",
+        "parakeet-primeline-Q4_K_M.gguf",
+        "parakeet-primeline-Q5_K_M.gguf",
+        "parakeet-primeline-Q6_K.gguf",
+        "parakeet-primeline-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-rnnt-0.6b-gguf",
+      "files": [
+        "parakeet-rnnt-0.6b-F16.gguf",
+        "parakeet-rnnt-0.6b-F32.gguf",
+        "parakeet-rnnt-0.6b-Q4_K_M.gguf",
+        "parakeet-rnnt-0.6b-Q5_K_M.gguf",
+        "parakeet-rnnt-0.6b-Q6_K.gguf",
+        "parakeet-rnnt-0.6b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-rnnt-1.1b-gguf",
+      "files": [
+        "parakeet-rnnt-1.1b-F16.gguf",
+        "parakeet-rnnt-1.1b-F32.gguf",
+        "parakeet-rnnt-1.1b-Q4_K_M.gguf",
+        "parakeet-rnnt-1.1b-Q5_K_M.gguf",
+        "parakeet-rnnt-1.1b-Q6_K.gguf",
+        "parakeet-rnnt-1.1b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-tdt-0.6b-v2-gguf",
+      "files": [
+        "parakeet-tdt-0.6b-v2-F16.gguf",
+        "parakeet-tdt-0.6b-v2-F32.gguf",
+        "parakeet-tdt-0.6b-v2-Q4_K_M.gguf",
+        "parakeet-tdt-0.6b-v2-Q5_K_M.gguf",
+        "parakeet-tdt-0.6b-v2-Q6_K.gguf",
+        "parakeet-tdt-0.6b-v2-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-tdt-0.6b-v3-gguf",
+      "files": [
+        "parakeet-tdt-0.6b-v3-F16.gguf",
+        "parakeet-tdt-0.6b-v3-F32.gguf",
+        "parakeet-tdt-0.6b-v3-Q4_K_M.gguf",
+        "parakeet-tdt-0.6b-v3-Q5_K_M.gguf",
+        "parakeet-tdt-0.6b-v3-Q6_K.gguf",
+        "parakeet-tdt-0.6b-v3-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-tdt-1.1b-gguf",
+      "files": [
+        "parakeet-tdt-1.1b-F16.gguf",
+        "parakeet-tdt-1.1b-F32.gguf",
+        "parakeet-tdt-1.1b-Q4_K_M.gguf",
+        "parakeet-tdt-1.1b-Q5_K_M.gguf",
+        "parakeet-tdt-1.1b-Q6_K.gguf",
+        "parakeet-tdt-1.1b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-tdt_ctc-1.1b-gguf",
+      "files": [
+        "parakeet-tdt_ctc-1.1b-F16.gguf",
+        "parakeet-tdt_ctc-1.1b-F32.gguf",
+        "parakeet-tdt_ctc-1.1b-Q4_K_M.gguf",
+        "parakeet-tdt_ctc-1.1b-Q5_K_M.gguf",
+        "parakeet-tdt_ctc-1.1b-Q6_K.gguf",
+        "parakeet-tdt_ctc-1.1b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-tdt_ctc-110m-gguf",
+      "files": [
+        "parakeet-tdt_ctc-110m-F16.gguf",
+        "parakeet-tdt_ctc-110m-F32.gguf",
+        "parakeet-tdt_ctc-110m-Q4_K_M.gguf",
+        "parakeet-tdt_ctc-110m-Q5_K_M.gguf",
+        "parakeet-tdt_ctc-110m-Q6_K.gguf",
+        "parakeet-tdt_ctc-110m-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-ultra-gguf",
+      "files": [
+        "parakeet-ultra-F16.gguf",
+        "parakeet-ultra-F32.gguf",
+        "parakeet-ultra-Q4_K_M.gguf",
+        "parakeet-ultra-Q5_K_M.gguf",
+        "parakeet-ultra-Q6_K.gguf",
+        "parakeet-ultra-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/parakeet-unified-en-0.6b-gguf",
+      "files": [
+        "parakeet-unified-en-0.6b-F16.gguf",
+        "parakeet-unified-en-0.6b-F32.gguf",
+        "parakeet-unified-en-0.6b-Q4_K_M.gguf",
+        "parakeet-unified-en-0.6b-Q5_K_M.gguf",
+        "parakeet-unified-en-0.6b-Q6_K.gguf",
+        "parakeet-unified-en-0.6b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Qwen3-ASR-0.6B-gguf",
+      "files": [
+        "Qwen3-ASR-0.6B-BF16.gguf",
+        "Qwen3-ASR-0.6B-F16.gguf",
+        "Qwen3-ASR-0.6B-Q4_K_M.gguf",
+        "Qwen3-ASR-0.6B-Q5_K_M.gguf",
+        "Qwen3-ASR-0.6B-Q6_K.gguf",
+        "Qwen3-ASR-0.6B-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Qwen3-ASR-1.7B-gguf",
+      "files": [
+        "Qwen3-ASR-1.7B-BF16.gguf",
+        "Qwen3-ASR-1.7B-F16.gguf",
+        "Qwen3-ASR-1.7B-Q4_K_M.gguf",
+        "Qwen3-ASR-1.7B-Q5_K_M.gguf",
+        "Qwen3-ASR-1.7B-Q6_K.gguf",
+        "Qwen3-ASR-1.7B-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/SenseVoiceSmall-gguf",
+      "files": [
+        "SenseVoiceSmall-F16.gguf",
+        "SenseVoiceSmall-F32.gguf",
+        "SenseVoiceSmall-Q4_K_M.gguf",
+        "SenseVoiceSmall-Q5_K_M.gguf",
+        "SenseVoiceSmall-Q6_K.gguf",
+        "SenseVoiceSmall-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/silero-vad-v6.2-gguf",
+      "files": [
+        "silero-vad-v6.2-F32.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Voxtral-Mini-3B-2507-gguf",
+      "files": [
+        "Voxtral-Mini-3B-2507-BF16.gguf",
+        "Voxtral-Mini-3B-2507-F16.gguf",
+        "Voxtral-Mini-3B-2507-Q4_K_M.gguf",
+        "Voxtral-Mini-3B-2507-Q5_K_M.gguf",
+        "Voxtral-Mini-3B-2507-Q6_K.gguf",
+        "Voxtral-Mini-3B-2507-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
+      "files": [
+        "Voxtral-Mini-4B-Realtime-2602-BF16.gguf",
+        "Voxtral-Mini-4B-Realtime-2602-F16.gguf",
+        "Voxtral-Mini-4B-Realtime-2602-Q4_K_M.gguf",
+        "Voxtral-Mini-4B-Realtime-2602-Q5_K_M.gguf",
+        "Voxtral-Mini-4B-Realtime-2602-Q6_K.gguf",
+        "Voxtral-Mini-4B-Realtime-2602-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/Voxtral-Small-24B-2507-gguf",
+      "files": [
+        "Voxtral-Small-24B-2507-BF16.gguf",
+        "Voxtral-Small-24B-2507-F16.gguf",
+        "Voxtral-Small-24B-2507-Q4_K_M.gguf",
+        "Voxtral-Small-24B-2507-Q5_K_M.gguf",
+        "Voxtral-Small-24B-2507-Q6_K.gguf",
+        "Voxtral-Small-24B-2507-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-base-gguf",
+      "files": [
+        "whisper-base-F16.gguf",
+        "whisper-base-F32.gguf",
+        "whisper-base-Q4_K_M.gguf",
+        "whisper-base-Q5_K_M.gguf",
+        "whisper-base-Q6_K.gguf",
+        "whisper-base-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-base.en-gguf",
+      "files": [
+        "whisper-base.en-F16.gguf",
+        "whisper-base.en-F32.gguf",
+        "whisper-base.en-Q4_K_M.gguf",
+        "whisper-base.en-Q5_K_M.gguf",
+        "whisper-base.en-Q6_K.gguf",
+        "whisper-base.en-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-large-gguf",
+      "files": [
+        "whisper-large-F16.gguf",
+        "whisper-large-F32.gguf",
+        "whisper-large-Q4_K_M.gguf",
+        "whisper-large-Q5_K_M.gguf",
+        "whisper-large-Q6_K.gguf",
+        "whisper-large-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-large-v2-gguf",
+      "files": [
+        "whisper-large-v2-F16.gguf",
+        "whisper-large-v2-F32.gguf",
+        "whisper-large-v2-Q4_K_M.gguf",
+        "whisper-large-v2-Q5_K_M.gguf",
+        "whisper-large-v2-Q6_K.gguf",
+        "whisper-large-v2-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-large-v3-gguf",
+      "files": [
+        "whisper-large-v3-F16.gguf",
+        "whisper-large-v3-Q4_K_M.gguf",
+        "whisper-large-v3-Q5_K_M.gguf",
+        "whisper-large-v3-Q6_K.gguf",
+        "whisper-large-v3-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-large-v3-turbo-gguf",
+      "files": [
+        "whisper-large-v3-turbo-F16.gguf",
+        "whisper-large-v3-turbo-Q4_K_M.gguf",
+        "whisper-large-v3-turbo-Q5_K_M.gguf",
+        "whisper-large-v3-turbo-Q6_K.gguf",
+        "whisper-large-v3-turbo-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-medium-gguf",
+      "files": [
+        "whisper-medium-F16.gguf",
+        "whisper-medium-F32.gguf",
+        "whisper-medium-Q4_K_M.gguf",
+        "whisper-medium-Q5_K_M.gguf",
+        "whisper-medium-Q6_K.gguf",
+        "whisper-medium-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-medium.en-gguf",
+      "files": [
+        "whisper-medium.en-F16.gguf",
+        "whisper-medium.en-F32.gguf",
+        "whisper-medium.en-Q4_K_M.gguf",
+        "whisper-medium.en-Q5_K_M.gguf",
+        "whisper-medium.en-Q6_K.gguf",
+        "whisper-medium.en-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-small-gguf",
+      "files": [
+        "whisper-small-F16.gguf",
+        "whisper-small-F32.gguf",
+        "whisper-small-Q4_K_M.gguf",
+        "whisper-small-Q5_K_M.gguf",
+        "whisper-small-Q6_K.gguf",
+        "whisper-small-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-small.en-gguf",
+      "files": [
+        "whisper-small.en-F16.gguf",
+        "whisper-small.en-F32.gguf",
+        "whisper-small.en-Q4_K_M.gguf",
+        "whisper-small.en-Q5_K_M.gguf",
+        "whisper-small.en-Q6_K.gguf",
+        "whisper-small.en-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-tiny-gguf",
+      "files": [
+        "whisper-tiny-F16.gguf",
+        "whisper-tiny-F32.gguf",
+        "whisper-tiny-Q4_K_M.gguf",
+        "whisper-tiny-Q5_K_M.gguf",
+        "whisper-tiny-Q6_K.gguf",
+        "whisper-tiny-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": "handy-computer/whisper-tiny.en-gguf",
+      "files": [
+        "whisper-tiny.en-F16.gguf",
+        "whisper-tiny.en-F32.gguf",
+        "whisper-tiny.en-Q4_K_M.gguf",
+        "whisper-tiny.en-Q5_K_M.gguf",
+        "whisper-tiny.en-Q6_K.gguf",
+        "whisper-tiny.en-Q8_0.gguf"
+      ]
+    }
+  ]
+}

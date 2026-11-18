@@ -123,7 +123,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--configs",
         default="",
-        help="Run only these device:compute_type pairs, comma separated (e.g. cuda:float16,vulkan:int4); empty = all",
+        help="Run only these device:quant pairs, comma separated (e.g. cuda:Q8_0,vulkan:Q4_K_M); empty = all",
     )
     parser.addoption(
         "--results-file",

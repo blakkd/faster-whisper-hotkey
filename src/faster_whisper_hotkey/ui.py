@@ -1,4 +1,7 @@
+import contextlib
 import curses
+import logging
+import time
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Literal
@@ -12,38 +15,15 @@ class ConfigStep(Enum):
     """Configuration steps in order."""
 
     INITIAL = auto()
-    DEVICE = auto()
+    AUDIO_DEVICE = auto()
     VAD_ENABLE = auto()
-    MODEL_TYPE = auto()
-    WHISPER_MODEL = auto()
-    WHISPER_DEVICE = auto()
-    WHISPER_PRECISION = auto()
-    WHISPER_LANGUAGE = auto()
-    PARAKEET_DEVICE = auto()
-    PARAKEET_PRECISION = auto()
-    PARAKEET_ULTRA_DEVICE = auto()
-    PARAKEET_ULTRA_PRECISION = auto()
-    CANARY_SOURCE_LANG = auto()
-    CANARY_TARGET_LANG = auto()
-    CANARY_DEVICE = auto()
-    CANARY_PRECISION = auto()
-    VOXTRAL_DEVICE = auto()
-    VOXTRAL_PRECISION = auto()
-    COHERE_DEVICE = auto()
-    COHERE_LANGUAGE = auto()
-    COHERE_PRECISION = auto()
-    GRANITE_NAR_DEVICE = auto()
-    GRANITE_NAR_LANGUAGE = auto()
-    GRANITE_NAR_PRECISION = auto()
-    GRANITE_SOURCE_LANG = auto()
-    GRANITE_TARGET_LANG = auto()
-    GRANITE_DEVICE = auto()
-    GRANITE_PRECISION = auto()
-    GRANITE_TURBOCTC_DEVICE = auto()
-    GRANITE_TURBOCTC_PRECISION = auto()
-    QWEN3_ASR_DEVICE = auto()
-    QWEN3_ASR_PRECISION = auto()
-    QWEN3_ASR_LANGUAGE = auto()
+    MODEL = auto()
+    QUANT = auto()
+    COMPUTE_DEVICE = auto()
+    LOAD = auto()
+    LANGUAGE = auto()
+    TRANSLATE_SOURCE = auto()
+    TRANSLATE_TARGET = auto()
     HOTKEY = auto()
     LLM_ENABLE = auto()
     LLM_ENDPOINT = auto()
@@ -56,18 +36,62 @@ class ConfigData:
     """Holds configuration state across all steps."""
 
     device_name: str | None = None
-    model_type: str | None = None
-    model_name: str = ""
-    compute_type: str = ""
+    model_repo: str = ""
+    model_file: str = ""
+    model_name: str = ""  # display name of the chosen model
     device: str = ""
     language: str = ""
-    language_src_target: str = ""
+    translate_target: str = ""
     hotkey: str = ""
     vad_enabled: bool = True
     llm_correction_enabled: bool = False
     llm_endpoint: str = ""
     llm_model_name: str = ""
     llm_api_key: str = ""
+    model_wrapper: Any = None  # the loaded model (ModelWrapper), once the LOAD step runs
+
+    def discard_model(self) -> None:
+        """Free a loaded model when its selection is changed or abandoned."""
+        if self.model_wrapper is not None:
+            self.model_wrapper.close()
+            self.model_wrapper = None
+
+
+# Menu sentinel for entering translation mode.
+_TRANSLATE_OPTION = "(translate to another language...)"
+
+
+def _fuzzy_indices(options: list[str], query: str) -> list[int]:
+    """Indices of options matching `query` as a case-insensitive fuzzy subsequence.
+
+    Best matches first: prefix match, then plain substring, then a scattered
+    subsequence with word-boundary hits preferred; ties keep the original order.
+    """
+    q = query.lower()
+    if not q:
+        return list(range(len(options)))
+
+    scored = []
+    for i, opt in enumerate(options):
+        text = opt.lower()
+        pos = text.find(q)
+        if pos == 0:
+            score = 3_000_000_000  # prefix match wins over everything
+        elif pos > 0:
+            score = 2_000_000_000 - pos  # substring, earlier match first
+        else:
+            score, j = 1_000_000_000, 0
+            for at, ch in enumerate(text):  # subsequence: all query chars in order
+                if j < len(q) and ch == q[j]:
+                    if at == 0 or not text[at - 1].isalnum():
+                        score += 5_000  # matched at a word boundary
+                    score -= at // 16  # prefer early matches
+                    j += 1
+            if j < len(q):
+                continue
+        scored.append((score, i))
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    return [i for _, i in scored]
 
 
 def curses_menu(
@@ -78,6 +102,7 @@ def curses_menu(
     initial_idx: int = 0,
     footer: str = "",
     native: str = "",
+    searchable: bool = False,
 ):
     """
     Display a scrollable list of `options` in a curses window.
@@ -85,10 +110,23 @@ def curses_menu(
     A `footer` is shown at the bottom of the screen.
     If `native` matches one of the options, it is shown with a " (native)" suffix.
 
+    With `searchable`, typing any printable character starts a fuzzy filter
+    (see _fuzzy_indices): the query and match count show above the list,
+    Backspace edits the query, and ESC clears the query before it cancels.
+
     Returns the selected option (without any suffix), or None if the user aborts with ESC.
     """
-    current_row = initial_idx
+    query = ""
+    view: list[int] = list(range(len(options)))
+    sel = min(initial_idx, len(view) - 1) if view else 0
     h, w = stdscr.getmaxyx()
+
+    def set_query(q: str) -> None:
+        nonlocal query, view, sel
+        kept = view[sel] if view else None
+        query = q
+        view = _fuzzy_indices(options, q) if q else list(range(len(options)))
+        sel = view.index(kept) if kept in view else 0
 
     def draw_menu():
         nonlocal h, w
@@ -99,26 +137,29 @@ def curses_menu(
             return
 
         message_lines = message.split("\n") if message else []
+        if searchable:
+            # search status above the results, with a visual gap between the two
+            message_lines = message_lines + [f"Search: {query}  ({len(view)} of {len(options)} matches)", "", ""]
         space_for_message = len(message_lines)
-        space_for_options = h - 2
+        # bottom rows reserved: blank, elevator, blank, footer
+        bottom_reserved = 4
+        top_reserved = 1 if title else 0
+        region_h = h - top_reserved - bottom_reserved
 
-        if space_for_options - space_for_message <= 0:
+        if region_h - space_for_message <= 0:
             warning = "Terminal too small for this menu"
             stdscr.addstr(0, 0, warning[: w - 1] if w > 0 else warning)
             stdscr.refresh()
             return
 
-        max_visible = min(space_for_options - space_for_message, len(options))
-        start = max(0, current_row - (max_visible // 2))
-        end = min(start + max_visible, len(options))
-
         if title:
             title_x = max(0, (w - len(title)) // 2)
             stdscr.addstr(0, title_x, title)
 
-        options_y_start = (h - max_visible) // 2
-        if title:
-            options_y_start += 1
+        max_visible = min(region_h - space_for_message, max(1, len(view)))
+        # center the message + options block as one unit inside the region
+        block_h = space_for_message + max_visible
+        options_y_start = top_reserved + (region_h - block_h) // 2 + space_for_message
 
         for i, line in enumerate(message_lines):
             truncated_line = line[: w - 1] if w > 0 else line
@@ -127,26 +168,33 @@ def curses_menu(
             if 0 <= y_msg < h:
                 stdscr.addstr(y_msg, x, truncated_line)
 
-        for i in range(start, end):
-            text = options[i]
+        start = max(0, sel - (max_visible // 2))
+        end = min(start + max_visible, len(view))
+
+        if not view:
+            hint = f"No matches for '{query}'"
+            y = max(0, min(options_y_start, h - 1))
+            stdscr.addstr(y, max(0, min((w - len(hint)) // 2, w - 1)), hint[: w - 1])
+        for p in range(start, end):
+            text = options[view[p]]
             if native and text == native:
                 text = f"{text} (native)"
             x = w // 2 - len(text) // 2
             x = max(0, min(x, w - 1)) if w > 0 else 0
-            y = options_y_start + (i - start)
+            y = options_y_start + (p - start)
             if y < 0 or y >= h:
                 continue
             truncated_text = text[: w - 1] if w > 0 else text
-            if i == current_row:
+            if p == sel:
                 stdscr.attron(curses.color_pair(1))
                 stdscr.addstr(y, x, truncated_text)
                 stdscr.attroff(curses.color_pair(1))
             else:
                 stdscr.addstr(y, x, truncated_text)
 
-        if max_visible < len(options) and h > 0 and w > 0:
-            ratio = (current_row + 1) / len(options)
-            y_scroll = h - 2
+        if max_visible < len(view) and h > 0 and w > 0:
+            ratio = (sel + 1) / len(view)
+            y_scroll = h - 3
             x_start = w // 4
             length = w // 2
             x_start = max(0, min(x_start, w - 1))
@@ -191,14 +239,22 @@ def curses_menu(
 
     while True:
         key = stdscr.getch()
-        if key == curses.KEY_UP and current_row > 0:
-            current_row -= 1
-        elif key == curses.KEY_DOWN and current_row < len(options) - 1:
-            current_row += 1
+        if key == curses.KEY_UP and sel > 0:
+            sel -= 1
+        elif key == curses.KEY_DOWN and sel < len(view) - 1:
+            sel += 1
         elif key in [curses.KEY_ENTER, 10, 13]:
-            return options[current_row]
+            if view:
+                return options[view[sel]]
         elif key == 27:
-            return None
+            if query:
+                set_query("")  # ESC clears an active filter before it cancels
+            else:
+                return None
+        elif searchable and query and key in (curses.KEY_BACKSPACE, 127, 8):
+            set_query(query[:-1])
+        elif searchable and 32 <= key <= 126:
+            set_query(query + chr(key))
 
         new_h, new_w = stdscr.getmaxyx()
         if new_h != h or new_w != w:
@@ -301,27 +357,14 @@ def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> 
         draw()
 
 
-def _initial_precision_idx(options: list[str], current: str, native: str) -> int:
-    """Preselect the saved precision if still offered, else the native one, else the first option."""
-    if current in options:
-        return options.index(current)
-    if native in options:
-        return options.index(native)
-    return 0
-
-
-# Every model runs on the transcribe.cpp ggml runtime, which offers the same
-# backends for all families: CUDA (NVIDIA), Vulkan (AMD/Intel GPUs) and plain
-# CPU. CUDA and Vulkan are optional ggml modules — the PyPI wheel has
-# CPU+Vulkan, CUDA needs a source build (dev/onboarding.md); the menu lists
-# what the installed provider can actually serve (_available_devices).
-# The GGUF files are downloaded per precision, so (unlike the old per-engine
-# matrices) every precision works on every device.
+# ---------------------------------------------------------------------------
+# Device menu (compute backend)
+# ---------------------------------------------------------------------------
+# Every model runs on the transcribe.cpp ggml runtime, which offers CUDA
+# (NVIDIA), Vulkan (AMD/Intel GPUs) and plain CPU. CUDA and Vulkan are optional
+# ggml modules — the PyPI wheel has CPU+Vulkan, CUDA needs a source build
+# (dev/onboarding.md); the menu lists what the installed provider can serve.
 _DEVICE_OPTIONS: list[Literal["cuda", "vulkan", "cpu"]] = ["cuda", "vulkan", "cpu"]
-
-
-# TUI precision labels -> GGUF quantizations (mapping in gguf_models.py).
-_PRECISION_OPTIONS = ["float32", "float16", "bfloat16", "int8", "int4"]
 
 
 def _available_devices() -> list[str]:
@@ -331,188 +374,112 @@ def _available_devices() -> list[str]:
     return [d for d in _DEVICE_OPTIONS if d == "cpu" or transcribe_cpp.backend_available(d)]
 
 
-def _device_menu(stdscr, config: ConfigData, title: str = "Compute Device", footer: str = "") -> str | None:
-    """Shared "Compute Device" screen; returns the selected backend name."""
-    options = _available_devices()
-    initial_idx = options.index(config.device) if config.device in options else 0
-    return curses_menu(stdscr, title, options, footer=footer, initial_idx=initial_idx)
+# ---------------------------------------------------------------------------
+# Settings <-> ConfigData
+# ---------------------------------------------------------------------------
 
 
-def _precision_screen(stdscr, config: ConfigData, native: str, options: list[str] | None = None) -> str | None:
-    """Shared precision screen; returns the selected compute_type label."""
-    options = options or _PRECISION_OPTIONS
-    initial_idx = _initial_precision_idx(options, config.compute_type, native)
-    return curses_menu(stdscr, "Precision", options, initial_idx=initial_idx, native=native)
+def _config_from_last_settings(last: Settings | None) -> ConfigData:
+    config = ConfigData()
+    if last:
+        config.device_name = last.device_name
+        config.model_repo = last.model_repo
+        config.model_file = last.model_file
+        config.device = last.device
+        config.language = last.language
+        config.translate_target = last.translate_target
+        config.hotkey = last.hotkey
+        config.vad_enabled = last.vad_enabled
+        config.llm_correction_enabled = last.llm_correction_enabled
+        config.llm_endpoint = last.llm_endpoint
+        config.llm_model_name = last.llm_model_name
+        config.llm_api_key = last.llm_api_key
+        if last.model_repo:
+            from . import catalog
+
+            config.model_name = catalog.short_name(last.model_repo)
+    return config
 
 
-def config_screen_main(stdscr, settings_file: str | None = None):
+def _settings_from_config(config: ConfigData) -> Settings:
+    return Settings(
+        device_name=config.device_name or "",
+        model_repo=config.model_repo,
+        model_file=config.model_file,
+        device=config.device,
+        language=config.language,
+        translate_target=config.translate_target,
+        hotkey=config.hotkey,
+        vad_enabled=config.vad_enabled,
+        llm_correction_enabled=config.llm_correction_enabled,
+        llm_endpoint=config.llm_endpoint,
+        llm_model_name=config.llm_model_name,
+        llm_api_key=config.llm_api_key,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Config screen main loop
+# ---------------------------------------------------------------------------
+
+
+def config_screen_main(stdscr, settings_file: str | None = None) -> tuple[Settings, Any] | None:
     """
     Unified configuration screen with consistent ESC behavior.
 
-    ESC at any point returns to the initial screen (initial choice).
-    User can then:
-    - Start transcriber with current settings
-    - Cancel and exit without saving
-
-    Returns Settings if successfully configured, None if cancelled.
+    ESC at any point returns to the initial screen. The user can then start with
+    the last settings or reconfigure. Returns (Settings, loaded_model_or_None) on
+    success, or None if cancelled. A model loaded during configuration is reused
+    by the caller; it is closed here when the user abandons the run.
     """
     curses.curs_set(0)
     curses.start_color()
     curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
 
-    # Load last settings for defaults
-    last_settings = load_settings(settings_file)
-
-    # Initialize config data with last settings as defaults
-    config = ConfigData()
-    if last_settings:
-        config.device_name = last_settings.device_name
-        config.model_type = last_settings.model_type
-        config.model_name = last_settings.model_name
-        config.compute_type = last_settings.compute_type
-        config.device = last_settings.device
-        config.hotkey = last_settings.hotkey
-        config.vad_enabled = getattr(last_settings, "vad_enabled", True)
-        config.llm_correction_enabled = last_settings.llm_correction_enabled
-        config.llm_endpoint = last_settings.llm_endpoint
-        config.llm_model_name = last_settings.llm_model_name
-        config.llm_api_key = last_settings.llm_api_key
-        # Preserve full src-tgt language pair for target screen preselection
-        if last_settings.language and "-" in last_settings.language:
-            config.language_src_target = last_settings.language
-            config.language = last_settings.language.split("-")[0]
-        else:
-            config.language = last_settings.language
-
+    config = _config_from_last_settings(load_settings(settings_file))
     current_step = ConfigStep.INITIAL
 
     while True:
-        key_handle_result = _handle_key_transition(stdscr, current_step, config)
+        result = _handle_key_transition(stdscr, current_step, config)
 
-        if key_handle_result is None:
-            # ESC pressed at initial step - exit without saving
+        if result is None:
+            config.discard_model()  # cancelled: free anything we loaded
             return None
 
-        elif isinstance(key_handle_result, tuple) and len(key_handle_result) == 2:
-            current_step, config = key_handle_result
+        if isinstance(result, Settings):
+            save_settings(result.__dict__, settings_file)
+            return result, config.model_wrapper
 
-        else:
-            # Success - all steps completed
-            result_settings = _create_settings_from_config(config, last_settings)
-            save_settings(result_settings.__dict__, settings_file)
-            return result_settings
+        current_step, config = result
 
 
-def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData):
+def _handle_key_transition(stdscr, current_step: ConfigStep, config: ConfigData) -> "tuple[ConfigStep, ConfigData] | Settings | None":
     """
     Handle the current configuration step.
 
     Returns:
-        - None: ESC pressed at initial screen, exit without saving
-        - tuple(new_step, new_config): Continue to next (or previous) screen
-        - Settings: Configuration complete
+        - None: cancel (only possible at the initial screen)
+        - (ConfigStep, ConfigData): move to another step
+        - Settings: configuration complete
     """
-    if current_step == ConfigStep.INITIAL:
-        return _screen_initial(stdscr, config)
-
-    elif current_step == ConfigStep.DEVICE:
-        return _screen_device(stdscr, config)
-
-    elif current_step == ConfigStep.VAD_ENABLE:
-        return _screen_vad_enable(stdscr, config)
-
-    elif current_step == ConfigStep.MODEL_TYPE:
-        return _screen_model_type(stdscr, config)
-
-    # Whisper sub-steps
-    elif current_step == ConfigStep.WHISPER_MODEL:
-        return _screen_whisper_model(stdscr, config)
-    elif current_step == ConfigStep.WHISPER_DEVICE:
-        return _screen_whisper_device(stdscr, config)
-    elif current_step == ConfigStep.WHISPER_PRECISION:
-        return _screen_whisper_precision(stdscr, config)
-    elif current_step == ConfigStep.WHISPER_LANGUAGE:
-        return _screen_whisper_language(stdscr, config)
-
-    # Parakeet sub-steps
-    elif current_step == ConfigStep.PARAKEET_DEVICE:
-        return _screen_parakeet_device(stdscr, config)
-    elif current_step == ConfigStep.PARAKEET_PRECISION:
-        return _screen_parakeet_precision(stdscr, config)
-    elif current_step == ConfigStep.PARAKEET_ULTRA_DEVICE:
-        return _screen_parakeet_ultra_device(stdscr, config)
-    elif current_step == ConfigStep.PARAKEET_ULTRA_PRECISION:
-        return _screen_parakeet_ultra_precision(stdscr, config)
-
-    # Canary sub-steps
-    elif current_step == ConfigStep.CANARY_SOURCE_LANG:
-        return _screen_canary_source_lang(stdscr, config)
-    elif current_step == ConfigStep.CANARY_TARGET_LANG:
-        return _screen_canary_target_lang(stdscr, config)
-    elif current_step == ConfigStep.CANARY_DEVICE:
-        return _screen_canary_device(stdscr, config)
-    elif current_step == ConfigStep.CANARY_PRECISION:
-        return _screen_canary_precision(stdscr, config)
-
-    # Voxtral sub-steps
-    elif current_step == ConfigStep.VOXTRAL_DEVICE:
-        return _screen_voxtral_device(stdscr, config)
-    elif current_step == ConfigStep.VOXTRAL_PRECISION:
-        return _screen_voxtral_precision(stdscr, config)
-
-    # Cohere sub-steps
-    elif current_step == ConfigStep.COHERE_DEVICE:
-        return _screen_cohere_device(stdscr, config)
-    elif current_step == ConfigStep.COHERE_LANGUAGE:
-        return _screen_cohere_language(stdscr, config)
-    elif current_step == ConfigStep.COHERE_PRECISION:
-        return _screen_cohere_precision(stdscr, config)
-
-    # Granite sub-steps
-    elif current_step == ConfigStep.GRANITE_NAR_DEVICE:
-        return _screen_granite_nar_device(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_NAR_LANGUAGE:
-        return _screen_granite_nar_language(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_NAR_PRECISION:
-        return _screen_granite_nar_precision(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_SOURCE_LANG:
-        return _screen_granite_source_lang(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_TARGET_LANG:
-        return _screen_granite_target_lang(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_DEVICE:
-        return _screen_granite_device(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_PRECISION:
-        return _screen_granite_precision(stdscr, config)
-
-    # Qwen3-ASR sub-steps
-    elif current_step == ConfigStep.GRANITE_TURBOCTC_DEVICE:
-        return _screen_granite_turboctc_device(stdscr, config)
-    elif current_step == ConfigStep.GRANITE_TURBOCTC_PRECISION:
-        return _screen_granite_turboctc_precision(stdscr, config)
-
-    # Qwen3-ASR sub-steps
-    elif current_step == ConfigStep.QWEN3_ASR_DEVICE:
-        return _screen_qwen3_asr_device(stdscr, config)
-    elif current_step == ConfigStep.QWEN3_ASR_PRECISION:
-        return _screen_qwen3_asr_precision(stdscr, config)
-    elif current_step == ConfigStep.QWEN3_ASR_LANGUAGE:
-        return _screen_qwen3_asr_language(stdscr, config)
-
-    # Common final steps
-    elif current_step == ConfigStep.HOTKEY:
-        return _screen_hotkey(stdscr, config)
-
-    elif current_step == ConfigStep.LLM_ENABLE:
-        return _screen_llm_enable(stdscr, config)
-    elif current_step == ConfigStep.LLM_ENDPOINT:
-        return _screen_llm_endpoint(stdscr, config)
-    elif current_step == ConfigStep.LLM_MODEL:
-        return _screen_llm_model(stdscr, config)
-    elif current_step == ConfigStep.LLM_API_KEY:
-        return _screen_llm_api_key(stdscr, config)
-
-    # Should never reach here
-    return (current_step, config)
+    handlers = {
+        ConfigStep.INITIAL: _screen_initial,
+        ConfigStep.AUDIO_DEVICE: _screen_audio_device,
+        ConfigStep.VAD_ENABLE: _screen_vad_enable,
+        ConfigStep.MODEL: _screen_model,
+        ConfigStep.QUANT: _screen_quant,
+        ConfigStep.COMPUTE_DEVICE: _screen_compute_device,
+        ConfigStep.LOAD: _screen_load,
+        ConfigStep.LANGUAGE: _screen_language,
+        ConfigStep.TRANSLATE_SOURCE: _screen_translate_source,
+        ConfigStep.TRANSLATE_TARGET: _screen_translate_target,
+        ConfigStep.HOTKEY: _screen_hotkey,
+        ConfigStep.LLM_ENABLE: _screen_llm_enable,
+        ConfigStep.LLM_ENDPOINT: _screen_llm_endpoint,
+        ConfigStep.LLM_MODEL: _screen_llm_model,
+        ConfigStep.LLM_API_KEY: _screen_llm_api_key,
+    }
+    return handlers[current_step](stdscr, config)
 
 
 def _back_to_initial(config: ConfigData):
@@ -521,49 +488,43 @@ def _back_to_initial(config: ConfigData):
 
 
 # ============================================================================
-# Screen Handlers - Each implements a single configuration step
+# Screen handlers
 # ============================================================================
 
 
 def _screen_initial(stdscr, config: ConfigData):
     """Initial choice: use last settings or configure new ones."""
-    has_saved = bool(config.model_type)
+    has_saved = bool(config.model_repo)
 
     while True:
-        if has_saved:
-            choice = curses_menu(
-                stdscr,
-                "",
-                ["Use Last Settings", "Configure New Settings"],
-            )
-        else:
-            choice = curses_menu(
-                stdscr,
-                "",
-                ["Configure New Settings"],
-            )
+        options = ["Use Last Settings", "Configure New Settings"] if has_saved else ["Configure New Settings"]
+        choice = curses_menu(stdscr, "", options)
 
         if choice is None:
-            # ESC at initial screen - exit without saving
             return None
 
-        elif has_saved and choice == "Use Last Settings":
-            # Skip all screens, save unchanged settings, and start immediately
-            return _create_settings_from_config(config, None)
+        if choice == "Use Last Settings":
+            # No model loaded on this path; the transcriber loads from settings.
+            return _settings_from_config(config)
 
-        elif choice == "Configure New Settings":
-            # Start fresh configuration from device selection
-            return (ConfigStep.DEVICE, config)
+        if choice == "Configure New Settings":
+            # Starting a fresh selection: drop any model loaded in a previous pass.
+            config.discard_model()
+            config.model_repo = ""
+            config.model_file = ""
+            config.model_name = ""
+            config.language = ""
+            config.translate_target = ""
+            return (ConfigStep.AUDIO_DEVICE, config)
 
 
-def _screen_device(stdscr, config: ConfigData):
+def _screen_audio_device(stdscr, config: ConfigData):
     """Select audio input device."""
     with Pulse() as pulse:
         sources = pulse.source_list()
         source_map = {src.description: src.name for src in sources}
         device_names = list(source_map.keys())
 
-        # Find current selection index
         initial_idx = 0
         if config.device_name:
             for i, (_desc, name) in enumerate(source_map.items()):
@@ -571,12 +532,7 @@ def _screen_device(stdscr, config: ConfigData):
                     initial_idx = i
                     break
 
-        selected_desc = curses_menu(
-            stdscr,
-            "Audio Device",
-            device_names,
-            initial_idx=initial_idx,
-        )
+        selected_desc = curses_menu(stdscr, "Audio Device", device_names, initial_idx=initial_idx)
 
         if selected_desc is None:
             return _back_to_initial(config)
@@ -602,578 +558,254 @@ def _screen_vad_enable(stdscr, config: ConfigData):
         return _back_to_initial(config)
 
     config.vad_enabled = selected == "Yes"
-    return (ConfigStep.MODEL_TYPE, config)
+    return (ConfigStep.MODEL, config)
 
 
-def _screen_model_type(stdscr, config: ConfigData):
-    """Select model type."""
-    model_options = [
-        "whisper",
-        "parakeet-ultra",
-        "canary-1b-v2",
-        "Voxtral-Mini-3B-2507",
-        "cohere-transcribe-03-2026",
-        "granite-speech-4.1-2b-nar",
-        "granite-speech-4.1-2b",
-        "granite-speech-5.0-470m-turboctc-nc",
-        "Qwen3-ASR-1.7B-hf",
-    ]
+def _screen_model(stdscr, config: ConfigData):
+    """Select a model from the hub catalog (type to fuzzy-search the long list)."""
+    from . import catalog
+
+    entries = catalog.list_models()
+    options = [f"{e.name} ({len(e.files)})" for e in entries]
+    by_label = dict(zip(options, entries, strict=True))
 
     initial_idx = 0
-    type_mapping = {
-        "whisper": 0,
-        "parakeet": 1,
-        "parakeet-ultra": 1,
-        "canary": 2,
-        "voxtral": 3,
-        "cohere": 4,
-        "granite-nar": 5,
-        "granite": 6,
-        "granite-turboctc": 7,
-        "qwen3-asr": 8,
-    }
-    if config.model_type and config.model_type in type_mapping:
-        initial_idx = type_mapping[config.model_type]
-
-    selected = curses_menu(stdscr, "Model Type", model_options, initial_idx=initial_idx)
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    # Map display name to internal type
-    type_map = {
-        "whisper": "whisper",
-        "parakeet-ultra": "parakeet-ultra",
-        "canary-1b-v2": "canary",
-        "Voxtral-Mini-3B-2507": "voxtral",
-        "cohere-transcribe-03-2026": "cohere",
-        "granite-speech-4.1-2b-nar": "granite-nar",
-        "granite-speech-4.1-2b": "granite",
-        "granite-speech-5.0-470m-turboctc-nc": "granite-turboctc",
-        "Qwen3-ASR-1.7B-hf": "qwen3-asr",
-    }
-
-    config.model_type = type_map[selected]
-
-    # Route to model-specific configuration
-    if config.model_type == "whisper":
-        return (ConfigStep.WHISPER_MODEL, config)
-    elif config.model_type == "parakeet-ultra":
-        return (ConfigStep.PARAKEET_ULTRA_DEVICE, config)
-    elif config.model_type == "parakeet":
-        return (ConfigStep.PARAKEET_DEVICE, config)  # legacy saved settings (NeMo path)
-    elif config.model_type == "canary":
-        return (ConfigStep.CANARY_DEVICE, config)
-    elif config.model_type == "voxtral":
-        return (ConfigStep.VOXTRAL_DEVICE, config)
-    elif config.model_type == "cohere":
-        return (ConfigStep.COHERE_DEVICE, config)
-    elif config.model_type == "granite-nar":
-        return (ConfigStep.GRANITE_NAR_DEVICE, config)
-    elif config.model_type == "granite":
-        return (ConfigStep.GRANITE_DEVICE, config)
-    elif config.model_type == "granite-turboctc":
-        return (ConfigStep.GRANITE_TURBOCTC_DEVICE, config)
-    elif config.model_type == "qwen3-asr":
-        return (ConfigStep.QWEN3_ASR_DEVICE, config)
-
-    return _back_to_initial(config)
-
-
-# ============================================================================
-# Faster-Whisper Configuration Screens
-# ============================================================================
-
-
-def _screen_whisper_model(stdscr, config: ConfigData):
-    """Select Whisper model."""
-    from .config import accepted_models_whisper
-
-    initial_idx = 0
-    if config.model_name and config.model_name in accepted_models_whisper:
-        initial_idx = accepted_models_whisper.index(config.model_name)
+    for i, e in enumerate(entries):
+        if e.repo_id == config.model_repo:
+            initial_idx = i
+            break
 
     selected = curses_menu(
         stdscr,
-        "Whisper Model",
-        accepted_models_whisper,
+        f"Model ({len(entries)} available)",
+        options,
+        footer="Pick a model. You can type to search.",
         initial_idx=initial_idx,
+        searchable=True,
     )
-
     if selected is None:
         return _back_to_initial(config)
 
-    config.model_name = selected
-    return (ConfigStep.WHISPER_DEVICE, config)
+    entry = by_label[selected]
+    config.model_repo = entry.repo_id
+    config.model_name = entry.name
+    config.model_file = ""  # force a fresh quant choice
+    return (ConfigStep.QUANT, config)
 
 
-def _screen_whisper_device(stdscr, config: ConfigData):
-    """Select compute device for Whisper."""
-    selected = _device_menu(stdscr, config)
+def _screen_quant(stdscr, config: ConfigData):
+    """Select a GGUF file (quantization) for the chosen model, with sizes."""
+    from . import catalog
+
+    while True:
+        files = catalog.files_for(config.model_repo)
+        if not files:
+            # The hub gave nothing and we have nothing cached.
+            message = f"Could not list files for {config.model_name}."
+            curses_menu(stdscr, "Error", ["Back"], message=message)
+            return (ConfigStep.MODEL, config)
+
+        options = []
+        for f in files:
+            size = "" if f.size_mb is None else f" — {f.size_mb:.0f} MB"
+            options.append(f"{f.label}{size}")
+        by_label = {opt: f for opt, f in zip(options, files, strict=True)}
+
+        initial_idx = 0
+        if config.model_file:
+            for i, f in enumerate(files):
+                if f.filename == config.model_file:
+                    initial_idx = i
+                    break
+
+        selected = curses_menu(
+            stdscr,
+            f"Precision — {config.model_name}",
+            options,
+            footer="Pick a quantization. Sizes shown are the download.",
+            initial_idx=initial_idx,
+        )
+        if selected is None:
+            return _back_to_initial(config)
+
+        chosen = by_label.get(selected)
+        if chosen is None:
+            continue
+
+        config.model_file = chosen.filename
+        return (ConfigStep.COMPUTE_DEVICE, config)
+
+
+def _screen_compute_device(stdscr, config: ConfigData):
+    """Select the compute backend."""
+    options = _available_devices()
+    initial_idx = options.index(config.device) if config.device in options else 0
+    selected = curses_menu(stdscr, "Compute Device", options, initial_idx=initial_idx)
     if selected is None:
         return _back_to_initial(config)
 
     config.device = selected
-    return (ConfigStep.WHISPER_PRECISION, config)
+    return (ConfigStep.LOAD, config)
 
 
-def _screen_whisper_precision(stdscr, config: ConfigData):
-    """Select precision for Whisper."""
-    from .config import english_only_models_whisper
+def _screen_load(stdscr, config: ConfigData):
+    """Download (first use) and load the chosen model, with a live status screen.
 
-    # Whisper GGUFs ship F16 plus the Q8/Q6/Q5/Q4 quantizations — no F32 files.
-    options = ["float16", "int8", "int4"]
-    selected = _precision_screen(stdscr, config, "float16" if config.device != "cpu" else "int8", options)
-    if selected is None:
-        return _back_to_initial(config)
+    The model must be loaded here so its capabilities can drive the language
+    menu. Runs in a background thread while the screen animates; ESC is ignored
+    (a download in progress is not safely interruptible). On failure, offers a
+    retry or a return to model selection.
+    """
+    import threading
 
-    config.compute_type = selected
+    from .models import ModelWrapper
 
-    # Check if model is English-only
+    def worker(holder: dict):
+        try:
+            holder["model"] = ModelWrapper(_settings_from_config(config))
+        except Exception as exc:  # noqa: BLE001 - surfaced to the UI
+            holder["error"] = exc
 
-    if config.model_name in english_only_models_whisper:
-        config.language = "en"
-        return (ConfigStep.HOTKEY, config)
+    while True:
+        holder: dict = {}
+        status = {"line": ""}
+        _attach_status_handler(status)
+        thread = threading.Thread(target=worker, args=(holder,), daemon=True)
+        thread.start()
+        start = time.time()
+        frames = "|/-\\"
+        i = 0
+        while thread.is_alive():
+            stdscr.clear()
+            h, w = stdscr.getmaxyx()
+            elapsed = time.time() - start
+            lines = [f"Loading {config.model_name} ({config.model_file})", f"{frames[i % len(frames)]} {elapsed:.0f}s elapsed", status["line"][: max(0, w - 2)]]
+            for row, line in enumerate(lines):
+                y = max(0, (h - len(lines)) // 2 + row)
+                if 0 <= y < h and line:
+                    try:
+                        stdscr.addstr(y, max(0, (w - len(line)) // 2), line[: w - 1])
+                    except curses.error:
+                        pass
+            stdscr.refresh()
+            stdscr.timeout(120)
+            stdscr.getch()
+            stdscr.timeout(-1)
+            i += 1
+        _detach_status_handler()
+        thread.join()
 
-    return (ConfigStep.WHISPER_LANGUAGE, config)
+        if "model" in holder and holder["model"] is not None:
+            config.model_wrapper = holder["model"]
+            return (ConfigStep.LANGUAGE, config)
+
+        # Load failed: show the reason and let the user retry or go back.
+        error = holder.get("error")
+        chosen = curses_menu(
+            stdscr,
+            "Could not load model",
+            ["Try again", "Back to model"],
+            message=_short_error(error),
+        )
+        if chosen != "Try again":
+            config.discard_model()
+            return (ConfigStep.MODEL, config)
 
 
-def _screen_whisper_language(stdscr, config: ConfigData):
-    """Select language for Whisper."""
-    from .config import accepted_languages_whisper
+def _short_error(error: Exception | None) -> str:
+    if error is None:
+        return "Unknown error."
+    text = str(error).strip() or error.__class__.__name__
+    return text if len(text) <= 300 else text[:297] + "..."
 
-    initial_idx = 0 if config.language == "" else -1
-    if config.language and config.language in accepted_languages_whisper:
-        initial_idx = accepted_languages_whisper.index(config.language)
+
+# A logging handler the loader screen installs so its thread can show the
+# latest progress line (from the downloader/model INFO logs) on the curses screen.
+_STATUS_HANDLERS: list[logging.Handler] = []
+
+
+class _StatusLogHandler(logging.Handler):
+    def __init__(self, sink: dict):
+        super().__init__()
+        self._sink = sink
+
+    def emit(self, record):
+        # logging must never raise back into the loading thread
+        with contextlib.suppress(Exception):
+            self._sink["line"] = record.getMessage()[:120]
+
+
+def _attach_status_handler(sink: dict) -> None:
+    handler = _StatusLogHandler(sink)
+    logging.getLogger("faster_whisper_hotkey").addHandler(handler)
+    _STATUS_HANDLERS.append(handler)
+
+
+def _detach_status_handler() -> None:
+    app_logger = logging.getLogger("faster_whisper_hotkey")
+    while _STATUS_HANDLERS:
+        app_logger.removeHandler(_STATUS_HANDLERS.pop())
+
+
+def _screen_language(stdscr, config: ConfigData):
+    """Select transcription language (or enter translation) from the model's capabilities."""
+    wrapper = config.model_wrapper
+    languages = wrapper.transcription_languages() if wrapper is not None else ["auto"]
+    can_translate = bool(wrapper and wrapper.supports_translate and wrapper.translation_target_languages())
+
+    options = list(languages)
+    if can_translate:
+        options.append(_TRANSLATE_OPTION)
+
+    initial_idx = 0
+    if config.language in options:
+        initial_idx = options.index(config.language)
 
     selected = curses_menu(
         stdscr,
         "Language",
-        accepted_languages_whisper,
-        initial_idx=max(initial_idx, 0),
+        options,
+        footer="Pick a language to transcribe (auto = detect), or translate." if can_translate else "Pick a language to transcribe.",
+        initial_idx=initial_idx,
     )
+    if selected is None:
+        return _back_to_initial(config)
 
+    if selected == _TRANSLATE_OPTION:
+        config.translate_target = ""
+        return (ConfigStep.TRANSLATE_SOURCE, config)
+
+    config.language = selected if selected != "auto" else "auto"
+    config.translate_target = ""
+    return (ConfigStep.HOTKEY, config)
+
+
+def _screen_translate_source(stdscr, config: ConfigData):
+    """Pick the source language for translation."""
+    wrapper = config.model_wrapper
+    sources = wrapper.translation_source_languages() if wrapper is not None else []
+    initial_idx = sources.index(config.language) if config.language in sources else 0
+
+    selected = curses_menu(stdscr, "Translate: source language", sources, initial_idx=initial_idx)
     if selected is None:
         return _back_to_initial(config)
 
     config.language = selected
+    return (ConfigStep.TRANSLATE_TARGET, config)
+
+
+def _screen_translate_target(stdscr, config: ConfigData):
+    """Pick the target language for translation."""
+    wrapper = config.model_wrapper
+    targets = wrapper.translation_target_languages() if wrapper is not None else []
+    initial_idx = targets.index(config.translate_target) if config.translate_target in targets else 0
+
+    selected = curses_menu(stdscr, "Translate: target language", targets, initial_idx=initial_idx)
+    if selected is None:
+        return _back_to_initial(config)
+
+    config.translate_target = selected
     return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Parakeet Configuration Screens
-# ============================================================================
-
-
-def _screen_parakeet_device(stdscr, config: ConfigData):
-    """Select compute device for Parakeet."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "parakeet-tdt-0.6b-v3"
-    config.device = selected
-    config.language = ""  # Parakeet supports auto-detection
-
-    return (ConfigStep.PARAKEET_PRECISION, config)
-
-
-def _screen_parakeet_ultra_device(stdscr, config: ConfigData):
-    """Select compute device for Parakeet Ultra."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "parakeet-ultra"
-    config.device = selected
-    config.language = ""  # automatic language detection (25 languages)
-
-    return (ConfigStep.PARAKEET_ULTRA_PRECISION, config)
-
-
-def _screen_parakeet_ultra_precision(stdscr, config: ConfigData):
-    """Select precision for Parakeet Ultra (GGUF quantizations)."""
-    selected = _precision_screen(stdscr, config, "int8")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.HOTKEY, config)
-
-
-def _screen_parakeet_precision(stdscr, config: ConfigData):
-    """Select precision for Parakeet."""
-    selected = _precision_screen(stdscr, config, "float32")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Canary Configuration Screens
-# ============================================================================
-
-
-def _screen_canary_source_lang(stdscr, config: ConfigData):
-    """Select source language for Canary."""
-    from .config import canary_source_target_languages
-
-    initial_idx = 0
-    if config.language_src_target and "-" in config.language_src_target:
-        src = config.language_src_target.split("-")[0]
-        if src in canary_source_target_languages:
-            initial_idx = canary_source_target_languages.index(src)
-    elif config.language and config.language in canary_source_target_languages:
-        initial_idx = canary_source_target_languages.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Source Language",
-        canary_source_target_languages,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    # Store temporarily for next step
-    config.language = selected  # Will become source part of final language
-    return (ConfigStep.CANARY_TARGET_LANG, config)
-
-
-def _screen_canary_target_lang(stdscr, config: ConfigData):
-    """Select target language for Canary."""
-    from .config import canary_allowed_language_pairs
-
-    src = config.language  # Set in previous step
-
-    allowed_targets = {p.split("-")[1] for p in canary_allowed_language_pairs if p.startswith(src + "-")}
-    target_options = sorted(allowed_targets)
-
-    initial_idx = 0
-    if config.language_src_target and "-" in config.language_src_target:
-        parts = config.language_src_target.split("-")
-        if len(parts) >= 2 and parts[1] in target_options:
-            initial_idx = target_options.index(parts[1])
-
-    selected = curses_menu(
-        stdscr,
-        "Target Language (same as source for transcription)",
-        target_options,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.language = f"{src}-{selected}"
-
-    return (ConfigStep.HOTKEY, config)
-
-
-def _screen_canary_device(stdscr, config: ConfigData):
-    """Select compute device for Canary."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "canary-1b-v2"
-    config.device = selected
-    return (ConfigStep.CANARY_PRECISION, config)
-
-
-def _screen_canary_precision(stdscr, config: ConfigData):
-    """Select precision for Canary."""
-    selected = _precision_screen(stdscr, config, "float32")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.CANARY_SOURCE_LANG, config)
-
-
-# ============================================================================
-# Voxtral Configuration Screens
-# ============================================================================
-
-
-def _screen_voxtral_device(stdscr, config: ConfigData):
-    """Select compute device for Voxtral."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.device = selected
-    return (ConfigStep.VOXTRAL_PRECISION, config)
-
-
-def _screen_voxtral_precision(stdscr, config: ConfigData):
-    """Select precision for Voxtral."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    config.model_name = "voxtral-mini-3b-2507"
-    config.language = "auto"
-    return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Cohere Configuration Screens
-# ============================================================================
-
-
-def _screen_cohere_device(stdscr, config: ConfigData):
-    """Select compute device for Cohere."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.device = selected
-    return (ConfigStep.COHERE_PRECISION, config)
-
-
-def _screen_cohere_precision(stdscr, config: ConfigData):
-    """Select precision for Cohere."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.COHERE_LANGUAGE, config)
-
-
-def _screen_cohere_language(stdscr, config: ConfigData):
-    """Select language for Cohere (no auto-detection)."""
-    from .config import accepted_languages_cohere
-
-    initial_idx = 0
-    if config.language and config.language in accepted_languages_cohere:
-        initial_idx = accepted_languages_cohere.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Language",
-        accepted_languages_cohere,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "cohere-transcribe-03-2026"
-    config.language = selected
-
-    return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Granite Configuration Screens
-# ============================================================================
-
-
-def _screen_granite_nar_device(stdscr, config: ConfigData):
-    """Select compute device for Granite NAR."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "granite-speech-4.1-2b-nar"
-    config.device = selected
-    return (ConfigStep.GRANITE_NAR_PRECISION, config)
-
-
-def _screen_granite_nar_precision(stdscr, config: ConfigData):
-    """Select precision for Granite NAR."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.GRANITE_NAR_LANGUAGE, config)
-
-
-def _screen_granite_nar_language(stdscr, config: ConfigData):
-    """Select language for Granite NAR."""
-    from .config import accepted_languages_granite
-
-    initial_idx = 0
-    if config.language and config.language in accepted_languages_granite:
-        initial_idx = accepted_languages_granite.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Language",
-        accepted_languages_granite,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.language = selected
-
-    return (ConfigStep.HOTKEY, config)
-
-
-def _screen_granite_source_lang(stdscr, config: ConfigData):
-    """Select source language for Granite AR."""
-    from .config import granite_source_target_languages
-
-    initial_idx = 0
-    if config.language_src_target and "-" in config.language_src_target:
-        src = config.language_src_target.split("-")[0]
-        if src in granite_source_target_languages:
-            initial_idx = granite_source_target_languages.index(src)
-    elif config.language and config.language in granite_source_target_languages:
-        initial_idx = granite_source_target_languages.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Source Language",
-        granite_source_target_languages,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.language = selected
-    return (ConfigStep.GRANITE_TARGET_LANG, config)
-
-
-def _screen_granite_target_lang(stdscr, config: ConfigData):
-    """Select target language for Granite AR."""
-    from .config import granite_allowed_language_pairs
-
-    src = config.language
-
-    allowed_targets = {p.split("-")[1] for p in granite_allowed_language_pairs if p.startswith(src + "-")}
-    target_options = sorted(allowed_targets)
-
-    initial_idx = 0
-    if config.language_src_target and "-" in config.language_src_target:
-        parts = config.language_src_target.split("-")
-        if len(parts) >= 2 and parts[1] in target_options:
-            initial_idx = target_options.index(parts[1])
-
-    selected = curses_menu(
-        stdscr,
-        "Target Language (same as source for transcription)",
-        target_options,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.language = f"{src}-{selected}"
-    return (ConfigStep.HOTKEY, config)
-
-
-def _screen_granite_device(stdscr, config: ConfigData):
-    """Select compute device for Granite AR."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "granite-speech-4.1-2b"
-    config.device = selected
-    return (ConfigStep.GRANITE_PRECISION, config)
-
-
-def _screen_granite_precision(stdscr, config: ConfigData):
-    """Select precision for Granite AR."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.GRANITE_SOURCE_LANG, config)
-
-
-# ============================================================================
-# Granite Speech 5.0 TurboCTC Configuration Screens
-# ============================================================================
-
-
-def _screen_granite_turboctc_device(stdscr, config: ConfigData):
-    """Select compute device for Granite Speech 5.0 TurboCTC."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "granite-speech-5.0-470m-turboctc-nc"
-    config.device = selected
-    return (ConfigStep.GRANITE_TURBOCTC_PRECISION, config)
-
-
-def _screen_granite_turboctc_precision(stdscr, config: ConfigData):
-    """Select precision for Granite Speech 5.0 TurboCTC (GGUF quantizations)."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    config.language = "en"  # English-only model, no language screen
-    return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Qwen3-ASR Configuration Screens
-# ============================================================================
-
-
-def _screen_qwen3_asr_device(stdscr, config: ConfigData):
-    """Select compute device for Qwen3-ASR."""
-    selected = _device_menu(stdscr, config)
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.model_name = "qwen3-asr-1.7b"
-    config.device = selected
-    return (ConfigStep.QWEN3_ASR_PRECISION, config)
-
-
-def _screen_qwen3_asr_precision(stdscr, config: ConfigData):
-    """Select precision for Qwen3-ASR (GGUF quantizations)."""
-    selected = _precision_screen(stdscr, config, "bfloat16")
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.compute_type = selected
-    return (ConfigStep.QWEN3_ASR_LANGUAGE, config)
-
-
-def _screen_qwen3_asr_language(stdscr, config: ConfigData):
-    """Select language for Qwen3-ASR."""
-    from .config import accepted_languages_qwen3_asr
-
-    initial_idx = 0
-    if config.language and config.language in accepted_languages_qwen3_asr:
-        initial_idx = accepted_languages_qwen3_asr.index(config.language)
-
-    selected = curses_menu(
-        stdscr,
-        "Language",
-        accepted_languages_qwen3_asr,
-        initial_idx=initial_idx,
-    )
-
-    if selected is None:
-        return _back_to_initial(config)
-
-    config.language = selected
-
-    return (ConfigStep.HOTKEY, config)
-
-
-# ============================================================================
-# Common Configuration Screens
-# ============================================================================
 
 
 def _screen_hotkey(stdscr, config: ConfigData):
@@ -1184,13 +816,7 @@ def _screen_hotkey(stdscr, config: ConfigData):
     if config.hotkey and config.hotkey.upper() in hotkey_options:
         initial_idx = hotkey_options.index(config.hotkey.upper())
 
-    selected = curses_menu(
-        stdscr,
-        "Hotkey",
-        hotkey_options,
-        initial_idx=initial_idx,
-    )
-
+    selected = curses_menu(stdscr, "Hotkey", hotkey_options, initial_idx=initial_idx)
     if selected is None:
         return _back_to_initial(config)
 
@@ -1203,13 +829,7 @@ def _screen_llm_enable(stdscr, config: ConfigData):
     options = ["Yes", "No"]
     initial_idx = 0 if config.llm_correction_enabled else 1
 
-    selected = curses_menu(
-        stdscr,
-        "Enable LLM Correction?",
-        options,
-        initial_idx=initial_idx,
-    )
-
+    selected = curses_menu(stdscr, "Enable LLM Correction?", options, initial_idx=initial_idx)
     if selected is None:
         return _back_to_initial(config)
 
@@ -1237,9 +857,7 @@ def _screen_llm_endpoint(stdscr, config: ConfigData):
 
 def _screen_llm_model(stdscr, config: ConfigData):
     """Enter LLM model name."""
-    default = config.llm_model_name or ""
-
-    result = get_text_input(stdscr, "Model name: ", default)
+    result = get_text_input(stdscr, "Model name: ", config.llm_model_name or "")
 
     if result is None:
         return _back_to_initial(config)
@@ -1250,10 +868,9 @@ def _screen_llm_model(stdscr, config: ConfigData):
 
 def _screen_llm_api_key(stdscr, config: ConfigData):
     """Enter LLM API key (plain text, or "env:VAR" to read it from an environment variable)."""
-    default = config.llm_api_key or ""
     footer = "For environment variable, use this format 'env:OPENAI_API_KEY'"
 
-    result = get_text_input(stdscr, "API key: ", default, footer=footer)
+    result = get_text_input(stdscr, "API key: ", config.llm_api_key or "", footer=footer)
 
     if result is None:
         return _back_to_initial(config)
@@ -1263,42 +880,12 @@ def _screen_llm_api_key(stdscr, config: ConfigData):
 
 
 def _final_save(stdscr, config: ConfigData):
-    """Display confirmation and save settings."""
+    """Display confirmation and return the finished settings (the caller saves)."""
     confirmation_msg = "All settings configured.\nPress ENTER to save and continue."
 
-    selected = curses_menu(
-        stdscr,
-        "Configuration Complete",
-        ["Save & Continue"],
-        message=confirmation_msg,
-    )
+    selected = curses_menu(stdscr, "Configuration Complete", ["Save & Continue"], message=confirmation_msg)
 
     if selected is None:
         return _back_to_initial(config)
 
-    # Create settings and save
-    result_settings = _create_settings_from_config(config, None)
-    return result_settings
-
-
-def _create_settings_from_config(
-    config: ConfigData,
-    last_settings: Settings | None,
-) -> Settings:
-    """Create a Settings object from ConfigData."""
-    settings_dict: dict[str, Any] = {
-        "device_name": config.device_name or "",
-        "model_type": config.model_type or "",
-        "model_name": config.model_name,
-        "compute_type": config.compute_type,
-        "device": config.device,
-        "language": config.language,
-        "hotkey": config.hotkey,
-        "vad_enabled": config.vad_enabled,
-        "llm_correction_enabled": config.llm_correction_enabled,
-        "llm_endpoint": config.llm_endpoint,
-        "llm_model_name": config.llm_model_name,
-        "llm_api_key": config.llm_api_key,
-    }
-
-    return Settings(**settings_dict)
+    return _settings_from_config(config)

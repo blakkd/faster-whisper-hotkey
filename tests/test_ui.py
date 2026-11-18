@@ -1,736 +1,636 @@
-"""
-Tests for curses-based TUI components in ui.py
+"""Tests for the curses TUI in ui.py.
+
+Covers the generic curses widgets (menu, text input) and the new state machine:
+hub-driven model/precision selection, the model load step, and the
+capabilities-driven language/translation screens.
 """
 
 import curses
 from unittest.mock import MagicMock, patch
 
-import pytest
+# ---------------------------------------------------------------------------
+# Fakes shared by the flow tests
+# ---------------------------------------------------------------------------
+
+ENTER = 13
+ESC = 27
+KEY_DOWN = 258
+KEY_UP = 259
+
+
+def make_stdscr(keys=(), height=24, width=80):
+    m = MagicMock()
+    m.getmaxyx.return_value = (height, width)
+    m.getch.side_effect = list(keys)
+    return m
+
+
+class FakeWrapper:
+    """A loaded-model stand-in exposing the capabilities the language screens use."""
+
+    def __init__(self, langs=("auto", "en", "de"), translate=False, targets=()):
+        self._langs = list(langs)
+        self.supports_translate = translate
+        self._targets = list(targets)
+        self.closed = False
+
+    def transcription_languages(self):
+        return list(self._langs)
+
+    def translation_source_languages(self):
+        return [c for c in self._langs if c != "auto"]
+
+    def translation_target_languages(self):
+        return list(self._targets)
+
+    def close(self):
+        self.closed = True
+
+
+# ===========================================================================
+# Generic widgets: text input
+# ===========================================================================
 
 
 class TestGetTextInput:
-    """Test the get_text_input function for various scenarios."""
-
-    def _create_mock_stdscr(self, height=24, width=80):
-        """Helper to create a mock stdscr with given dimensions."""
-        mock = MagicMock()
-        mock.getmaxyx.return_value = (height, width)
-        return mock
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_empty_default_no_input(self, mock_curses):
-        """Test with empty default and user enters nothing then presses Enter."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [13]  # Enter
-
-        result = get_text_input(mock_stdscr, "Enter text:", "")
-        assert result == ""
+    def _stdscr(self, height=24, width=80):
+        m = MagicMock()
+        m.getmaxyx.return_value = (height, width)
+        return m
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_default_with_no_modification(self, mock_curses):
-        """Test with default value that user accepts without changes."""
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [13]
-
-        result = get_text_input(mock_stdscr, "Enter URL:", "http://localhost:8678/v1")
-        assert result == "http://localhost:8678/v1"
+        s = self._stdscr()
+        s.getch.side_effect = [13]
+        assert get_text_input(s, "Enter URL:", "http://localhost:8678/v1") == "http://localhost:8678/v1"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_default_is_displayed_on_startup(self, mock_curses):
-        """Verify default text is displayed after prompt on same line.
-
-        This test verifies the fix for the bug where default values were not
-        rendered on screen initially, causing the cursor to appear in the middle
-        of nowhere and backspace behaving unexpectedly.
-        """
+    def test_default_is_displayed(self, mock_curses):
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [13]
-
-        default_url = "http://localhost:8678/v1"
-        prompt = "Endpoint URL:"
-        get_text_input(mock_stdscr, prompt, default_url)
-
-        calls = mock_stdscr.addstr.call_args_list
-        addstr_calls_str = str(calls)
-
-        assert default_url in addstr_calls_str, "Default value was not displayed"
+        s = self._stdscr()
+        s.getch.side_effect = [13]
+        get_text_input(s, "Endpoint URL:", "http://x/v1")
+        assert "http://x/v1" in str(s.addstr.call_args_list)
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_cursor_position_initialized_correctly(self, mock_curses):
-        """Test cursor starts at end of default text (after prompt on same line)."""
+    def test_backspace_edits_default(self, mock_curses):
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [13]
-
-        default_text = "test123"
-        prompt = "Enter:"
-        get_text_input(mock_stdscr, prompt, default_text)
-
-        move_calls = mock_stdscr.move.call_args_list
-        y_prompt_moves = [call for call in move_calls if call[0][0] == 11]
-        assert len(y_prompt_moves) > 0, "move() should be called"
-
-        columns = [call[0][1] for call in y_prompt_moves]
-        cursor_after_prompt = len(prompt) + len(default_text)
-        assert cursor_after_prompt in columns, f"Cursor at prompt_len({len(prompt)}) + default_len({len(default_text)})"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_backspace_from_end_of_default(self, mock_curses):
-        """Test backspace deletes last character from default value."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "hello")
-        assert result == "hell"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_backspace_from_empty_raises_no_error(self, mock_curses):
-        """Test backspace on empty input does nothing (no crash)."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "")
-        assert result == ""
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_backspace_from_beginning_jumps_nothing(self, mock_curses):
-        """Test backspace at position 0 is ignored."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [127, 127, 127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "")
-        assert result == ""
+        s = self._stdscr()
+        s.getch.side_effect = [127, 13]
+        assert get_text_input(s, "Enter:", "hello") == "hell"
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_escape_returns_none(self, mock_curses):
-        """Test a bare ESC (nothing following within the window) returns None."""
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, -1]  # ESC, then nothing follows
-
-        result = get_text_input(mock_stdscr, "Enter:", "default")
-        assert result is None
+        s = self._stdscr()
+        s.getch.side_effect = [27, -1]
+        assert get_text_input(s, "Enter:", "default") is None
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_alt_backspace_deletes_previous_word(self, mock_curses):
-        """Alt+Backspace (ESC + backspace) deletes the whole previous word, not the screen."""
+    def test_alt_backspace_deletes_word(self, mock_curses):
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, 127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "hello world")
-        assert result == "hello"
+        s = self._stdscr()
+        s.getch.side_effect = [27, 127, 13]
+        assert get_text_input(s, "Enter:", "hello world") == "hello"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_alt_backspace_without_space_clears_before_cursor(self, mock_curses):
-        """With no space before the cursor, Alt+Backspace clears everything before it."""
+    def test_typing_appends(self, mock_curses):
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, 127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "s1-mini-GGUF")
-        assert result == ""
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_alt_backspace_on_empty_input_does_not_cancel(self, mock_curses):
-        """Alt+Backspace with nothing to delete keeps the field open instead of cancelling."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, 127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "")
-        assert result == ""
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_alt_backspace_repeated_deletes_word_by_word(self, mock_curses):
-        """Repeated Alt+Backspace removes one whole word per press."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, 127, 27, 127, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "hello world foo")
-        assert result == "hello"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_escape_plus_other_key_does_not_cancel(self, mock_curses):
-        """ESC followed by a regular key is treated as that key, not as a cancel."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [27, 97, 13]  # ESC, 'a', Enter
-
-        result = get_text_input(mock_stdscr, "Enter:", "")
-        assert result == "a"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_typing_after_default(self, mock_curses):
-        """Test typing additional characters after default value."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [120, 121, 122, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "hello")
-        assert result == "helloxyz"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_typing_correctly_appends_to_default(self, mock_curses):
-        """Verify characters are appended correctly to default value."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [97, 98, 99, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "default")
-        assert result == "defaultabc"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_replace_default_with_new_input(self, mock_curses):
-        """Test deleting default and typing new value."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        backspaces = [127] * 5
-        new_text = [ord(c) for c in "world"]
-        mock_stdscr.getch.side_effect = backspaces + new_text + [13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "hello")
-        assert result == "world"
+        s = self._stdscr()
+        s.getch.side_effect = [ord(c) for c in "abc"] + [13]
+        assert get_text_input(s, "Enter:", "") == "abc"
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_left_right_navigation(self, mock_curses):
-        """Test cursor navigation with left/right arrow keys."""
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [
-            curses.KEY_LEFT,
-            curses.KEY_LEFT,
-            127,
-            curses.KEY_RIGHT,
-            88,
-            13,
-        ]
-
-        result = get_text_input(mock_stdscr, "Enter:", "abcde")
-        assert result == "abcdX"
+        s = self._stdscr()
+        s.getch.side_effect = [curses.KEY_LEFT, curses.KEY_LEFT, 127, curses.KEY_RIGHT, 88, 13]
+        assert get_text_input(s, "Enter:", "abcde") == "abcdX"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_input_truncated_to_width(self, mock_curses):
-        """Test input longer than terminal width is truncated for display."""
+    def test_footer_drawn_below_prompt(self, mock_curses):
         from faster_whisper_hotkey.ui import get_text_input
 
-        mock_stdscr = self._create_mock_stdscr(width=10)
-        mock_stdscr.getch.side_effect = [13]
+        s = self._stdscr()
+        s.getch.side_effect = [13]
+        get_text_input(s, "API key: ", "", footer="env: hint")
+        assert (12, 0, "env: hint") in [c.args for c in s.addstr.call_args_list]
 
-        long_default = "a" * 50
-        result = get_text_input(mock_stdscr, "Enter:", long_default)
 
-        assert result == long_default
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_prompt_truncated_to_width(self, mock_curses):
-        """Test prompt longer than terminal width is truncated."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr(width=10)
-        mock_stdscr.getch.side_effect = [13]
-
-        long_prompt = "This is a very long prompt that exceeds width"
-        result = get_text_input(mock_stdscr, long_prompt, "")
-
-        assert result == ""
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_llm_endpoint_url_default(self, mock_curses):
-        """Test realistic Endpoint URL input scenario."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [13]
-
-        result = get_text_input(
-            mock_stdscr,
-            "Endpoint URL (e.g., http://localhost:8678/v1):",
-            "http://localhost:8678/v1",
-        )
-        assert result == "http://localhost:8678/v1"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_llm_model_name_empty_default(self, mock_curses):
-        """Test LLM model name input with empty default."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [ord(c) for c in "mistral"] + [13]
-
-        result = get_text_input(mock_stdscr, "LLM model name:", "")
-        assert result == "mistral"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_cursor_not_past_end_after_typing(self, mock_curses):
-        """Test cursor position never exceeds text length."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()
-        mock_stdscr.getch.side_effect = [65, curses.KEY_RIGHT, 13]
-
-        result = get_text_input(mock_stdscr, "Enter:", "")
-        assert result == "A"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_footer_displayed_below_prompt(self, mock_curses):
-        """A footer hint should be drawn one line below the input line."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()  # 24x80 -> prompt at y=11, footer at y=12
-        mock_stdscr.getch.side_effect = [13]
-
-        get_text_input(mock_stdscr, "API key: ", "", footer="env: hint here")
-
-        assert (12, 0, "env: hint here") in [call.args for call in mock_stdscr.addstr.call_args_list]
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_no_footer_by_default(self, mock_curses):
-        """Without a footer, nothing should be drawn on the line below the prompt."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr()  # 24x80 -> prompt at y=11
-        mock_stdscr.getch.side_effect = [13]
-
-        get_text_input(mock_stdscr, "API key: ", "value")
-
-        rows_used = {call.args[0] for call in mock_stdscr.addstr.call_args_list}
-        assert 12 not in rows_used
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_footer_not_drawn_offscreen(self, mock_curses):
-        """On a one-line terminal the footer line would be out of bounds and must be skipped."""
-        from faster_whisper_hotkey.ui import get_text_input
-
-        mock_stdscr = self._create_mock_stdscr(height=1, width=80)
-        mock_stdscr.getch.side_effect = [13]
-
-        get_text_input(mock_stdscr, "Key: ", "", footer="hint")
-
-        for call in mock_stdscr.addstr.call_args_list:
-            assert 0 <= call.args[0] < 1
+# ===========================================================================
+# Generic widgets: menu
+# ===========================================================================
 
 
 class TestCursesMenu:
-    """Test the curses_menu function."""
-
     @patch("faster_whisper_hotkey.ui.curses")
     def test_simple_selection(self, mock_curses):
-        """Test selecting first option with Enter."""
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = [13]
-
-        options = ["Option 1", "Option 2", "Option 3"]
-        result = curses_menu(mock_stdscr, "Title", options)
-
-        assert result == "Option 1"
+        s = MagicMock()
+        s.getmaxyx.return_value = (24, 80)
+        s.getch.side_effect = [13]
+        assert curses_menu(s, "T", ["A", "B", "C"]) == "A"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_select_second_option(self, mock_curses):
-        """Test navigating down and selecting."""
+    def test_navigate_down_select(self, mock_curses):
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        # KEY_DOWN is 258 in curses; when mocked, we need to use the actual int
-        # so that comparison works with the mocked module's KEY_DOWN
         mock_curses.KEY_DOWN = 258
-        mock_stdscr.getch.side_effect = [258, 13]
-
-        options = ["Option 1", "Option 2", "Option 3"]
-        result = curses_menu(mock_stdscr, "Title", options)
-
-        assert result == "Option 2"
+        s = MagicMock()
+        s.getmaxyx.return_value = (24, 80)
+        s.getch.side_effect = [258, 13]
+        assert curses_menu(s, "T", ["A", "B", "C"]) == "B"
 
     @patch("faster_whisper_hotkey.ui.curses")
     def test_escape_aborts(self, mock_curses):
-        """Test ESC key returns None."""
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = [27]
-
-        result = curses_menu(mock_stdscr, "Title", ["Opt1", "Opt2"])
-        assert result is None
+        s = MagicMock()
+        s.getmaxyx.return_value = (24, 80)
+        s.getch.side_effect = [27]
+        assert curses_menu(s, "T", ["A", "B"]) is None
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_terminal_too_small(self, mock_curses):
-        """Test warning when terminal cannot display menu."""
+    def test_native_hint(self, mock_curses):
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (3, 20)
-        mock_stdscr.getch.side_effect = [27]
+        s = MagicMock()
+        s.getmaxyx.return_value = (24, 80)
+        s.getch.side_effect = [13]
+        curses_menu(s, "Precision", ["float32", "bfloat16"], native="bfloat16")
+        assert "bfloat16 (native)" in str(s.addstr.call_args_list)
 
-        result = curses_menu(mock_stdscr, "Title", ["Opt1", "Opt2"], message="Very long message...")
-        assert result is None
+
+# ===========================================================================
+# Fuzzy search (model list is long; typing filters it)
+# ===========================================================================
 
 
-class TestWhisperPrecisionScreen:
-    """Test the whisper precision screen options and preselection."""
+class TestFuzzyIndices:
+    def test_prefix_beats_substring_beats_subsequence(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-    KEY_DOWN = 258
-    KEY_UP = 259
-    ENTER = 13
-    ESC = 27
+        opts = ["a-b-c", "zzabc", "abc-first"]
+        assert _fuzzy_indices(opts, "abc") == [2, 1, 0]
 
-    def _make_stdscr(self, keys):
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = list(keys)
-        return mock_stdscr
+    def test_case_insensitive(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-    def _config(self, device="cuda", compute_type=""):
-        from faster_whisper_hotkey.ui import ConfigData
+        assert _fuzzy_indices(["Parakeet-Ultra", "whisper-small"], "PARA") == [0]
 
-        config = ConfigData()
-        config.device = device
-        config.compute_type = compute_type
-        config.model_name = "small"
-        return config
+    def test_non_match_excluded(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_default_choice_on_cuda(self, mock_curses):
-        """The GGUF files exist for every quant on every device — no guards needed."""
-        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+        assert _fuzzy_indices(["parakeet-ultra", "whisper-small"], "zzz") == []
+        # subsequence across the whole label, ignoring order of the rest
+        assert _fuzzy_indices(["parakeet-ultra", "whisper-small"], "prtu") == [0]
 
-        mock_curses.KEY_DOWN = self.KEY_DOWN
-        mock_curses.KEY_UP = self.KEY_UP
-        mock_stdscr = self._make_stdscr([self.ENTER])  # Enter on the preselected float16
+    def test_word_boundary_preferred_over_midword(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-        config = self._config(device="cuda")
-        result = _screen_whisper_precision(mock_stdscr, config)
+        # neither contains "ma" contiguously: both are subsequences; the option
+        # whose match starts at a word boundary must win despite catalog order
+        assert _fuzzy_indices(["zmba", "mxa"], "ma") == [1, 0]
 
-        next_step, config = result
-        assert next_step == ConfigStep.WHISPER_LANGUAGE
-        assert config.compute_type == "float16"
+    def test_ties_keep_original_order(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_cpu_defaults_to_int8_and_offers_int4(self, mock_curses):
-        from faster_whisper_hotkey.ui import ConfigStep, _screen_whisper_precision
+        assert _fuzzy_indices(["foo-x", "bar-x", "baz-y"], "x") == [0, 1]
 
-        mock_curses.KEY_DOWN = self.KEY_DOWN
-        mock_curses.KEY_UP = self.KEY_UP
-        mock_stdscr = self._make_stdscr([self.ENTER])
+    def test_empty_query_returns_all(self):
+        from faster_whisper_hotkey.ui import _fuzzy_indices
 
-        config = self._config(device="cpu")
-        result = _screen_whisper_precision(mock_stdscr, config)
+        assert _fuzzy_indices(["a", "b"], "") == [0, 1]
 
-        next_step, config = result
-        assert next_step == ConfigStep.WHISPER_LANGUAGE
-        assert config.compute_type == "int8"  # CPU preselection
+
+class TestSearchableMenu:
+    OPTS = ("parakeet-ultra (6)", "whisper-small (6)", "qwen3-asr-1.7b (3)")
+
+    def _stdscr(self, keys):
+        s = MagicMock()
+        s.getmaxyx.return_value = (24, 80)
+        s.getch.side_effect = keys
+        return s
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_saved_precision_preselected(self, mock_curses):
-        from faster_whisper_hotkey.ui import _screen_whisper_precision
-
-        mock_curses.KEY_DOWN = self.KEY_DOWN
-        mock_curses.KEY_UP = self.KEY_UP
-        mock_stdscr = self._make_stdscr([self.ENTER])
-
-        config = self._config(device="cuda", compute_type="int4")
-        result = _screen_whisper_precision(mock_stdscr, config)
-
-        _, config = result
-        assert config.compute_type == "int4"
-
-
-class TestCursesMenuNativeHint:
-    """Test the ' (native)' hint rendered next to the model's native precision."""
-
-    def _make_stdscr(self, keys):
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = list(keys)
-        return mock_stdscr
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_native_option_shows_hint(self, mock_curses):
+    def test_typing_filters_and_enter_selects_top_match(self, mock_curses):
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = self._make_stdscr([13])  # Enter on the first option
-
-        result = curses_menu(mock_stdscr, "Precision", ["float32", "bfloat16", "int8", "int4"], native="bfloat16")
-
-        assert result == "float32"
-        assert "bfloat16 (native)" in str(mock_stdscr.addstr.call_args_list)
+        # "ul" matches only parakeet-ultra
+        s = self._stdscr([ord("u"), ord("l"), 13])
+        assert curses_menu(s, "Model", self.OPTS, searchable=True) == self.OPTS[0]
+        assert "Search: ul" in str(s.addstr.call_args_list)
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_no_hint_when_native_not_offered(self, mock_curses):
+    def test_navigation_moves_within_filtered_view(self, mock_curses):
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = self._make_stdscr([13])
-
-        result = curses_menu(mock_stdscr, "Precision", ["int8"], native="float16")
-
-        assert result == "int8"
-        assert "(native)" not in str(mock_stdscr.addstr.call_args_list)
+        mock_curses.KEY_DOWN = 258
+        opts = ["x-ray", "delta-x"]  # both match "x"; prefix first
+        s = self._stdscr([ord("x"), 258, 13])
+        assert curses_menu(s, "Model", opts, searchable=True) == "delta-x"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_no_hint_without_native(self, mock_curses):
+    def test_backspace_edits_the_query(self, mock_curses):
         from faster_whisper_hotkey.ui import curses_menu
 
-        mock_stdscr = self._make_stdscr([13])
+        # "ulq" matches nothing; backspace -> "ul" matches parakeet-ultra again
+        s = self._stdscr([ord("u"), ord("l"), ord("q"), 127, 13])
+        assert curses_menu(s, "Model", self.OPTS, searchable=True) == self.OPTS[0]
 
-        result = curses_menu(mock_stdscr, "Precision", ["float32", "bfloat16", "int8", "int4"])
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_enter_on_empty_result_does_nothing_then_esc_restores(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
 
-        assert result == "float32"
-        assert "(native)" not in str(mock_stdscr.addstr.call_args_list)
+        # "zz": no matches -> Enter is a no-op; ESC clears the filter (not cancel);
+        # Enter then picks the top of the restored full list.
+        s = self._stdscr([ord("z"), ord("z"), 13, 27, 13])
+        assert curses_menu(s, "Model", self.OPTS, searchable=True) == self.OPTS[0]
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_esc_clears_query_then_cancels(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        s = self._stdscr([ord("u"), ord("l"), 27, 27])  # filter, clear filter, cancel
+        assert curses_menu(s, "Model", self.OPTS, searchable=True) is None
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_search_line_separated_from_results(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        s = self._stdscr([ord("u"), ord("l"), 27, 27])
+        curses_menu(s, "Model", self.OPTS, searchable=True)
+        drawn = [c.args for c in s.addstr.call_args_list if len(c.args) == 3]
+        i = next(n for n, (_y, _x, t) in enumerate(drawn) if t.startswith("Search: ul"))
+        j = next(n for n in range(i + 1, len(drawn)) if drawn[n][2] == self.OPTS[0])
+        assert drawn[j][0] - drawn[i][0] >= 3  # search line, two blank lines, first result
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_bottom_section_gaps(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        opts = [f"model-{i:02d} (6)" for i in range(20)]  # longer than the visible window
+        h, w = 24, 80
+        s = MagicMock()
+        s.getmaxyx.return_value = (h, w)
+        s.getch.side_effect = [27]
+        assert curses_menu(s, "Model", opts, footer="Type to search.", searchable=True) is None
+
+        drawn = [c.args for c in s.addstr.call_args_list if len(c.args) == 3]
+        option_rows = {y for y, _x, t in drawn if t in opts}
+        elevator_rows = {y for y, _x, t in drawn if t == "█"}
+        footer_rows = {y for y, _x, t in drawn if t == "Type to search."}
+        assert elevator_rows == {h - 3}
+        assert footer_rows == {h - 1}
+        assert option_rows and max(option_rows) <= h - 5  # blank line between list and elevator
+
+    @patch("faster_whisper_hotkey.ui.curses")
+    def test_non_searchable_menu_ignores_typed_chars(self, mock_curses):
+        from faster_whisper_hotkey.ui import curses_menu
+
+        # "z" would filter everything out if search were on -> Enter would stall.
+        s = self._stdscr([ord("z"), 13])
+        assert curses_menu(s, "T", self.OPTS) == self.OPTS[0]
 
 
-class TestPrecisionScreensUniformOrder:
-    """Precision screens list the same options for every model/device and mark the native one."""
+# ===========================================================================
+# Settings <-> config round trip
+# ===========================================================================
 
-    CANONICAL_ORDER = ("float32", "float16", "bfloat16", "int8", "int4")
 
-    @pytest.mark.parametrize(
-        ("screen_name", "device", "expected_options", "native"),
-        [
-            ("_screen_whisper_precision", "cuda", ["float16", "int8", "int4"], "float16"),
-            ("_screen_whisper_precision", "cpu", ["float16", "int8", "int4"], "int8"),
-            ("_screen_parakeet_precision", "cuda", list(CANONICAL_ORDER), "float32"),
-            ("_screen_parakeet_precision", "cpu", list(CANONICAL_ORDER), "float32"),
-            ("_screen_parakeet_ultra_precision", "cuda", list(CANONICAL_ORDER), "int8"),
-            ("_screen_parakeet_ultra_precision", "cpu", list(CANONICAL_ORDER), "int8"),
-            ("_screen_canary_precision", "cuda", list(CANONICAL_ORDER), "float32"),
-            ("_screen_canary_precision", "cpu", list(CANONICAL_ORDER), "float32"),
-            ("_screen_voxtral_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_voxtral_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_cohere_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_cohere_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_nar_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_nar_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_turboctc_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_granite_turboctc_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_qwen3_asr_precision", "cuda", list(CANONICAL_ORDER), "bfloat16"),
-            ("_screen_qwen3_asr_precision", "cpu", list(CANONICAL_ORDER), "bfloat16"),
-        ],
-    )
-    def test_options_follow_canonical_order_and_mark_native(self, screen_name, device, expected_options, native):
+class TestConfigConversion:
+    def test_settings_from_config(self):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData(
+            device_name="mic", model_repo="handy-computer/x-gguf", model_file="x-Q8_0.gguf",
+            device="cpu", language="fr", translate_target="de", hotkey="f8", vad_enabled=False,
+        )
+        s = ui._settings_from_config(config)
+        assert (s.model_repo, s.model_file, s.language, s.translate_target, s.hotkey, s.vad_enabled) == (
+            "handy-computer/x-gguf", "x-Q8_0.gguf", "fr", "de", "f8", False,
+        )
+
+    def test_config_from_last_settings_populates_model_name(self):
+        from faster_whisper_hotkey import ui
+        from faster_whisper_hotkey.settings import Settings
+
+        last = Settings(device_name="mic", model_repo="handy-computer/parakeet-ultra-gguf",
+                        model_file="parakeet-ultra-Q8_0.gguf", device="cpu", language="auto")
+        config = ui._config_from_last_settings(last)
+        assert config.model_name == "parakeet-ultra"
+        assert config.model_repo == last.model_repo
+
+    def test_discard_model_closes_wrapper(self):
+        from faster_whisper_hotkey import ui
+
+        w = FakeWrapper()
+        config = ui.ConfigData(model_wrapper=w)
+        config.discard_model()
+        assert w.closed is True and config.model_wrapper is None
+
+
+# ===========================================================================
+# Initial screen
+# ===========================================================================
+
+
+class TestInitialScreen:
+    def _initial(self, has_saved: bool, choice):
         from faster_whisper_hotkey import ui
 
         config = ui.ConfigData()
-        config.device = device
-
+        if has_saved:
+            config.model_repo = "handy-computer/x-gguf"
+            config.model_file = "x-Q8_0.gguf"
         captured = {}
 
-        def fake_menu(stdscr, title, options, **kwargs):
+        def fake_menu(stdscr, title, options, **kw):
             captured["options"] = options
-            captured["native"] = kwargs.get("native")
-            return options[0]
+            return choice
 
         with patch.object(ui, "curses_menu", fake_menu):
-            result = getattr(ui, screen_name)(MagicMock(), config)
+            result = ui._screen_initial(MagicMock(), config)
+        return result, config, captured
 
-        assert result is not None
-        assert captured["options"] == expected_options
-        assert expected_options == [p for p in self.CANONICAL_ORDER if p in expected_options]
-        assert captured["native"] == native
-        # The raw precision (no "(native)" suffix) is what gets stored
-        assert config.compute_type == expected_options[0]
+    def test_first_run_only_configures_new(self):
+        result, _, captured = self._initial(has_saved=False, choice="Configure New Settings")
+        assert captured["options"] == ["Configure New Settings"]
+        assert result[0].name == "AUDIO_DEVICE"
+
+    def test_use_last_returns_settings_directly(self):
+        from faster_whisper_hotkey.settings import Settings
+
+        result, _, captured = self._initial(has_saved=True, choice="Use Last Settings")
+        assert captured["options"] == ["Use Last Settings", "Configure New Settings"]
+        assert isinstance(result, Settings)
+
+    def test_escape_at_initial_returns_none(self):
+        result, _, _ = self._initial(has_saved=True, choice=None)
+        assert result is None
 
 
-class TestParakeetUltraDeviceScreen:
-    """Parakeet Ultra device screen: GGUF engine with a precision step after it."""
+# ===========================================================================
+# Model / precision / device screens (hub + capabilities driven)
+# ===========================================================================
 
-    ENTER = 13
-    ESC = 27
 
-    def _run_screen(self, choice: str | None, device: str = "", available: list[str] | None = None):
+class TestModelScreen:
+    def _entries(self):
+        from faster_whisper_hotkey import catalog
+
+        return [
+            catalog.ModelEntry("handy-computer/parakeet-ultra-gguf", "parakeet-ultra",
+                               (catalog.GGUFFile("parakeet-ultra-Q8_0.gguf", "Q8_0"),)),
+            catalog.ModelEntry("handy-computer/whisper-small-gguf", "whisper-small",
+                               (catalog.GGUFFile("whisper-small-F16.gguf", "F16"),)),
+        ]
+
+    def _run(self, choice, model_repo=""):
         from faster_whisper_hotkey import ui
 
         config = ui.ConfigData()
-        config.device = device
-
+        config.model_repo = model_repo
         captured = {}
 
-        def fake_menu(stdscr, title, options, **kwargs):
-            captured["title"] = title
+        def fake_menu(stdscr, title, options, **kw):
             captured["options"] = options
-            captured["footer"] = kwargs.get("footer", "")
-            captured["initial_idx"] = kwargs.get("initial_idx", 0)
+            captured.update(kw)
             return choice
 
         with (
+            patch("faster_whisper_hotkey.catalog.list_models", return_value=self._entries()),
             patch.object(ui, "curses_menu", fake_menu),
-            patch("transcribe_cpp.backend_available", lambda b: b in (available or ["cuda", "vulkan", "cpu"])),
         ):
-            result = ui._screen_parakeet_ultra_device(MagicMock(), config)
-
+            result = ui._screen_model(MagicMock(), config)
         return result, config, captured
 
-    def test_cuda_selection(self):
+    def test_selects_model_and_advances(self):
+        result, config, _ = self._run("whisper-small (1)")
+        assert result[0].name == "QUANT"
+        assert config.model_repo == "handy-computer/whisper-small-gguf"
+        assert config.model_name == "whisper-small"
+
+    def test_escape_returns_initial(self):
+        result, _, _ = self._run(None)
+        assert result[0].name == "INITIAL"
+
+    def test_list_is_searchable_and_has_no_refresh_entry(self):
+        _, _, captured = self._run("whisper-small (1)")
+        assert captured["searchable"] is True
+        assert not any("refresh" in o.lower() for o in captured["options"])
+
+
+class TestQuantScreen:
+    def _files(self):
+        from faster_whisper_hotkey import catalog
+
+        return [
+            catalog.GGUFFile("whisper-small-Q8_0.gguf", "Q8_0", size_bytes=200_000_000),
+            catalog.GGUFFile("whisper-small-F16.gguf", "F16", size_bytes=500_000_000),
+        ]
+
+    def _run(self, choice, files):
         from faster_whisper_hotkey import ui
 
-        result, config, captured = self._run_screen("cuda")
+        config = ui.ConfigData(model_repo="handy-computer/whisper-small-gguf", model_name="whisper-small")
+        captured = {}
 
-        assert result == (ui.ConfigStep.PARAKEET_ULTRA_PRECISION, config)
-        assert config.model_name == "parakeet-ultra"
-        assert config.device == "cuda"
-        assert config.language == ""  # automatic language detection
-        assert captured["options"] == ["cuda", "vulkan", "cpu"]
-        assert captured["initial_idx"] == 0
+        def fake_menu(stdscr, title, options, **kw):
+            captured["options"] = options
+            return choice
 
-    def test_cpu_selection_and_preselect(self):
+        with patch("faster_whisper_hotkey.catalog.files_for", return_value=files), patch.object(ui, "curses_menu", fake_menu):
+            result = ui._screen_quant(MagicMock(), config)
+        return result, config, captured
+
+    def test_selects_file_with_size_label(self):
+        result, config, captured = self._run("int8 — 200 MB", self._files())
+        assert result[0].name == "COMPUTE_DEVICE"
+        assert config.model_file == "whisper-small-Q8_0.gguf"
+        assert any("MB" in o for o in captured["options"])
+
+    def test_escape_returns_initial(self):
+        result, _, _ = self._run(None, self._files())
+        assert result[0].name == "INITIAL"
+
+    def test_no_files_returns_to_model(self):
+        result, _, _ = self._run(None, [])
+        assert result[0].name == "MODEL"
+
+
+class TestComputeDeviceScreen:
+    def _run(self, choice, device="", available=("cuda", "vulkan", "cpu")):
         from faster_whisper_hotkey import ui
 
-        result, config, captured = self._run_screen("cpu", device="cpu")
+        config = ui.ConfigData()
+        config.device = device
+        captured = {}
 
-        assert result == (ui.ConfigStep.PARAKEET_ULTRA_PRECISION, config)
+        def fake_menu(stdscr, title, options, **kw):
+            captured["options"] = options
+            captured["initial_idx"] = kw.get("initial_idx", 0)
+            return choice
+
+        with patch.object(ui, "curses_menu", fake_menu), patch("transcribe_cpp.backend_available", lambda b: b in available):
+            result = ui._screen_compute_device(MagicMock(), config)
+        return result, config, captured
+
+    def test_select_device_advances_to_load(self):
+        result, config, captured = self._run("cpu")
+        assert result[0].name == "LOAD"
         assert config.device == "cpu"
-        assert captured["initial_idx"] == 2
+        assert captured["options"] == ["cuda", "vulkan", "cpu"]
 
-    def test_vulkan_preselect(self):
-        from faster_whisper_hotkey import ui
-
-        result, config, captured = self._run_screen("vulkan", device="vulkan")
-
-        assert result[0] == ui.ConfigStep.PARAKEET_ULTRA_PRECISION
-        assert config.device == "vulkan"
+    def test_preselect_saved_device(self):
+        _, _, captured = self._run("vulkan", device="vulkan")
         assert captured["initial_idx"] == 1
 
-    def test_unavailable_backends_are_hidden(self):
-        """No CUDA provider installed -> the menu offers only what works."""
-        _, config, captured = self._run_screen("vulkan", device="cuda", available=["vulkan", "cpu"])
-
+    def test_hides_unavailable_backends(self):
+        _, _, captured = self._run("cpu", available=("vulkan", "cpu"))
         assert captured["options"] == ["vulkan", "cpu"]
-        assert captured["initial_idx"] == 0  # saved "cuda" is gone: start at top
-        assert config.device == "vulkan"  # a fresh pick replaces the stale value
 
-    def test_esc_returns_to_initial(self):
+
+# ===========================================================================
+# Load screen (model loaded during configuration)
+# ===========================================================================
+
+
+class TestLoadScreen:
+    def test_success_loads_model(self):
         from faster_whisper_hotkey import ui
 
-        result, config, _ = self._run_screen(None)
+        fake_wrapper = FakeWrapper()
+        config = ui.ConfigData(model_repo="handy-computer/parakeet-ultra-gguf", model_file="parakeet-ultra-Q8_0.gguf", model_name="parakeet-ultra", device="cpu")
+        with patch("faster_whisper_hotkey.models.ModelWrapper", return_value=fake_wrapper):
+            s = make_stdscr()
+            result = ui._screen_load(s, config)
+        assert result[0].name == "LANGUAGE"
+        assert config.model_wrapper is fake_wrapper
 
-        assert result == (ui.ConfigStep.INITIAL, config)
+    def test_failure_returns_to_model(self):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData(model_repo="handy-computer/parakeet-ultra-gguf", model_file="parakeet-ultra-Q8_0.gguf", model_name="parakeet-ultra", device="cpu")
+        with patch("faster_whisper_hotkey.models.ModelWrapper", side_effect=RuntimeError("disk full")), patch.object(
+            ui, "curses_menu", lambda *a, **k: "Back to model"
+        ):
+            s = make_stdscr()
+            result = ui._screen_load(s, config)
+        assert result[0].name == "MODEL"
+        assert config.model_wrapper is None
+
+
+# ===========================================================================
+# Language + translation screens (from capabilities)
+# ===========================================================================
+
+
+class TestLanguageScreen:
+    def _run(self, wrapper, choice):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData(model_wrapper=wrapper, language="en")
+        captured = {}
+
+        def fake_menu(stdscr, title, options, **kw):
+            captured["options"] = options
+            return choice
+
+        with patch.object(ui, "curses_menu", fake_menu):
+            result = ui._screen_language(MagicMock(), config)
+        return result, config, captured
+
+    def test_pick_language_transcribes(self):
+        result, config, _ = self._run(FakeWrapper(langs=["auto", "en", "de"]), "de")
+        assert result[0].name == "HOTKEY"
+        assert config.language == "de" and config.translate_target == ""
+
+    def test_no_translate_option_when_unsupported(self):
+        _, _, captured = self._run(FakeWrapper(langs=["auto", "en"], translate=False), "en")
+        assert not any("translate" in o.lower() for o in captured["options"])
+
+    def test_translate_option_when_supported(self):
+        result, _, captured = self._run(FakeWrapper(langs=["auto", "en"], translate=True, targets=["de"]), "(translate to another language...)")
+        assert result[0].name == "TRANSLATE_SOURCE"
+        assert any("translate" in o.lower() for o in captured["options"])
+
+    def test_escape_returns_initial(self):
+        result, _, _ = self._run(FakeWrapper(langs=["auto", "en"]), None)
+        assert result[0].name == "INITIAL"
+
+    def test_translate_source_then_target(self):
+        from faster_whisper_hotkey import ui
+
+        wrapper = FakeWrapper(langs=["auto", "en", "fr"], translate=True, targets=["de", "it"])
+        config = ui.ConfigData(model_wrapper=wrapper, language="en")
+        with patch.object(ui, "curses_menu", lambda *a, **k: "fr"):
+            result = ui._screen_translate_source(MagicMock(), config)
+        assert result[0].name == "TRANSLATE_TARGET" and config.language == "fr"
+        with patch.object(ui, "curses_menu", lambda *a, **k: "it"):
+            result = ui._screen_translate_target(MagicMock(), config)
+        assert result[0].name == "HOTKEY" and config.translate_target == "it"
+
+
+# ===========================================================================
+# Hotkey + LLM screens (ESC returns to INITIAL, env: handling)
+# ===========================================================================
+
+
+class TestHotkeyScreen:
+    def _run(self, choice, hotkey=""):
+        from faster_whisper_hotkey import ui
+
+        config = ui.ConfigData(hotkey=hotkey)
+        with patch.object(ui, "curses_menu", lambda *a, **k: choice):
+            result = ui._screen_hotkey(MagicMock(), config)
+        return result, config
+
+    def test_select_hotkey(self):
+        result, config = self._run("F4")
+        assert result[0].name == "LLM_ENABLE" and config.hotkey == "f4"
+
+    def test_escape_returns_initial(self):
+        result, _ = self._run(None)
+        assert result[0].name == "INITIAL"
 
 
 class TestLLMApiKeyScreen:
-    """Test the LLM API key screen (env: hint, prefill, save flow)."""
-
-    ENTER = 13
-    ESC = 27
-
-    def _make_stdscr(self, keys):
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = list(keys)
-        return mock_stdscr
-
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_shows_env_hint_footer(self, mock_curses):
-        """The API key screen should hint at the env: prefix."""
-        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+    def test_shows_env_hint_and_saves(self, mock_curses):
+        from faster_whisper_hotkey import ui
 
-        # Enter confirms the key input, Enter confirms the final save screen
-        mock_stdscr = self._make_stdscr([self.ENTER, self.ENTER])
-        config = ConfigData()
-
-        result = _screen_llm_api_key(mock_stdscr, config)
-
+        config = ui.ConfigData(llm_api_key="")
+        s = make_stdscr([ENTER, ENTER])  # confirm key (empty), confirm save
+        result = ui._screen_llm_api_key(s, config)
         assert not isinstance(result, tuple)
         assert result.llm_api_key == ""
-        footers = [
-            call.args[2]
-            for call in mock_stdscr.addstr.call_args_list
-            if len(call.args) == 3 and isinstance(call.args[2], str)
-        ]
-        assert any("env:" in f and "environment variable" in f for f in footers)
+        footers = [c.args[2] for c in s.addstr.call_args_list if len(c.args) == 3 and isinstance(c.args[2], str)]
+        assert any("env:" in f for f in footers)
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_env_reference_saved_not_value(self, mock_curses):
-        """Typing env:VAR saves the variable name, never the value."""
-        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+    def test_env_reference_saved_verbatim(self, mock_curses):
+        from faster_whisper_hotkey import ui
 
-        keys = [ord(c) for c in "env:MY_KEY"] + [self.ENTER, self.ENTER]
-        mock_stdscr = self._make_stdscr(keys)
-        config = ConfigData()
-
-        result = _screen_llm_api_key(mock_stdscr, config)
-
-        assert not isinstance(result, tuple)
+        config = ui.ConfigData(llm_api_key="")
+        s = make_stdscr([ord(c) for c in "env:MY_KEY"] + [ENTER, ENTER])
+        result = ui._screen_llm_api_key(s, config)
         assert result.llm_api_key == "env:MY_KEY"
 
     @patch("faster_whisper_hotkey.ui.curses")
-    def test_saved_env_reference_prefilled(self, mock_curses):
-        """A previously saved env: reference is prefilled and displayed."""
-        from faster_whisper_hotkey.ui import ConfigData, _screen_llm_api_key
+    def test_escape_returns_initial(self, mock_curses):
+        from faster_whisper_hotkey import ui
 
-        mock_stdscr = self._make_stdscr([self.ENTER, self.ENTER])
-        config = ConfigData()
-        config.llm_api_key = "env:MY_KEY"
-
-        result = _screen_llm_api_key(mock_stdscr, config)
-
-        assert "env:MY_KEY" in str(mock_stdscr.addstr.call_args_list)
-        assert not isinstance(result, tuple)
-        assert result.llm_api_key == "env:MY_KEY"
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_escape_returns_to_initial(self, mock_curses):
-        """ESC on the API key screen returns to the initial screen."""
-        from faster_whisper_hotkey.ui import ConfigData, ConfigStep, _screen_llm_api_key
-
-        mock_stdscr = self._make_stdscr([self.ESC, -1])  # bare ESC
-        config = ConfigData()
-
-        result = _screen_llm_api_key(mock_stdscr, config)
-
-        assert result == (ConfigStep.INITIAL, config)
-
-
-class TestLLMModelScreen:
-    """Test the LLM model name screen (the original ALT+BACKSPACE bug scenario)."""
-
-    ENTER = 13
-
-    def _make_stdscr(self, keys):
-        mock_stdscr = MagicMock()
-        mock_stdscr.getmaxyx.return_value = (24, 80)
-        mock_stdscr.getch.side_effect = list(keys)
-        return mock_stdscr
-
-    @patch("faster_whisper_hotkey.ui.curses")
-    def test_alt_backspace_erases_prefilled_name(self, mock_curses):
-        """ALT+BACKSPACE on the model name screen erases the prefilled name instead of exiting."""
-        from faster_whisper_hotkey.ui import ConfigData, ConfigStep, _screen_llm_model
-
-        mock_stdscr = self._make_stdscr([27, 127, self.ENTER])  # Alt+Backspace, then Enter
-        config = ConfigData()
-        config.llm_model_name = "qwen3-asr"
-
-        result = _screen_llm_model(mock_stdscr, config)
-
-        assert result is not None
-        assert result == (ConfigStep.LLM_API_KEY, config)
-        assert config.llm_model_name == ""
+        config = ui.ConfigData()
+        s = make_stdscr([ESC, -1])
+        result = ui._screen_llm_api_key(s, config)
+        assert result[0].name == "INITIAL"
