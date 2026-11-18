@@ -55,8 +55,8 @@ def resolve_backend(device: str) -> "transcribe_cpp.Backend":
     if backend != "auto" and not transcribe_cpp.backend_available(backend):
         raise ValueError(
             f"The {backend!r} backend is not available with the installed transcribe_cpp library. "
-            "Pick a listed device in the settings screen (CUDA needs a source-built provider, "
-            "see dev/onboarding.md)."
+            "Pick a listed device in the settings screen (the CUDA provider installs with "
+            "`pip install 'transcribe-cpp[cu12]' --extra-index-url https://handy-computer.github.io/transcribe.cpp/whl/cu12`)."
         )
     return backend
 

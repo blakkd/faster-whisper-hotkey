@@ -30,9 +30,10 @@ keywords = [
 
 # DEPENDENCIES
 # One inference engine: transcribe-cpp (pure-Python ctypes binding) plus its
-# native ggml provider (CPU + Vulkan wheels on Linux; CUDA is built from
-# source, see dev/onboarding.md). Everything that previously came with
-# CTranslate2, NeMo, Photon, transformers and bitsandbytes is gone.
+# native ggml provider (CPU + Vulkan wheels on Linux; CUDA is the opt-in
+# `cu12` extra served on a GitHub Pages index — see dev/onboarding.md).
+# Everything that previously came with CTranslate2, NeMo, Photon, transformers
+# and bitsandbytes is gone.
 # Floors, not pins: exact versions live in uv.lock for the dev environment, so
 # installs on any supported Python (3.10-3.15) can resolve wheels built for it
 # (e.g. numpy has no cp314/cp315 wheels at 2.2.x).

@@ -362,8 +362,9 @@ def get_text_input(stdscr, prompt: str, default: str = "", footer: str = "") -> 
 # ---------------------------------------------------------------------------
 # Every model runs on the transcribe.cpp ggml runtime, which offers CUDA
 # (NVIDIA), Vulkan (AMD/Intel GPUs) and plain CPU. CUDA and Vulkan are optional
-# ggml modules — the PyPI wheel has CPU+Vulkan, CUDA needs a source build
-# (dev/onboarding.md); the menu lists what the installed provider can serve.
+# ggml modules — the PyPI wheel has CPU+Vulkan; CUDA comes from the `cu12`
+# extra served on a GitHub Pages index (dev/onboarding.md). The menu lists
+# what the installed provider can serve.
 _DEVICE_OPTIONS: list[Literal["cuda", "vulkan", "cpu"]] = ["cuda", "vulkan", "cpu"]
 
 

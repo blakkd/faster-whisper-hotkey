@@ -18,8 +18,9 @@ Backend lanes / flags still work (they're backend-generic): --cpu-only,
 --cuda-only, --vulkan-only, --gpu-only, --force-cuda/--force-vulkan,
 --configs cpu:Q4_K_M, --runs N, --skip-download, --results-file PATH.
 
-"cuda" means the ggml CUDA backend (source-built provider; the PyPI wheel
-ships CPU+Vulkan). CI runners have no GPU, so the GPU lanes auto-skip there.
+"cuda" means the ggml CUDA backend (installed via the `cu12` extra:
+`pip install "transcribe-cpp[cu12]" --extra-index-url https://handy-computer.github.io/transcribe.cpp/whl/cu12`;
+the default PyPI wheel ships CPU+Vulkan only). CI runners have no GPU, so the GPU lanes auto-skip there.
 """
 
 import gc

@@ -43,6 +43,18 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
   uv tool install faster-whisper-hotkey
   ```
 
+- want CUDA (NVIDIA GPUs)? Same commands plus the `cu12` provider. Its wheel is too large for PyPI, so it comes from the engine's own index (only a CUDA 12-capable driver is needed, no CUDA Toolkit):
+
+  ```
+  uv pip install faster-whisper-hotkey "transcribe-cpp[cu12]" --extra-index-url https://handy-computer.github.io/transcribe.cpp/whl/cu12
+  ```
+
+  ```
+  uv tool install faster-whisper-hotkey --with "transcribe-cpp[cu12]" --extra-index-url https://handy-computer.github.io/transcribe.cpp/whl/cu12
+  ```
+
+  `cuda` then shows up in the Compute Device menu.
+
 ### From source
 
 1. Clone the repository:
@@ -67,6 +79,8 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
   ```
   uv tool install .
   ```
+
+- CUDA variant: same as above, just append `--with "transcribe-cpp[cu12]" --extra-index-url https://handy-computer.github.io/transcribe.cpp/whl/cu12` (same flag for `uv pip install .`).
 
 ## Usage
 
