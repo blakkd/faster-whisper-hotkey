@@ -8,7 +8,7 @@ Context document for collaborators and agents working in this repo.
 
 ## Setup & commands
 
-- Python **==3.11.14** (strict pin), managed with **uv**.
+- Python **>=3.10** (`requires-python`; CI/dev environment on **3.11.14** via `.python-version`), managed with **uv**. Dependency floors, exact versions in `uv.lock`. The full suite is matrix-tested on CPython 3.10-3.15 (uv-provided): per version `UV_PROJECT_ENVIRONMENT=/tmp/venv-py$V uv sync --python $V` then that venv's `python -m pytest tests/`.
 - Run the tool: `uv run faster-whisper-hotkey` (flags: `--debug`, `--headless`, `--config <path>`).
 - Fast unit suite: `uv run pytest tests/ --ignore=tests/test_model_all_configs.py`
 - Engine smoke test: `uv run pytest tests/test_model_all_configs.py -v --tb=long` — ONE tiny model (granite-turboctc Q4_K_M, ~280 MB, addressed by hub repo + GGUF file) through the full app stack on every backend (cpu/cuda/vulkan; GPU configs auto-skip where the backend is absent). Everything above the engine boundary is our code and unit-tested; per-model engine behavior is transcribe.cpp's job. Metrics flags are backend-generic: `--runs N`, lanes `--cpu-only`/`--cuda-only`/`--vulkan-only`/`--gpu-only`, `--force-cuda`/`--force-vulkan`, `--configs device:QUANT` filter, `--skip-download`, `--results-file PATH`. A GPU row must run on the requested backend (strict, no substitution) and empty transcriptions fail loudly.

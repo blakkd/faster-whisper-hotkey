@@ -25,14 +25,14 @@ _To help with choosing your model, you can also take a look at [AA-AgentTalk sco
 
 _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 
-**Requires Python `3.11.14`**
+**Requires Python `3.10` or newer** (tested through 3.15)
 
 ### From PyPi
 
 - As a pip package:
 
   ```
-  uv venv --python 3.11.14
+  uv venv --python 3.14
   source .venv/bin/activate
   uv pip install faster-whisper-hotkey
   ```
@@ -40,7 +40,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 - or as an tool, so that you can run faster-whisper-hotkey from any venv:
 
   ```
-  uv tool install faster-whisper-hotkey --python=3.11.14
+  uv tool install faster-whisper-hotkey
   ```
 
 ### From source
@@ -57,7 +57,7 @@ _see https://docs.astral.sh/uv/ for more information on uv. uv is fast :\)_
 - as a pip package:
 
   ```
-  uv venv --python 3.11.14
+  uv venv --python 3.14
   source .venv/bin/activate
   uv pip install .
   ```

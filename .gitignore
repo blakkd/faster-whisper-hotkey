@@ -1,4 +1,5 @@
 .*
+!.python-version
 build/
 __pycache__/
 *.pyc
