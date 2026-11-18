@@ -70,14 +70,13 @@ def build(settings: Settings, engine: MagicMock | None = None):
     from faster_whisper_hotkey.models import ModelWrapper
 
     eng = engine or make_engine()
-    _started_patches.extend(
-        [
-            patch("faster_whisper_hotkey.models.ensure_gguf", return_value="/tmp/fake.gguf"),
-            patch("faster_whisper_hotkey.models.transcribe_cpp", eng),
-        ]
-    )
-    for p in _started_patches:
+    patches = [
+        patch("faster_whisper_hotkey.models.ensure_gguf", return_value="/tmp/fake.gguf"),
+        patch("faster_whisper_hotkey.models.transcribe_cpp", eng),
+    ]
+    for p in patches:
         p.start()
+    _started_patches.extend(patches)  # stopped by the autouse fixture
     return ModelWrapper(settings), eng
 
 

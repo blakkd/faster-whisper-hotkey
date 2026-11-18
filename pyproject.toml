@@ -9,10 +9,15 @@ description = "Push-to-talk transcription"
 readme = "README.md"
 authors = [{name = "blakkd"}]
 license-files = ["LICENSE.txt"]
-requires-python = "==3.11.14"
+requires-python = ">=3.10"
 
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX",
 ]
 
@@ -28,23 +33,26 @@ keywords = [
 # native ggml provider (CPU + Vulkan wheels on Linux; CUDA is built from
 # source, see dev/onboarding.md). Everything that previously came with
 # CTranslate2, NeMo, Photon, transformers and bitsandbytes is gone.
+# Floors, not pins: exact versions live in uv.lock for the dev environment, so
+# installs on any supported Python (3.10-3.15) can resolve wheels built for it
+# (e.g. numpy has no cp314/cp315 wheels at 2.2.x).
 dependencies = [
-    "sounddevice==0.5.5",
-    "numpy==2.2.6",
-    "pynput==1.8.2",
-    "pulsectl==24.12.0",
-    "requests==2.34.2",
-    "pyperclip==1.11.0",
-    "soundfile==0.14.0",
-    "transcribe-cpp==0.4.2",
+    "sounddevice>=0.5.5",
+    "numpy>=2.2.6",
+    "pynput>=1.8.2",
+    "pulsectl>=24.12.0",
+    "requests>=2.34.2",
+    "pyperclip>=1.11.0",
+    "soundfile>=0.14.0",
+    "transcribe-cpp>=0.4.2",
 ]
 
 # DEV TOOLS (kept in the lock so `uv sync` doesn't prune them)
 [dependency-groups]
 dev = [
-    "pytest==9.1.1",
-    "ruff==0.16.3",
-    "pyright==1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.16.3",
+    "pyright>=1.1.414",
 ]
 
 # SCRIPTS
@@ -65,7 +73,7 @@ line-length = 120
 
 # PYRIGHT
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.10"
 include = ["src"]
 typeCheckingMode = "standard"
 reportMissingImports = "warning"
